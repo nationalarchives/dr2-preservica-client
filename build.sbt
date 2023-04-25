@@ -73,8 +73,10 @@ lazy val root: Project = project
 
 lazy val fs2 = project
   .in(file("fs2"))
+
   .settings(commonSettings)
   .settings(
+    name := "preservica-client-fs2",
     libraryDependencies += sttpFs2
   ).dependsOn(root % "compile->compile;test->test")
 
@@ -82,6 +84,7 @@ lazy val zio = project
   .in(file("zio"))
   .settings(commonSettings)
   .settings(
+    name := "preservica-client-zio",
     libraryDependencies ++= Seq(zioInteropCats, sttpZio)
   ).dependsOn(root % "compile->compile;test->test")
 
