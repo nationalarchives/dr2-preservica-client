@@ -1,0 +1,16 @@
+name: DP Run Tests
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on:  ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: nationalarchives/tdr-github-actions/.github/actions/run-git-secrets@main
+      - uses: nationalarchives/tdr-github-actions/.github/actions/slack-send@main
+        if: failure()
+        with:
+          message: ":warning: Secrets found in repository dp-preservica-client"
+          slack-url: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Run tests
+        run: sbt test scalafmtCheckAll

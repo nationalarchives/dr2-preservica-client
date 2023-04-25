@@ -1,0 +1,17 @@
+name: DP Deploy Preservica Client
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  deploy:
+    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@main
+    with:
+      library-name: "Preservica Client"
+    secrets:
+      WORKFLOW_PAT: ${{ secrets.WORKFLOW_TOKEN }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+      SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
