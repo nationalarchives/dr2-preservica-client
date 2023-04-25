@@ -25,7 +25,7 @@ lazy val releaseSettings = Seq(
   resolvers +=
     "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   version := (ThisBuild / version).value,
-  organization := "uk.gov.nationalarchives.dp.client",
+  organization := "uk.gov.nationalarchives",
   organizationName := "National Archives",
 
   scmInfo := Some(
