@@ -60,8 +60,7 @@ lazy val commonSettings = Seq(
     scalaTest % Test,
     wireMock % Test,
   )
-
-)
+) ++ releaseSettings
 
 lazy val fs2Ref = LocalProject("fs2")
 lazy val zioRef = LocalProject("zio")
@@ -75,7 +74,6 @@ lazy val root: Project = project
 lazy val fs2 = project
   .in(file("fs2"))
   .settings(commonSettings)
-  .settings(releaseSettings)
   .settings(
     libraryDependencies += sttpFs2
   ).dependsOn(root % "compile->compile;test->test")
@@ -83,7 +81,6 @@ lazy val fs2 = project
 lazy val zio = project
   .in(file("zio"))
   .settings(commonSettings)
-  .settings(releaseSettings)
   .settings(
     libraryDependencies ++= Seq(zioInteropCats, sttpZio)
   ).dependsOn(root % "compile->compile;test->test")
