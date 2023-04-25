@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
-    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@bump-gpg-library
+    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@main
     with:
       library-name: "Preservica Client"
     secrets:
