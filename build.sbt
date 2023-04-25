@@ -13,7 +13,7 @@ ThisBuild / scmInfo := Some(
     "git@github.com:nationalarchives/dp-preservica-client.git"
   )
 )
-developers := List(
+ThisBuild / developers := List(
   Developer(
     id = "tna-digital-archiving-jenkins",
     name = "TNA Digital Archiving",
@@ -27,28 +27,6 @@ ThisBuild / licenses := List("MIT" -> new URL("https://choosealicense.com/licens
 ThisBuild / homepage := Some(url("https://github.com/nationalarchives/dp-preservica-client"))
 
 
-useGpgPinentry := true
-publishTo := sonatypePublishToBundle.value
-publishMavenStyle := true
-
-releaseProcess := Seq[ReleaseStep](
-  checkSnapshotDependencies,
-  inquireVersions,
-  runClean,
-  runTest,
-  setReleaseVersion,
-  commitReleaseVersion,
-  tagRelease,
-  releaseStepCommand("publishSigned"),
-  releaseStepCommand("sonatypeBundleRelease"),
-  setNextVersion,
-  commitNextVersion,
-  pushChanges
-)
-
-resolvers +=
-  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
   libraryDependencies ++= Seq(
@@ -61,7 +39,28 @@ lazy val commonSettings = Seq(
     zioInteropCats,
     scalaTest % Test,
     wireMock % Test,
-  )
+  ),
+  useGpgPinentry := true,
+  publishTo := sonatypePublishToBundle.value,
+  publishMavenStyle := true,
+
+  releaseProcess := Seq[ReleaseStep](
+    checkSnapshotDependencies,
+    inquireVersions,
+    runClean,
+    runTest,
+    setReleaseVersion,
+    commitReleaseVersion,
+    tagRelease,
+    releaseStepCommand("publishSigned"),
+    releaseStepCommand("sonatypeBundleRelease"),
+    setNextVersion,
+    commitNextVersion,
+    pushChanges
+  ),
+  resolvers +=
+    "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+
 )
 
 lazy val fs2Ref = LocalProject("fs2")
