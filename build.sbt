@@ -68,12 +68,13 @@ lazy val zioRef = LocalProject("zio")
 lazy val root: Project = project
   .in(file("."))
   .settings(commonSettings)
-  .settings(publishArtifact := false)
+  .settings(
+    name := "preservica-client-root"
+  )
   .aggregate(fs2Ref, zioRef)
 
 lazy val fs2 = project
   .in(file("fs2"))
-
   .settings(commonSettings)
   .settings(
     name := "preservica-client-fs2",
