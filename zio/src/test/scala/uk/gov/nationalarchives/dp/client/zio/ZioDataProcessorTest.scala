@@ -2,7 +2,7 @@ package uk.gov.nationalarchives.dp.client.zio
 
 import uk.gov.nationalarchives.dp.client.DataProcessorTest
 import zio.{Runtime, Task, Unsafe}
-import zio.interop.catz.core.*
+import zio.interop.catz.core._
 
 class ZioDataProcessorTest extends DataProcessorTest[Task] {
   val runtime: Runtime[Any] = Runtime.default

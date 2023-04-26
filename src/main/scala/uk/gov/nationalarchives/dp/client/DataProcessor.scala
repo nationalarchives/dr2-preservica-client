@@ -5,12 +5,14 @@ import uk.gov.nationalarchives.dp.client.Client.{BitStreamInfo, Entity}
 
 import scala.xml.{Elem, NodeSeq}
 
-class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
+class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 
-  extension (ns: NodeSeq)
-    private def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match
+  implicit class NodeSeqUtils(ns: NodeSeq) {
+    def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
       case None        => me.raiseError(new RuntimeException("Generation not found"))
+    }
+  }
 
   def fragmentUrls(elem: Elem): F[Seq[String]] = {
     val fragments = elem \ "AdditionalInformation" \ "Metadata" \ "Fragment"
@@ -61,5 +63,5 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
 }
 
 object DataProcessor {
-  def apply[F[_]]()(using me: MonadError[F, Throwable]) = new DataProcessor[F]()
+  def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
 }

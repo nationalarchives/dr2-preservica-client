@@ -1,20 +1,20 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError as CatsMonadError
+import cats.MonadError
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.AuthDetails
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
-import scala.jdk.CollectionConverters.*
+import scala.jdk.CollectionConverters._
 
-abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(using
-    cme: CatsMonadError[F, Throwable]
+abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
+    cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
     with BeforeAndAfterEach {
 

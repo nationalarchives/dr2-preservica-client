@@ -1,13 +1,12 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.implicits.*
-import sttp.capabilities
+import cats.implicits._
 import sttp.capabilities.Streams
-import sttp.client3.*
-import sttp.client3.upicklejson.*
+import sttp.client3._
+import sttp.client3.upicklejson._
 import uk.gov.nationalarchives.dp.client.Client.{AuthDetails, BitStreamInfo, Entity}
-import upickle.default.*
+import upickle.default._
 
 import java.time.format.DateTimeFormatter
 import java.time.ZonedDateTime
@@ -28,19 +27,24 @@ trait Client[F[_], S] {
 
 object Client {
   private val asXml: ResponseAs[Either[String, Elem], Any] = asString.mapRight(XML.loadString)
-  given responsePayloadRW: ReadWriter[Token] = macroRW[Token]
+  implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
+
   case class AuthDetails(userName: String, password: String)
+
   case class Token(token: String)
+
   case class BitStreamInfo(name: String, url: String)
+
   case class Entity(ref: String, title: String, entityType: String, url: String, deleted: Boolean)
 
-  def createClient[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S])(using
+  def createClient[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S])(implicit
       me: MonadError[F, Throwable]
-  ): Client[F, S] = new Client[F, S]:
+  ): Client[F, S] = new Client[F, S] {
     val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
-    extension [T](e: Either[String, T])
+    implicit class EitherUtils[T](e: Either[String, T]) {
       def bodyLift: F[T] = me.fromTry(e.left.map(err => new RuntimeException(err)).toTry)
+    }
 
     private def getAuthenticationToken(authDetails: AuthDetails): F[String] = {
       val response = basicRequest
@@ -124,10 +128,12 @@ object Client {
         .get(uri"$url")
         .headers(Map("Preservica-Access-Token" -> token))
         .response(asStream(stream)(streamFn))
+
       for {
         token <- getAuthenticationToken(authDetails)
         res <- backend.send(request(token))
         body <- res.body.bodyLift
       } yield body
     }
+  }
 }

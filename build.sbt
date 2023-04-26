@@ -1,7 +1,5 @@
-import sbtrelease.ReleaseStateTransformations.*
-import Dependencies.*
-
-val scala3Version = "3.3.0-RC4"
+import sbtrelease.ReleaseStateTransformations._
+import Dependencies._
 
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
@@ -48,7 +46,7 @@ lazy val releaseSettings = Seq(
 )
 
 lazy val commonSettings = Seq(
-  scalaVersion := scala3Version,
+  scalaVersion := "2.13.10",
   libraryDependencies ++= Seq(
     catsCore,
     scalaXml,

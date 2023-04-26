@@ -1,4 +1,4 @@
-import sbt.*
+import sbt._
 object Dependencies {
   lazy val sttpVersion = "3.8.15"
 

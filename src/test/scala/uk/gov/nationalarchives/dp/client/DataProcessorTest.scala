@@ -2,10 +2,10 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Client.Entity
 
-abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec {
+abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
 
   "fragmentUrls" should "return fragments" in {
