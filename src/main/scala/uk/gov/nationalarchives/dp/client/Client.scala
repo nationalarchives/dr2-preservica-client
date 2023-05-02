@@ -67,10 +67,12 @@ object Client {
           .post(uri"$apiBaseUrl/api/accesstoken/login")
           .response(asJson[Token])
           .send(backend)
-        me.flatMap(response)(res => me.fromTry(res.body.map(b => b.token).toTry))
+        me.flatMap(response) { res =>
+          me.fromTry(res.body.map(t => t.token).toTry)
+        }
       }.flatten
 
-    private def xmlForUrl(url: String, token: String): F[Elem] = {
+    private def getApiResponseXml(url: String, token: String): F[Elem] = {
       val request = basicRequest
         .get(uri"$url")
         .headers(Map("Preservica-Access-Token" -> token))
@@ -88,25 +90,30 @@ object Client {
         me.pure(allEntities)
       } else {
         for {
-          elem <- xmlForUrl(url.get, token)
-          nextPage <- dataProcessor.nextPage(elem)
-          updateEntities <- dataProcessor.updatedEntities(elem)
-          all <- updatedEntities(nextPage, token, allEntities ++ updateEntities)
-        } yield all
+          entitiesResponseXml <- getApiResponseXml(url.get, token)
+          updateEntities <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(entitiesResponseXml)
+          allUpdatedEntities <- updatedEntities(nextPageUrl, token, allEntities ++ updateEntities)
+        } yield allUpdatedEntities
       }
     }
 
     override def getBitstreamInfo(
-        contentId: UUID,
+        contentRef: UUID,
         authDetails: AuthDetails
     ): F[Seq[BitStreamInfo]] = {
       for {
         token <- getAuthenticationToken(authDetails)
-        contentEntity <- xmlForUrl(s"$apiBaseUrl/api/entity/content-objects/$contentId", token)
+        contentEntity <- getApiResponseXml(
+          s"$apiBaseUrl/api/entity/content-objects/$contentRef",
+          token
+        )
         generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- xmlForUrl(generationUrl, token)
+        generationInfo <- getApiResponseXml(generationUrl, token)
         allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
-        allGenerationElements <- allGenerationUrls.map(url => xmlForUrl(url, token)).sequence
+        allGenerationElements <- allGenerationUrls
+          .map(url => getApiResponseXml(url, token))
+          .sequence
         allBitstreams <- dataProcessor.allBitstreamInfo(allGenerationElements)
       } yield allBitstreams
     }
@@ -114,13 +121,14 @@ object Client {
     override def metadataForEntity(entity: Entity, auth: AuthDetails): F[Seq[Elem]] = {
       for {
         token <- getAuthenticationToken(auth)
-        entityInfo <- xmlForUrl(s"$apiBaseUrl/api/entity/${entity.path}/${entity.id}", token)
+        entityInfo <- getApiResponseXml(
+          s"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}",
+          token
+        )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-        fragmentResponse <- fragmentUrls.map(url => xmlForUrl(url, token)).sequence
+        fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
-      } yield {
-        fragments.map(XML.loadString)
-      }
+      } yield fragments.map(XML.loadString)
     }
 
     override def entitiesUpdatedSince(

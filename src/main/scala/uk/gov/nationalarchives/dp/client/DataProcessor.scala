@@ -23,10 +23,10 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   }
 
   def fragments(elems: Seq[Elem]): F[Seq[String]] = {
-    val metadataObjects = elems.map(elem => {
+    val metadataObjects = elems.map { elem =>
       val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
       eachContent.flatMap(_.child).toString()
-    })
+    }
     me.pure(metadataObjects.filter(!_.isBlank))
   }
 
@@ -39,11 +39,11 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
     me.pure(
       entity.flatMap(e =>
-        (e \ "Bitstreams" \ "Bitstream").map(b => {
+        (e \ "Bitstreams" \ "Bitstream").map { b =>
           val name = b.attribute("filename").map(_.toString).getOrElse("")
           val url = b.text
           BitStreamInfo(name, url)
-        })
+        }
       )
     )
   }
@@ -51,17 +51,17 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def nextPage(elem: Elem): F[Option[String]] =
     me.pure((elem \ "Paging" \ "Next").headOption.map(_.text))
 
-  def updatedEntities(elem: Elem): F[Seq[Entity]] = {
+  def getUpdatedEntities(elem: Elem): F[Seq[Entity]] = {
     (elem \ "Entities" \ "Entity")
       .map(e => {
         val entityAttributes = e.attributes
         def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
 
-        val id = UUID.fromString(attrToString("ref"))
+        val ref = UUID.fromString(attrToString("ref"))
         val title = attrToString("title")
         val entityType = attrToString("type")
         val deleted = attrToString("deleted").nonEmpty
-        fromType(entityType, id, title, deleted)
+        fromType(entityType, ref, title, deleted)
       })
       .sequence
   }

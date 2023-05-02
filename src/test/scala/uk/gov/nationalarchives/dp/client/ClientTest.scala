@@ -226,7 +226,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
+    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -271,7 +271,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
+    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -335,7 +335,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
+    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -422,12 +422,12 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val pageOne = response.head
     val pageTwo = response.last
 
-    pageOne.id.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    pageOne.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     pageOne.path should equal("information-objects")
     pageOne.title should be("page1File.txt")
     pageOne.deleted should be(false)
 
-    pageTwo.id.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
+    pageTwo.ref.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
     pageTwo.path should equal("structural-objects")
     pageTwo.title should be("page2File.txt")
     pageTwo.deleted should be(true)

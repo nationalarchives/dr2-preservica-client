@@ -182,7 +182,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         <Entity title="file3.txt" ref="99fb8809-be86-4636-9b3f-4a181de0bc36" type="CO" deleted="true">http://localhost/file3/object</Entity>
       </Entities>
     </EntitiesResponse>
-    val entitiesF = new DataProcessor[F]().updatedEntities(input)
+    val entitiesF = new DataProcessor[F]().getUpdatedEntities(input)
     val entities = valueFromF(entitiesF)
 
     def checkResponse(
@@ -193,7 +193,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         deleted: Boolean = false
     ) = {
       entity.path should equal(entityType)
-      entity.id.toString should equal(uuid)
+      entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title should equal(s"file$fileNumber.txt")
     }
