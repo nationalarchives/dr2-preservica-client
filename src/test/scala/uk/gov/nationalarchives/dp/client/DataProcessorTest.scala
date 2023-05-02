@@ -3,7 +3,6 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
-import uk.gov.nationalarchives.dp.client.Client.Entity
 
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
@@ -193,15 +192,25 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         fileNumber: Int,
         deleted: Boolean = false
     ) = {
-      entity.entityType should equal(entityType)
-      entity.url should equal(s"http://localhost/file$fileNumber/object")
-      entity.ref should equal(uuid)
+      entity.path should equal(entityType)
+      entity.id.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title should equal(s"file$fileNumber.txt")
     }
 
-    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "IO", 1)
-    checkResponse(entities.tail.head, "2d8a9935-3a1a-45ce-aadb-f01f2ddc9405", "SO", 2)
-    checkResponse(entities.last, "99fb8809-be86-4636-9b3f-4a181de0bc36", "CO", 3, deleted = true)
+    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", 1)
+    checkResponse(
+      entities.tail.head,
+      "2d8a9935-3a1a-45ce-aadb-f01f2ddc9405",
+      "structural-objects",
+      2
+    )
+    checkResponse(
+      entities.last,
+      "99fb8809-be86-4636-9b3f-4a181de0bc36",
+      "content-objects",
+      3,
+      deleted = true
+    )
   }
 }

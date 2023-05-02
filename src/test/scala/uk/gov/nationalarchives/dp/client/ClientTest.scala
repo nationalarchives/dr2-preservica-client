@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.AuthDetails
+import uk.gov.nationalarchives.dp.client.Entity.fromType
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -224,7 +225,8 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
-    val entityUrl = s"/api/entity/information-objects/$entityId"
+    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -255,7 +257,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     val client = testClient(url)
 
-    val res = client.metadataForEntityUrl(s"$url$entityUrl", authDetails)
+    val res = client.metadataForEntity(entity, authDetails)
     val metadata = valueFromF(res)
 
     metadata.size should equal(1)
@@ -268,7 +270,8 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   "metadataForEntityUrl" should "return a multiple fragments when the object has multiple fragments" in {
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
-    val entityUrl = s"/api/entity/information-objects/$entityId"
+    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -316,7 +319,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     val client = testClient(url)
 
-    val res = client.metadataForEntityUrl(s"$url$entityUrl", authDetails)
+    val res = client.metadataForEntity(entity, authDetails)
     val metadata = valueFromF(res)
 
     metadata.size should equal(2)
@@ -331,7 +334,8 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   "metadataForEntityUrl" should "return an empty list when the object has no fragments" in {
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
-    val entityUrl = s"/api/entity/information-objects/$entityId"
+    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entityUrl = s"/api/entity/${entity.path}/${entity.id}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -345,7 +349,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     val client = testClient(url)
 
-    val res = client.metadataForEntityUrl(s"$url$entityUrl", authDetails)
+    val res = client.metadataForEntity(entity, authDetails)
     val metadata = valueFromF(res)
 
     metadata.size should equal(0)
@@ -357,9 +361,9 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val url = s"http://localhost:$port"
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
-
+    val entity = valueFromF(fromType("IO", UUID.randomUUID(), "title", deleted = false))
     val client = testClient(s"http://localhost:$port")
-    val response = client.metadataForEntityUrl(url, authDetails)
+    val response = client.metadataForEntity(entity, authDetails)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -418,15 +422,13 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val pageOne = response.head
     val pageTwo = response.last
 
-    pageOne.ref should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
-    pageOne.entityType should equal("IO")
-    pageOne.url should be("http://localhost/page1/object")
+    pageOne.id.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    pageOne.path should equal("information-objects")
     pageOne.title should be("page1File.txt")
     pageOne.deleted should be(false)
 
-    pageTwo.ref should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
-    pageTwo.entityType should equal("SO")
-    pageTwo.url should be("http://localhost/page2/object")
+    pageTwo.id.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
+    pageTwo.path should equal("structural-objects")
     pageTwo.title should be("page2File.txt")
     pageTwo.deleted should be(true)
   }

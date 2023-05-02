@@ -1,8 +1,11 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import uk.gov.nationalarchives.dp.client.Client.{BitStreamInfo, Entity}
+import cats.implicits.toTraverseOps
+import uk.gov.nationalarchives.dp.client.Client.BitStreamInfo
+import uk.gov.nationalarchives.dp.client.Entity.fromType
 
+import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
 class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
@@ -48,17 +51,20 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def nextPage(elem: Elem): F[Option[String]] =
     me.pure((elem \ "Paging" \ "Next").headOption.map(_.text))
 
-  def updatedEntities(elem: Elem): F[Seq[Entity]] =
-    me.pure((elem \ "Entities" \ "Entity").map(e => {
-      val entityAttributes = e.attributes
-      Entity(
-        entityAttributes.get("ref").map(_.toString).getOrElse(""),
-        entityAttributes.get("title").map(_.toString).getOrElse(""),
-        entityAttributes.get("type").map(_.toString).getOrElse(""),
-        e.text,
-        entityAttributes.get("deleted").getOrElse(Nil).nonEmpty
-      )
-    }))
+  def updatedEntities(elem: Elem): F[Seq[Entity]] = {
+    (elem \ "Entities" \ "Entity")
+      .map(e => {
+        val entityAttributes = e.attributes
+        def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
+
+        val id = UUID.fromString(attrToString("ref"))
+        val title = attrToString("title")
+        val entityType = attrToString("type")
+        val deleted = attrToString("deleted").nonEmpty
+        fromType(entityType, id, title, deleted)
+      })
+      .sequence
+  }
 
 }
 

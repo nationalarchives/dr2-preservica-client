@@ -4,14 +4,14 @@ import sttp.capabilities.zio.ZioStreams
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.Client
-import zio.interop.catz.core._
-import zio._
+import zio.Task
+import zio.interop.catz._
 
-import java.time.ZonedDateTime
+import scala.concurrent.duration._
 
 object ZioClient {
-  def client(url: String): Task[Client[Task, ZioStreams]] =
+  def client(url: String, duration: FiniteDuration = 60.seconds): Task[Client[Task, ZioStreams]] =
     HttpClientZioBackend().map { backend =>
-      createClient[Task, ZioStreams](url, backend)
+      createClient[Task, ZioStreams](url, backend, duration)
     }
 }

@@ -1,11 +1,13 @@
 import sbt._
 object Dependencies {
   lazy val sttpVersion = "3.8.15"
+  lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.9.0"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.15"
   lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
+  lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
   lazy val sttpUpickle = "com.softwaremill.sttp.client3" %% "upickle" % sttpVersion
   lazy val sttpZio = "com.softwaremill.sttp.client3" %% "zio" % sttpVersion

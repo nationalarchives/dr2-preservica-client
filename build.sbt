@@ -49,6 +49,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.13.10",
   libraryDependencies ++= Seq(
     catsCore,
+    scalaCacheCaffeine,
     scalaXml,
     sttpCore,
     sttpFs2,
