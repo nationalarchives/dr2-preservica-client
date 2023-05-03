@@ -93,7 +93,11 @@ object Client {
           entitiesResponseXml <- getApiResponseXml(url.get, token)
           entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
           nextPageUrl <- dataProcessor.nextPage(entitiesResponseXml)
-          allUpdatedEntities <- updatedEntities(nextPageUrl, token, allEntities ++ entitiesWithUpdates)
+          allUpdatedEntities <- updatedEntities(
+            nextPageUrl,
+            token,
+            allEntities ++ entitiesWithUpdates
+          )
         } yield allUpdatedEntities
       }
     }
