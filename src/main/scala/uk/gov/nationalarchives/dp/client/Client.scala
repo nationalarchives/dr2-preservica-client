@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 trait Client[F[_], S] {
   def metadataForEntity(entity: Entity, auth: AuthDetails): F[Seq[Elem]]
 
-  def getBitstreamInfo(contentId: UUID, authDetails: AuthDetails): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentRef: UUID, authDetails: AuthDetails): F[Seq[BitStreamInfo]]
 
   def streamBitstreamContent[T](
       stream: Streams[S]

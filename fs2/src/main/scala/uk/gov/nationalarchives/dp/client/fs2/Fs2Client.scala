@@ -9,7 +9,7 @@ import uk.gov.nationalarchives.dp.client.Client
 import scala.concurrent.duration._
 
 object Fs2Client {
-  def client(url: String, duration: FiniteDuration = 60.seconds): IO[Client[IO, Fs2Streams[IO]]] =
+  def client(url: String, duration: FiniteDuration = 15.minutes): IO[Client[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
       cats.effect.IO(createClient(url, backend, duration))
     }

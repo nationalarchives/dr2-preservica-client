@@ -27,14 +27,26 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
       eachContent.flatMap(_.child).toString()
     }
-    me.pure(metadataObjects.filter(!_.isBlank))
+    metadataObjects.filter(!_.isBlank) match {
+      case Nil =>
+        me.raiseError(
+          new RuntimeException(
+            s"No content found for elements:\n${elems.map(_.toString).mkString("\n")}"
+          )
+        )
+      case objects => me.pure(objects)
+    }
   }
 
   def generationUrlFromEntity(contentEntity: Elem): F[String] =
     (contentEntity \ "AdditionalInformation" \ "Generations").textOfFirstElement()
 
   def allGenerationUrls(entity: Elem): F[Seq[String]] =
-    me.pure((entity \ "Generations" \ "Generation").map(_.text))
+    (entity \ "Generations" \ "Generation").map(_.text) match {
+      case Nil =>
+        me.raiseError(new RuntimeException(s"No generations found for entity:\n${entity.toString}"))
+      case generationUrls => me.pure(generationUrls)
+    }
 
   def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
     me.pure(

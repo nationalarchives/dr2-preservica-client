@@ -11,7 +11,7 @@ class ZioClientTest extends ClientTest[Task, ZioStreams](9001, ZioStreams) {
   val runtime: Runtime[Any] = Runtime.default
 
   override def valueFromF[T](value: Task[T]): T = Unsafe.unsafe { implicit unsafe =>
-    runtime.unsafe.run(value).getOrThrowFiberFailure()
+    runtime.unsafe.run(value).getOrThrow()
   }
 
   override def createClient(url: String): Task[Client[Task, ZioStreams]] = client(url)

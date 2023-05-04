@@ -14,9 +14,9 @@ This example uses the ZIO client but something similar will work with the FS2 cl
   def upload(key: String, stream: ZioStreams.BinaryStream): Task[Unit] = ???
 
   //Gets the metadata for an entity URL and uploads to S3
-  def entityMetadataToS3(entityUrl: String, authDetails: AuthDetails) = for {
+  def entityMetadataToS3(entity: Entity, authDetails: AuthDetails) = for {
     client <- Clients.zioClient(baseUrl)
-    metadata <- client.metadataForEntityUrl(entityUrl, authDetails)
+    metadata <- client.metadataForEntity(entity, authDetails)
     _ <- upload("metadata-key", ZStream.fromIterable(metadata.flatMap(_.toString.getBytes)))
   } yield ()
 

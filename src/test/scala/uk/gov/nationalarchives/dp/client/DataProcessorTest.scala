@@ -62,7 +62,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     fragments.last.trim should equal(fragment(2).toString)
   }
 
-  "fragments" should "return an empty list if there is no content" in {
+  "fragments" should "return an error if there is no content" in {
     val input =
       <MetadataResponse>
         <MetadataContainer>
@@ -70,9 +70,16 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </MetadataResponse>
 
     val fragmentsF = new DataProcessor[F]().fragments(Seq(input))
-    val fragments = valueFromF(fragmentsF)
+    val error = intercept[RuntimeException] {
+      valueFromF(fragmentsF)
+    }
+    val expectedMessage = """No content found for elements:
+                            |<MetadataResponse>
+                            |        <MetadataContainer>
+                            |        </MetadataContainer>
+                            |      </MetadataResponse>""".stripMargin
+    error.getMessage should equal(expectedMessage)
 
-    fragments.size should equal(0)
   }
 
   "generationUrlFromEntity" should "return a generation url" in {
@@ -115,16 +122,22 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     generations.last should equal("http://localhost/generation2")
   }
 
-  "allGenerationUrls" should "return an empty sequence if there are no generation urls" in {
+  "allGenerationUrls" should "return an error if there are no generation urls" in {
     val input =
       <GenerationsResponse>
         <Generations>
         </Generations>
       </GenerationsResponse>
     val generationsF = new DataProcessor[F]().allGenerationUrls(input)
-    val generations = valueFromF(generationsF)
-
-    generations.size should equal(0)
+    val error = intercept[RuntimeException] {
+      valueFromF(generationsF)
+    }
+    val expectedErrorMessage = """No generations found for entity:
+                                 |<GenerationsResponse>
+                                 |        <Generations>
+                                 |        </Generations>
+                                 |      </GenerationsResponse>""".stripMargin
+    error.getMessage should equal(expectedErrorMessage)
   }
 
   "allBitstreamInfo" should "return the correct names and urls" in {

@@ -8,6 +8,6 @@ class ZioDataProcessorTest extends DataProcessorTest[Task] {
   val runtime: Runtime[Any] = Runtime.default
 
   override def valueFromF[T](value: Task[T]): T = Unsafe.unsafe { implicit unsafe =>
-    runtime.unsafe.run(value).getOrThrowFiberFailure()
+    runtime.unsafe.run(value).getOrThrow()
   }
 }

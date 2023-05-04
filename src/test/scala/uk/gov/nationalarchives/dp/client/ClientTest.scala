@@ -41,14 +41,14 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
 
-  "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
-    val id = UUID.randomUUID()
-    val fileName = "test.txt"
+  val ref: UUID = UUID.randomUUID()
+  val entityUrl = s"/api/entity/content-objects/$ref"
 
-    val entityUrl = s"/api/entity/content-objects/$id"
-    val generationsUrl = s"/api/entity/content-objects/$id/generations"
-    val generationUrl = s"/api/entity/content-objects/$id/generations/1"
-    val bitstreamUrl = s"api/entity/content-objects/$id/generations/1/bitstreams/1"
+  "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
+    val fileName = "test.txt"
+    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+    val generationUrl = s"/api/entity/content-objects/$ref/generations/1"
+    val bitstreamUrl = s"api/entity/content-objects/$ref/generations/1/bitstreams/1"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -75,7 +75,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     preservicaServer.stubFor(get(urlEqualTo(generationUrl)).willReturn(ok(generationResponse)))
 
     val client = testClient(s"http://localhost:$port")
-    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(id, authDetails)
+    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(ref, authDetails)
 
     val bitStreamInfo = valueFromF(response).head
     bitStreamInfo.url should equal(s"http://localhost:$port$bitstreamUrl")
@@ -87,14 +87,11 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info for multiple generations" in {
-    val id = UUID.randomUUID()
-
-    val entityUrl = s"/api/entity/content-objects/$id"
-    val generationsUrl = s"/api/entity/content-objects/$id/generations"
-    val generationOneUrl = s"/api/entity/content-objects/$id/generations/1"
-    val generationTwoUrl = s"/api/entity/content-objects/$id/generations/2"
-    val bitstreamOneUrl = s"api/entity/content-objects/$id/generations/1/bitstreams/1"
-    val bitstreamTwoUrl = s"api/entity/content-objects/$id/generations/2/bitstreams/2"
+    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+    val generationOneUrl = s"/api/entity/content-objects/$ref/generations/1"
+    val generationTwoUrl = s"/api/entity/content-objects/$ref/generations/2"
+    val bitstreamOneUrl = s"api/entity/content-objects/$ref/generations/1/bitstreams/1"
+    val bitstreamTwoUrl = s"api/entity/content-objects/$ref/generations/2/bitstreams/2"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -134,7 +131,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     )
 
     val client = testClient(s"http://localhost:$port")
-    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(id, authDetails)
+    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(ref, authDetails)
 
     val bitStreamInfo = valueFromF(response)
     bitStreamInfo.size should equal(2)
@@ -151,10 +148,6 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
   }
 
   "getBitstreamInfo" should "return an error if no generations are available" in {
-    val id = UUID.randomUUID()
-
-    val entityUrl = s"/api/entity/content-objects/$id"
-
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -165,7 +158,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
 
     val client = testClient(s"http://localhost:$port")
-    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(id, authDetails)
+    val response: F[Seq[Client.BitStreamInfo]] = client.getBitstreamInfo(ref, authDetails)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -331,7 +324,7 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     checkServerCall(fragmentTwoUrl)
   }
 
-  "metadataForEntityUrl" should "return an empty list when the object has no fragments" in {
+  "metadataForEntityUrl" should "return an error when the object has no fragments" in {
     val url = s"http://localhost:$port"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
@@ -350,15 +343,15 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val client = testClient(url)
 
     val res = client.metadataForEntity(entity, authDetails)
-    val metadata = valueFromF(res)
-
-    metadata.size should equal(0)
+    val error = intercept[RuntimeException] {
+      valueFromF(res)
+    }
+    error.getMessage should equal("No content found for elements:\n")
 
     checkServerCall(entityUrl)
   }
 
   "metadataForEntityUrl" should "return an error if the server is unavailable" in {
-    val url = s"http://localhost:$port"
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
     val entity = valueFromF(fromType("IO", UUID.randomUUID(), "title", deleted = false))
@@ -456,5 +449,29 @@ abstract class ClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val response = valueFromF(client.entitiesUpdatedSince(date, authDetails))
 
     response.size should equal(0)
+  }
+
+  "entitiesUpdatedSince" should "return an error if the request is malformed" in {
+    val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/entities/updated-since"))
+        .withQueryParams(
+          Map(
+            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
+            "max" -> equalTo("100"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$port")
+    val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, authDetails)))
+
+    response.left.map(err => {
+      err.getClass.getSimpleName should equal("RuntimeException")
+    })
   }
 }

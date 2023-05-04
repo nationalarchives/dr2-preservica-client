@@ -10,7 +10,7 @@ import zio.interop.catz._
 import scala.concurrent.duration._
 
 object ZioClient {
-  def client(url: String, duration: FiniteDuration = 60.seconds): Task[Client[Task, ZioStreams]] =
+  def client(url: String, duration: FiniteDuration = 15.minutes): Task[Client[Task, ZioStreams]] =
     HttpClientZioBackend().map { backend =>
       createClient[Task, ZioStreams](url, backend, duration)
     }
