@@ -30,3 +30,4 @@ metals.sbt
 .idea
 .idea_modules
 /.worksheet/
+/zio/src/main/scala/uk/gov/nationalarchives/dp/client/zio/Runner.scala

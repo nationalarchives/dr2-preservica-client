@@ -2,19 +2,22 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.toTraverseOps
-import uk.gov.nationalarchives.dp.client.Client.BitStreamInfo
 import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Utils._
 
 import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
 class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
-
   implicit class NodeSeqUtils(ns: NodeSeq) {
     def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
       case None        => me.raiseError(new RuntimeException("Generation not found"))
     }
+  }
+
+  def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] = {
+    (res \\ elementName).find(n => (n \ "Name").text == fileName).map(n => (n \ "ApiId").text)
   }
 
   def fragmentUrls(elem: Elem): F[Seq[String]] = {
