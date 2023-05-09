@@ -2,7 +2,6 @@ import sbtrelease.ReleaseStateTransformations._
 import Dependencies._
 
 lazy val scala2Version = "2.13.10"
-lazy val scala3Version = "3.2.2"
 
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
@@ -17,7 +16,7 @@ lazy val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    releaseStepCommand("+publishSigned"),
+    releaseStepCommand("publishSigned"),
     releaseStepCommand("sonatypeBundleRelease"),
     setNextVersion,
     commitNextVersion,
@@ -50,8 +49,6 @@ lazy val releaseSettings = Seq(
 
 lazy val commonSettings = Seq(
   scalaVersion := scala2Version,
-  crossScalaVersions := Seq(scala2Version, scala3Version),
-  scalacOptions := scalacOptionsVersion(scalaVersion.value),
   libraryDependencies ++= Seq(
     catsCore,
     scalaCacheCaffeine,
@@ -94,10 +91,5 @@ lazy val zio = project
   ).dependsOn(root % "compile->compile;test->test")
 
 
-def scalacOptionsVersion(scalaVersion: String) = {
-  CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, _)) => Seq("-Wunused:imports", "-Werror")
-    case _ => Nil
-  }
-}
+scalacOptions ++= Seq("-Wunused:imports", "-Werror")
 
