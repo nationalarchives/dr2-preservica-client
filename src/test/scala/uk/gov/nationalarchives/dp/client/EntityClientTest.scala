@@ -178,7 +178,9 @@ abstract class EntityClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     expectedError.isLeft should be(true)
     expectedError.left.map(err => {
-      err.getMessage should equal("statusCode: 500, response: ")
+      err.getMessage should equal(
+        s"Status code 500 calling http://localhost:$port/api/accesstoken/login with method POST statusCode: 500, response: "
+      )
     })
   }
 
@@ -210,7 +212,9 @@ abstract class EntityClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     expectedError.isLeft should be(true)
     expectedError.left.map(err => {
-      err.getMessage should equal("statusCode: 500, response: ")
+      err.getMessage should equal(
+        s"Status code 500 calling http://localhost:$port/api/accesstoken/login with method POST statusCode: 500, response: "
+      )
     })
   }
 
@@ -342,7 +346,7 @@ abstract class EntityClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val client = testClient(url)
 
     val res = client.metadataForEntity(entity, authDetails)
-    val error = intercept[RuntimeException] {
+    val error = intercept[PreservicaClientException] {
       valueFromF(res)
     }
     error.getMessage should equal("No content found for elements:\n")
@@ -361,7 +365,9 @@ abstract class EntityClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
 
     expectedError.isLeft should be(true)
     expectedError.left.map(err => {
-      err.getMessage should equal("statusCode: 500, response: ")
+      err.getMessage should equal(
+        s"Status code 500 calling http://localhost:$port/api/accesstoken/login with method POST statusCode: 500, response: "
+      )
     })
   }
 
@@ -470,7 +476,7 @@ abstract class EntityClientTest[F[_], S](port: Int, stream: Streams[S])(implicit
     val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, authDetails)))
 
     response.left.map(err => {
-      err.getClass.getSimpleName should equal("RuntimeException")
+      err.getClass.getSimpleName should equal("PreservicaClientException")
     })
   }
 }

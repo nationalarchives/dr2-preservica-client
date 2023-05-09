@@ -5,6 +5,7 @@ import cats.effect.Sync
 import cats.implicits._
 import sttp.capabilities.Streams
 import sttp.client3._
+import sttp.model.Method
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -108,15 +109,18 @@ object EntityClient {
     def streamBitstreamContent[T](
         stream: Streams[S]
     )(url: String, authDetails: AuthDetails, streamFn: stream.BinaryStream => F[T]): F[T] = {
+      val apiUri = uri"$url"
       def request(token: String) = basicRequest
-        .get(uri"$url")
+        .get(apiUri)
         .headers(Map("Preservica-Access-Token" -> token))
         .response(asStream(stream)(streamFn))
 
       for {
         token <- getAuthenticationToken(authDetails)
         res <- backend.send(request(token))
-        body <- res.body.bodyLift
+        body <- me.fromEither {
+          res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
+        }
       } yield body
     }
   }

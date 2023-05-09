@@ -70,7 +70,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </MetadataResponse>
 
     val fragmentsF = new DataProcessor[F]().fragments(Seq(input))
-    val error = intercept[RuntimeException] {
+    val error = intercept[PreservicaClientException] {
       valueFromF(fragmentsF)
     }
     val expectedMessage = """No content found for elements:
@@ -129,7 +129,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         </Generations>
       </GenerationsResponse>
     val generationsF = new DataProcessor[F]().allGenerationUrls(input)
-    val error = intercept[RuntimeException] {
+    val error = intercept[PreservicaClientException] {
       valueFromF(generationsF)
     }
     val expectedErrorMessage = """No generations found for entity:

@@ -9,14 +9,14 @@ import scalacache.caffeine._
 import scalacache.memoization._
 import sttp.client3._
 import sttp.client3.upicklejson._
+import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Utils._
 import upickle.default._
 
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
-class Utils[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: FiniteDuration)(
-    implicit
+class Utils[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: FiniteDuration)(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
@@ -30,28 +30,31 @@ class Utils[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: F
     Caffeine.newBuilder.build[String, Entry[F[String]]]
   )
 
-  implicit class EitherUtils[T](e: Either[String, T]) {
-    def bodyLift: F[T] = me.fromTry(e.left.map(err => new RuntimeException(err)).toTry)
-  }
-
   private[client] def getApiResponseXml(url: String, token: String): F[Elem] = {
+    val apiUri = uri"$url"
     val request = basicRequest
-      .get(uri"$url")
+      .get(apiUri)
       .headers(Map("Preservica-Access-Token" -> token))
       .response(asXml)
 
-    me.flatMap(backend.send(request))(_.body.bodyLift)
+    me.flatMap(backend.send(request))(res => {
+      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
+    })
   }
 
   private[client] def getAuthenticationToken(authDetails: AuthDetails): F[String] =
     memoize[F, F[String]](Some(duration)) {
+      val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
       val response = basicRequest
         .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-        .post(uri"$apiBaseUrl/api/accesstoken/login")
+        .post(apiUri)
         .response(asJson[Token])
         .send(backend)
       me.flatMap(response) { res =>
-        me.fromTry(res.body.map(t => t.token).toTry)
+        val responseOrError = res.body.left
+          .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
+          .map(_.token)
+        me.fromEither(responseOrError)
       }
     }.flatten
 
@@ -63,8 +66,7 @@ object Utils {
 
   case class BitStreamInfo(name: String, url: String)
 
-  def apply[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: FiniteDuration)(
-      implicit
+  def apply[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: FiniteDuration)(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ) = new Utils[F, S](apiBaseUrl, backend, duration)

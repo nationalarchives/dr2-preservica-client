@@ -28,7 +28,7 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
   }
 
   "fromType" should s"return an an error for an unknown entity type" in {
-    intercept[RuntimeException] {
+    intercept[PreservicaClientException] {
       valueFromF(fromType("PO", UUID.randomUUID(), "", deleted = false))
     }.getMessage should equal("Entity type PO not recognised")
   }

@@ -12,7 +12,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   implicit class NodeSeqUtils(ns: NodeSeq) {
     def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
-      case None        => me.raiseError(new RuntimeException("Generation not found"))
+      case None        => me.raiseError(PreservicaClientException("Generation not found"))
     }
   }
 
@@ -33,7 +33,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     metadataObjects.filter(!_.isBlank) match {
       case Nil =>
         me.raiseError(
-          new RuntimeException(
+          PreservicaClientException(
             s"No content found for elements:\n${elems.map(_.toString).mkString("\n")}"
           )
         )
@@ -47,7 +47,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def allGenerationUrls(entity: Elem): F[Seq[String]] =
     (entity \ "Generations" \ "Generation").map(_.text) match {
       case Nil =>
-        me.raiseError(new RuntimeException(s"No generations found for entity:\n${entity.toString}"))
+        me.raiseError(PreservicaClientException(s"No generations found for entity:\n${entity.toString}"))
       case generationUrls => me.pure(generationUrls)
     }
 

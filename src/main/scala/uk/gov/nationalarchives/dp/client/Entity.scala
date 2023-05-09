@@ -36,6 +36,6 @@ object Entity {
           override def path: String = "structural-objects"
         }
       }
-    case _ => me.raiseError(new RuntimeException(s"Entity type $entityType not recognised"))
+    case _ => me.raiseError(PreservicaClientException(s"Entity type $entityType not recognised"))
   }
 }

@@ -4,13 +4,9 @@ import cats.MonadError
 import cats.effect._
 import cats.implicits._
 import sttp.client3._
+import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Utils._
-import uk.gov.nationalarchives.dp.client.FileInfo.{
-  IndexDefinitionInfo,
-  MetadataTemplateInfo,
-  SchemaFileInfo,
-  TransformFileInfo
-}
+import uk.gov.nationalarchives.dp.client.FileInfo._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -49,7 +45,13 @@ object AdminClient {
         .send {
           basicRequest.delete(url).headers(Map("Preservica-Access-Token" -> token))
         }
-        .flatMap(_ => me.unit)
+        .flatMap(res =>
+          me.fromEither {
+            res.body.left
+              .map(err => PreservicaClientException(Method.DELETE, url, res.code, err))
+              .map(_ => ())
+          }
+        )
     }
 
     private def createSchema(
@@ -67,7 +69,13 @@ object AdminClient {
             .body(body)
             .response(asXml)
         )
-        .flatMap(_ => me.unit)
+        .flatMap(res =>
+          me.fromEither {
+            res.body.left
+              .map(err => PreservicaClientException(Method.POST, url, res.code, err))
+              .map(_ => ())
+          }
+        )
     }
 
     private def updateFiles(
@@ -83,9 +91,7 @@ object AdminClient {
           case Some(id) => deleteDocument(path, id, token)
           case None     => me.unit
         }
-        me.flatMap(deleteIfPresent)(_ =>
-          createSchema(path, info.toQueryParams, info.xmlData, token)
-        )
+        me.flatMap(deleteIfPresent)(_ => createSchema(path, info.toQueryParams, info.xmlData, token))
       }.sequence
     } yield ()
 
