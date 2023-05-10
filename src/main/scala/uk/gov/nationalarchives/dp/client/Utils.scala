@@ -3,10 +3,17 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.effect.Sync
 import cats.implicits._
+import com.amazonaws.regions.{Region, Regions}
+import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest
+import com.amazonaws.services.secretsmanager.{AWSSecretsManager, AWSSecretsManagerClientBuilder}
 import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache._
 import scalacache.caffeine._
 import scalacache.memoization._
+import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
 import sttp.client3._
 import sttp.client3.upicklejson._
 import sttp.model.Method
@@ -42,20 +49,37 @@ class Utils[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: F
     })
   }
 
-  private[client] def getAuthenticationToken(authDetails: AuthDetails): F[String] =
+  private def getAuthDetails(secretName: String): F[AuthDetails] = {
+    val valueRequest = GetSecretValueRequest.builder()
+      .secretId(secretName)
+      .build();
+    val secretsManager = SecretsManagerClient.builder
+      .httpClient(ApacheHttpClient.builder.build())
+      .region(Region.EU_WEST_2)
+      .build()
+
+    val response = secretsManager.getSecretValue(valueRequest)
+    val secretMap = upickle.default.read[Map[String, String]](response.secretString).head
+    me.pure(AuthDetails(secretMap._1, secretMap._2))
+  }
+  
+  private[client] def getAuthenticationToken(secretName: String): F[String] =
     memoize[F, F[String]](Some(duration)) {
       val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
-      val response = basicRequest
-        .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-        .post(apiUri)
-        .response(asJson[Token])
-        .send(backend)
-      me.flatMap(response) { res =>
-        val responseOrError = res.body.left
-          .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
-          .map(_.token)
-        me.fromEither(responseOrError)
-      }
+      for {
+        authDetails <- getAuthDetails(secretName)
+        res <- basicRequest
+          .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
+          .post(apiUri)
+          .response(asJson[Token])
+          .send(backend)
+        token <- {
+          val responseOrError = res.body.left
+            .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
+            .map(_.token)
+          me.fromEither(responseOrError)
+        }
+      } yield token
     }.flatten
 
 }
