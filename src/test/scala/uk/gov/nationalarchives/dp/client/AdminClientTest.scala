@@ -9,12 +9,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
 import uk.gov.nationalarchives.dp.client.FileInfo._
-import uk.gov.nationalarchives.dp.client.Utils.AuthDetails
 
 import scala.jdk.CollectionConverters._
 import scala.xml.{Elem, Node}
 
-abstract class AdminClientTest[F[_]](port: Int)(implicit
+abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(implicit
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
     with BeforeAndAfterEach
@@ -24,18 +23,25 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
 
   def createClient(url: String): F[AdminClient[F]]
 
-  val preservicaServer = new WireMockServer(port)
+  val preservicaServer = new WireMockServer(preservicaPort)
+  val secretsManagerServer = new WireMockServer(secretsManagerPort)
+
+  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
   override def beforeEach(): Unit = {
     preservicaServer.resetAll()
+    secretsManagerServer.resetAll()
     preservicaServer.start()
+    secretsManagerServer.start()
+    secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
   }
 
   override def afterEach(): Unit = {
     preservicaServer.stop()
+    secretsManagerServer.stop()
   }
 
-  val client: AdminClient[F] = valueFromF(createClient(s"http://localhost:$port"))
+  val client: AdminClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
   val testXmlData: Elem = <Test></Test>
   def schemaResponse(fileName: String): Elem = <Schemas><Schema><Name>{
@@ -63,7 +69,7 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
   val metadataTemplateInfo: MetadataTemplateInfo =
     MetadataTemplateInfo("test-file-name", testXmlData.toString)
 
-  val authDetails: AuthDetails = AuthDetails("test", "test")
+  val secretName: String = "secretName"
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
 
@@ -79,10 +85,10 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
 
   forAll(t)((methodName, path, response, input) => {
     val result = input match {
-      case i: IndexDefinitionInfo   => client.addOrUpdateIndexDefinitions(i :: Nil, authDetails)
-      case mt: MetadataTemplateInfo => client.addOrUpdateMetadataTemplates(mt :: Nil, authDetails)
-      case s: SchemaFileInfo        => client.addOrUpdateSchemas(s :: Nil, authDetails)
-      case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil, authDetails)
+      case i: IndexDefinitionInfo   => client.addOrUpdateIndexDefinitions(i :: Nil, secretName)
+      case mt: MetadataTemplateInfo => client.addOrUpdateMetadataTemplates(mt :: Nil, secretName)
+      case s: SchemaFileInfo        => client.addOrUpdateSchemas(s :: Nil, secretName)
+      case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil, secretName)
     }
 
     val url = s"/api/admin/$path"
@@ -140,7 +146,7 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
       preservicaServer.stubFor(post(urlPathMatching(tokenUrl)).willReturn(serverError()))
       val error = intercept[PreservicaClientException](valueFromF(result))
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$port/api/accesstoken/login with method POST statusCode: 500, response: "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
     }
 
@@ -148,7 +154,9 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
       preservicaServer.stubFor(post(urlPathMatching(tokenUrl)).willReturn(ok(tokenResponse)))
       preservicaServer.stubFor(get(urlPathMatching(url)).willReturn(serverError()))
       val error = intercept[PreservicaClientException](valueFromF(result))
-      error.getMessage should equal(s"Status code 500 calling http://localhost:$port/api/admin/$path with method GET ")
+      error.getMessage should equal(
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path with method GET "
+      )
     }
 
     methodName should "return an error if the delete call returns an error" in {
@@ -158,7 +166,7 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
 
       val error = intercept[PreservicaClientException](valueFromF(result))
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$port/api/admin/$path/1 with method DELETE "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path/1 with method DELETE "
       )
     }
 
@@ -175,7 +183,7 @@ abstract class AdminClientTest[F[_]](port: Int)(implicit
       val error = intercept[PreservicaClientException](valueFromF(result))
       val paramsString = input.toQueryParams.map(param => s"${param._1}=${param._2}").mkString("&")
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$port/api/admin/$path?$paramsString with method POST "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path?$paramsString with method POST "
       )
     }
   })

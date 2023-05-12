@@ -5,38 +5,32 @@ import cats.effect._
 import cats.implicits._
 import sttp.client3._
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Utils._
 import uk.gov.nationalarchives.dp.client.FileInfo._
-
-import scala.concurrent.duration.FiniteDuration
+import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
 
 trait AdminClient[F[_]] {
 
-  def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo], authDetails: AuthDetails): F[Unit]
+  def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo], secretName: String): F[Unit]
 
-  def addOrUpdateTransforms(fileInfo: List[TransformFileInfo], authDetails: AuthDetails): F[Unit]
+  def addOrUpdateTransforms(fileInfo: List[TransformFileInfo], secretName: String): F[Unit]
 
   def addOrUpdateIndexDefinitions(
       fileInfo: List[IndexDefinitionInfo],
-      authDetails: AuthDetails
+      secretName: String
   ): F[Unit]
 
   def addOrUpdateMetadataTemplates(
       fileInfo: List[MetadataTemplateInfo],
-      authDetails: AuthDetails
+      secretName: String
   ): F[Unit]
 }
 object AdminClient {
-  def createAdminClient[F[_], S](
-      apiBaseUrl: String,
-      backend: SttpBackend[F, S],
-      duration: FiniteDuration
-  )(implicit
+  def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
 
-    val utils: Utils[F, S] = Utils(apiBaseUrl, backend, duration)
+    val utils: Utils[F, S] = Utils(clientConfig)
     import utils._
 
     private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
@@ -80,11 +74,11 @@ object AdminClient {
 
     private def updateFiles(
         fileInfo: List[FileInfo],
-        authDetails: AuthDetails,
+        secretName: String,
         path: String,
         elementName: String
     ) = for {
-      token <- getAuthenticationToken(authDetails)
+      token <- getAuthenticationToken(secretName)
       res <- getApiResponseXml(s"$apiBaseUrl/api/admin/$path", token)
       _ <- fileInfo.map { info =>
         val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
@@ -97,22 +91,22 @@ object AdminClient {
 
     override def addOrUpdateSchemas(
         fileInfo: List[SchemaFileInfo],
-        authDetails: AuthDetails
-    ): F[Unit] = updateFiles(fileInfo, authDetails, "schemas", "Schema")
+        secretName: String
+    ): F[Unit] = updateFiles(fileInfo, secretName, "schemas", "Schema")
 
     override def addOrUpdateTransforms(
         fileInfo: List[TransformFileInfo],
-        authDetails: AuthDetails
-    ): F[Unit] = updateFiles(fileInfo, authDetails, "transforms", "Transform")
+        secretName: String
+    ): F[Unit] = updateFiles(fileInfo, secretName, "transforms", "Transform")
 
     override def addOrUpdateIndexDefinitions(
         fileInfo: List[IndexDefinitionInfo],
-        authDetails: AuthDetails
-    ): F[Unit] = updateFiles(fileInfo, authDetails, "documents", "Document")
+        secretName: String
+    ): F[Unit] = updateFiles(fileInfo, secretName, "documents", "Document")
 
     override def addOrUpdateMetadataTemplates(
         fileInfo: List[MetadataTemplateInfo],
-        authDetails: AuthDetails
-    ): F[Unit] = updateFiles(fileInfo, authDetails, "documents", "Document")
+        secretName: String
+    ): F[Unit] = updateFiles(fileInfo, secretName, "documents", "Document")
   }
 }

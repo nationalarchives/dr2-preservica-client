@@ -7,25 +7,36 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient}
-
+import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
 import scala.concurrent.duration._
 
 object Fs2Client {
+  private val defaultSecretsManagerEndpoint = "https://secretsmanager.eu-west-2.amazonaws.com"
+
   def entityClient(
       url: String,
-      duration: FiniteDuration = 15.minutes
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createEntityClient(url, backend, duration))
+      cats.effect.IO(createEntityClient(ClientConfig(url, backend, duration, ssmEndpointUri)))
     }
 
-  def adminClient(url: String, duration: FiniteDuration = 15.minutes): IO[AdminClient[IO]] =
+  def adminClient(
+      url: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+  ): IO[AdminClient[IO]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createAdminClient(url, backend, duration))
+      cats.effect.IO(createAdminClient(ClientConfig(url, backend, duration, ssmEndpointUri)))
     }
 
-  def contentClient(url: String, duration: FiniteDuration = 15.minutes): IO[ContentClient[IO]] =
+  def contentClient(
+      url: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+  ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createContentClient(url, backend, duration))
+      cats.effect.IO(createContentClient(ClientConfig(url, backend, duration, ssmEndpointUri)))
     }
 }

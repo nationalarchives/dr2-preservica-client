@@ -59,7 +59,8 @@ lazy val commonSettings = Seq(
     sttpUpickle,
     sttpZio,
     zioInteropCats,
-    scalaTest % Test,
+    "uk.gov.nationalarchives" %% "dp-preservica-config" % "0.1.0-SNAPSHOT",
+      scalaTest % Test,
     wireMock % Test,
   )
 ) ++ releaseSettings
