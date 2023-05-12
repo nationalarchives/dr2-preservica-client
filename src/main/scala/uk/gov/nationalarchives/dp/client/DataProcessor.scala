@@ -1,7 +1,8 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.implicits.toTraverseOps
+import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Entity.fromType
 import uk.gov.nationalarchives.dp.client.Utils._
 
@@ -18,6 +19,26 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 
   def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] = {
     (res \\ elementName).find(n => (n \ "Name").text == fileName).map(n => (n \ "ApiId").text)
+  }
+
+  def closureResultIndexNames(res: Elem): F[ClosureResultIndexNames] = {
+    def findByType(indexType: String) = (res \\ "term")
+      .find(node => node.attribute("indexType").map(_.text).contains(indexType))
+      .flatMap(_.attribute("indexName").map(_.text))
+    for {
+      shortName <- me.fromOption(
+        (res \\ "shortName").headOption.map(_.text),
+        PreservicaClientException("No short name found")
+      )
+      reviewDate <- me.fromOption(
+        findByType("DATE"),
+        PreservicaClientException("No review date index found for closure result")
+      )
+      documentStatus <- me.fromOption(
+        findByType("STRING_DEFAULT"),
+        PreservicaClientException("No document status index found for closure result")
+      )
+    } yield ClosureResultIndexNames(s"$shortName.$reviewDate", s"$shortName.$documentStatus")
   }
 
   def fragmentUrls(elem: Elem): F[Seq[String]] = {
@@ -80,9 +101,10 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       })
       .sequence
   }
-
 }
 
 object DataProcessor {
+  case class ClosureResultIndexNames(reviewDateName: String, documentStatusName: String)
+
   def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
 }
