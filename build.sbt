@@ -47,6 +47,10 @@ lazy val releaseSettings = Seq(
   homepage := Some(url("https://github.com/nationalarchives/dp-preservica-client"))
 )
 
+Test / fork := true
+Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
+
+
 lazy val commonSettings = Seq(
   scalaVersion := scala2Version,
   libraryDependencies ++= Seq(
