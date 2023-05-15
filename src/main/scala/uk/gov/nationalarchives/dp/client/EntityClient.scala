@@ -71,7 +71,9 @@ object EntityClient {
         allGenerationElements <- allGenerationUrls
           .map(url => getApiResponseXml(url, token))
           .sequence
-        allBitstreams <- dataProcessor.allBitstreamInfo(allGenerationElements)
+        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
+        bitStreams <- allUrls.map(url => getApiResponseXml(url, token)).sequence
+        allBitstreams <- dataProcessor.allBitstreamInfo(bitStreams)
       } yield allBitstreams
     }
 
