@@ -463,12 +463,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     pageOne.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     pageOne.path should equal("information-objects")
-    pageOne.title should be("page1File.txt")
+    pageOne.title.get should be("page1File.txt")
     pageOne.deleted should be(false)
 
     pageTwo.ref.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
     pageTwo.path should equal("structural-objects")
-    pageTwo.title should be("page2File.txt")
+    pageTwo.title.get should be("page2File.txt")
     pageTwo.deleted should be(true)
   }
 
