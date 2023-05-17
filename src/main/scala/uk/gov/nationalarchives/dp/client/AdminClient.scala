@@ -5,7 +5,7 @@ import cats.effect._
 import cats.implicits._
 import sttp.client3._
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.FileInfo._
 
 import scala.concurrent.duration.FiniteDuration
@@ -36,8 +36,8 @@ object AdminClient {
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
 
-    val utils: Utils[F, S] = Utils(apiBaseUrl, backend, duration)
-    import utils._
+    val client: Client[F, S] = Client(apiBaseUrl, backend, duration)
+    import client._
 
     private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
       val url = uri"$apiBaseUrl/api/admin/$path/$apiId"

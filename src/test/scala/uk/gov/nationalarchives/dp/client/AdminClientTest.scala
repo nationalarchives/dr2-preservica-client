@@ -9,7 +9,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
 import uk.gov.nationalarchives.dp.client.FileInfo._
-import uk.gov.nationalarchives.dp.client.Utils.AuthDetails
+import uk.gov.nationalarchives.dp.client.Client.AuthDetails
 
 import scala.jdk.CollectionConverters._
 import scala.xml.{Elem, Node}

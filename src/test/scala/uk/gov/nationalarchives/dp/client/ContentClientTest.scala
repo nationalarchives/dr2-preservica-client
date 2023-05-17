@@ -10,7 +10,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
-import uk.gov.nationalarchives.dp.client.Utils.AuthDetails
+import uk.gov.nationalarchives.dp.client.Client.AuthDetails
 import upickle.default
 import upickle.default._
 

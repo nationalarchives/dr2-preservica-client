@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 
 trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity, auth: AuthDetails): F[Seq[Elem]]
@@ -36,8 +36,8 @@ object EntityClient {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
-    val utils: Utils[F, S] = Utils(apiBaseUrl, backend, duration)
-    import utils._
+    val client: Client[F, S] = Client(apiBaseUrl, backend, duration)
+    import client._
 
     private def updatedEntities(
         url: Option[String],
