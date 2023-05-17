@@ -6,7 +6,8 @@ import cats.effect.Sync
 import sttp.client3._
 import sttp.client3.upicklejson.asJson
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
-import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
+import uk.gov.nationalarchives.dp.client.Client.ClientConfig
+
 import upickle.default._
 
 import java.time.ZonedDateTime
@@ -29,20 +30,20 @@ object ContentClient {
 
     case class SearchResponse(success: Boolean, value: SearchResponseValue)
 
-    val utils: Utils[F, S] = Utils(clientConfig)
+    private val client: Client[F, S] = Client(clientConfig)
     implicit val fieldWriter: Writer[SearchField] = macroW[SearchField]
     implicit val queryWriter: Writer[SearchQuery] = macroW[SearchQuery]
     implicit val searchResponseValueWriter: Reader[SearchResponseValue] = macroR[SearchResponseValue]
     implicit val searchResponseWriter: Reader[SearchResponse] = macroR[SearchResponse]
 
-    import utils._
+    import client._
 
-    def toEntities(objectIds: List[String]): F[List[Entity]] = objectIds
+    def toEntities(entityInfo: List[String]): F[List[Entity]] = entityInfo
       .map(id => {
-        val pipeSplit = id.split("\\|")
-        val refType = pipeSplit.head.split(":").last
-        val entityId = UUID.fromString(pipeSplit.last)
-        Entity.fromType[F](refType, entityId, "", deleted = false)
+        val entityTypeAndRefSplit = id.split("\\|")
+        val entityType = entityTypeAndRefSplit.head.split(":").last
+        val entityRef = UUID.fromString(entityTypeAndRefSplit.last)
+        Entity.fromType[F](entityType, entityRef, None, deleted = false)
       })
       .sequence
 

@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Entity.fromType
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 
 import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
@@ -94,7 +94,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
 
         val ref = UUID.fromString(attrToString("ref"))
-        val title = attrToString("title")
+        val title = entityAttributes.get("title").map(_.toString)
         val entityType = attrToString("type")
         val deleted = attrToString("deleted").nonEmpty
         fromType(entityType, ref, title, deleted)

@@ -4,7 +4,7 @@ import sttp.capabilities.zio.ZioStreams
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
-import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
+import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient._
 import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient}
 import zio.Task

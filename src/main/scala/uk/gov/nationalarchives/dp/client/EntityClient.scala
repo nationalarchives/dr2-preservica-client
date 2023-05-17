@@ -11,7 +11,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, XML}
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 
 trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
@@ -31,8 +31,10 @@ object EntityClient {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
-    val utils: Utils[F, S] = Utils(clientConfig)
-    import utils._
+    private val apiBaseUrl: String = clientConfig.apiBaseUrl
+
+    private val client: Client[F, S] = Client(clientConfig)
+    import client._
 
     private def updatedEntities(
         url: Option[String],

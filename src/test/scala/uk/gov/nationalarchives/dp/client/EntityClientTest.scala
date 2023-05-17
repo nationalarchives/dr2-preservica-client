@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entity.fromType
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters._
@@ -230,7 +230,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -275,7 +275,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a multiple fragments when the object has multiple fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
@@ -339,7 +339,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, "title", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -366,7 +366,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error if the server is unavailable" in {
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
-    val entity = valueFromF(fromType("IO", UUID.randomUUID(), "title", deleted = false))
+    val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), deleted = false))
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = client.metadataForEntity(entity, secretName)
 
