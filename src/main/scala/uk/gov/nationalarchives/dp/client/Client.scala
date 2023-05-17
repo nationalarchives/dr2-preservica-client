@@ -17,8 +17,8 @@ import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
 class Client[F[_], S](apiBaseUrl: String, backend: SttpBackend[F, S], duration: FiniteDuration)(implicit
-                                                                                                me: MonadError[F, Throwable],
-                                                                                                sync: Sync[F]
+    me: MonadError[F, Throwable],
+    sync: Sync[F]
 ) {
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
