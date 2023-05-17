@@ -8,7 +8,7 @@ object Entities {
   case class Entity(entityType: String, ref: UUID, title: Option[String], deleted: Boolean, path: String)
 
   def fromType[F[_]](entityType: String, ref: UUID, title: Option[String], deleted: Boolean)(implicit
-                                                                                             me: MonadError[F, Throwable]
+      me: MonadError[F, Throwable]
   ): F[Entity] = entityType match {
     case "IO" =>
       me.pure {
