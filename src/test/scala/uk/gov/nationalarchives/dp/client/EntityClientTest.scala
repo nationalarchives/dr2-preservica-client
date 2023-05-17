@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Entities.fromType
 import uk.gov.nationalarchives.dp.client.Client._
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -55,8 +55,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-    val generationUrl = s"/api/entity/content-objects/$ref/generations/1"
-    val bitstreamUrl = s"/api/entity/content-objects/$ref/generations/1/bitstreams/1"
+    val generationUrl = s"$generationsUrl/1"
+    val bitstreamUrl = s"$generationUrl/bitstreams/1"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -106,10 +106,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info for multiple generations" in {
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-    val generationOneUrl = s"/api/entity/content-objects/$ref/generations/1"
-    val generationTwoUrl = s"/api/entity/content-objects/$ref/generations/2"
-    val bitstreamOneUrl = s"/api/entity/content-objects/$ref/generations/1/bitstreams/1"
-    val bitstreamTwoUrl = s"/api/entity/content-objects/$ref/generations/2/bitstreams/2"
+    val generationOneUrl = s"$generationsUrl/1"
+    val generationTwoUrl = s"$generationsUrl/2"
+    val bitstreamOneUrl = s"$generationOneUrl/bitstreams/1"
+    val bitstreamTwoUrl = s"$generationTwoUrl/bitstreams/1"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">

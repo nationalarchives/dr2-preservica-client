@@ -3,7 +3,7 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
-import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.Client._
 
 import java.util.UUID

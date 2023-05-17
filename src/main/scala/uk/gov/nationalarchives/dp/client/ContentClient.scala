@@ -7,7 +7,7 @@ import sttp.client3._
 import sttp.client3.upicklejson.asJson
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
-
+import uk.gov.nationalarchives.dp.client.Entities._
 import upickle.default._
 
 import java.time.ZonedDateTime
@@ -43,7 +43,7 @@ object ContentClient {
         val entityTypeAndRefSplit = id.split("\\|")
         val entityType = entityTypeAndRefSplit.head.split(":").last
         val entityRef = UUID.fromString(entityTypeAndRefSplit.last)
-        Entity.fromType[F](entityType, entityRef, None, deleted = false)
+        fromType[F](entityType, entityRef, None, deleted = false)
       })
       .sequence
 

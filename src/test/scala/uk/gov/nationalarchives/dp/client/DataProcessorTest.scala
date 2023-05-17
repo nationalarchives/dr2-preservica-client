@@ -3,6 +3,7 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
+import uk.gov.nationalarchives.dp.client.Entities.Entity
 
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
