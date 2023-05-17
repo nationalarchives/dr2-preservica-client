@@ -6,7 +6,7 @@ import cats.implicits._
 import sttp.client3._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.FileInfo._
-import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
+import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 
 trait AdminClient[F[_]] {
 
@@ -30,8 +30,8 @@ object AdminClient {
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
 
-    val utils: Utils[F, S] = Utils(clientConfig)
-    import utils._
+    private val client: Client[F, S] = Client(clientConfig)
+    import client._
 
     private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
       val url = uri"$apiBaseUrl/api/admin/$path/$apiId"

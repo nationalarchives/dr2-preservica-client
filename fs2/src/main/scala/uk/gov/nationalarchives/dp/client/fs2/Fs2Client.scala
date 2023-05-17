@@ -7,7 +7,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient}
-import uk.gov.nationalarchives.dp.client.Utils.ClientConfig
+import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import scala.concurrent.duration._
 
 object Fs2Client {

@@ -14,14 +14,14 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import sttp.client3._
 import sttp.client3.upicklejson._
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Utils._
+import uk.gov.nationalarchives.dp.client.Client._
 import upickle.default._
 
 import java.net.URI
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
-class Utils[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
@@ -64,8 +64,8 @@ class Utils[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .build()
 
     val response = secretsManager.getSecretValue(valueRequest)
-    val secretMap = upickle.default.read[Map[String, String]](response.secretString).head
-    me.pure(AuthDetails(secretMap._1, secretMap._2))
+    val (username, password) = upickle.default.read[Map[String, String]](response.secretString).head
+    me.pure(AuthDetails(username, password))
   }
 
   private[client] def getAuthenticationToken(secretName: String): F[String] =
@@ -88,7 +88,7 @@ class Utils[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     }.flatten
 
 }
-object Utils {
+object Client {
   case class Token(token: String)
 
   case class AuthDetails(userName: String, password: String)
@@ -105,5 +105,6 @@ object Utils {
   def apply[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ) = new Utils[F, S](clientConfig)
+  ) = new Client[F, S](clientConfig)
+
 }
