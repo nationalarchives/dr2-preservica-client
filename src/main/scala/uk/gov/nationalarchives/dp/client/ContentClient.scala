@@ -39,8 +39,8 @@ object ContentClient {
     import client._
 
     def toEntities(entityInfo: List[String]): F[List[Entity]] = entityInfo
-      .map(id => {
-        val entityTypeAndRefSplit = id.split("\\|")
+      .map(info => {
+        val entityTypeAndRefSplit = info.split("\\|")
         val entityType = entityTypeAndRefSplit.head.split(":").last
         val entityRef = UUID.fromString(entityTypeAndRefSplit.last)
         fromType[F](entityType, entityRef, None, deleted = false)
