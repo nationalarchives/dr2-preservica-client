@@ -10,33 +10,30 @@ import sttp.model.Method
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 import uk.gov.nationalarchives.dp.client.Client._
 
 trait EntityClient[F[_], S] {
-  def metadataForEntity(entity: Entity, auth: AuthDetails): F[Seq[Elem]]
+  def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
 
-  def getBitstreamInfo(contentRef: UUID, authDetails: AuthDetails): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
-  )(url: String, authDetails: AuthDetails, streamFn: stream.BinaryStream => F[T]): F[T]
+  )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
-  def entitiesUpdatedSince(dateTime: ZonedDateTime, authDetails: AuthDetails): F[Seq[Entity]]
+  def entitiesUpdatedSince(dateTime: ZonedDateTime, secretName: String): F[Seq[Entity]]
 }
 
 object EntityClient {
 
-  def createEntityClient[F[_], S](
-      apiBaseUrl: String,
-      backend: SttpBackend[F, S],
-      duration: FiniteDuration
-  )(implicit
+  def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
-    val client: Client[F, S] = Client(apiBaseUrl, backend, duration)
+    private val apiBaseUrl: String = clientConfig.apiBaseUrl
+
+    private val client: Client[F, S] = Client(clientConfig)
     import client._
 
     private def updatedEntities(
@@ -62,10 +59,10 @@ object EntityClient {
 
     override def getBitstreamInfo(
         contentRef: UUID,
-        authDetails: AuthDetails
+        secretName: String
     ): F[Seq[BitStreamInfo]] = {
       for {
-        token <- getAuthenticationToken(authDetails)
+        token <- getAuthenticationToken(secretName)
         contentEntity <- getApiResponseXml(
           s"$apiBaseUrl/api/entity/content-objects/$contentRef",
           token
@@ -80,9 +77,9 @@ object EntityClient {
       } yield allBitstreams
     }
 
-    override def metadataForEntity(entity: Entity, auth: AuthDetails): F[Seq[Elem]] = {
+    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] = {
       for {
-        token <- getAuthenticationToken(auth)
+        token <- getAuthenticationToken(secretName)
         entityInfo <- getApiResponseXml(
           s"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}",
           token
@@ -95,20 +92,20 @@ object EntityClient {
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
-        authDetails: AuthDetails
+        secretName: String
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"))
       val queryParams = Map("date" -> dateString, "max" -> "100", "start" -> "0")
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
-        token <- getAuthenticationToken(authDetails)
+        token <- getAuthenticationToken(secretName)
         entities <- updatedEntities(url.toString.some, token, Nil)
       } yield entities
     }
 
     def streamBitstreamContent[T](
         stream: Streams[S]
-    )(url: String, authDetails: AuthDetails, streamFn: stream.BinaryStream => F[T]): F[T] = {
+    )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T] = {
       val apiUri = uri"$url"
       def request(token: String) = basicRequest
         .get(apiUri)
@@ -116,7 +113,7 @@ object EntityClient {
         .response(asStream(stream)(streamFn))
 
       for {
-        token <- getAuthenticationToken(authDetails)
+        token <- getAuthenticationToken(secretName)
         res <- backend.send(request(token))
         body <- me.fromEither {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))

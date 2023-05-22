@@ -10,13 +10,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
-import uk.gov.nationalarchives.dp.client.Client.AuthDetails
 import upickle.default
 import upickle.default._
 
 import scala.jdk.CollectionConverters._
 
-abstract class ContentClientTest[F[_]](port: Int)(implicit
+abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(implicit
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
     with BeforeAndAfterEach {
@@ -24,18 +23,25 @@ abstract class ContentClientTest[F[_]](port: Int)(implicit
 
   def createClient(url: String): F[ContentClient[F]]
 
-  val preservicaServer = new WireMockServer(port)
+  val preservicaServer = new WireMockServer(preservicaPort)
+  val secretsManagerServer = new WireMockServer(secretsManagerPort)
+
+  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
   override def beforeEach(): Unit = {
+    secretsManagerServer.resetAll()
     preservicaServer.resetAll()
     preservicaServer.start()
+    secretsManagerServer.start()
+    secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
   }
 
   override def afterEach(): Unit = {
     preservicaServer.stop()
+    secretsManagerServer.stop()
   }
 
-  val client: ContentClient[F] = valueFromF(createClient(s"http://localhost:$port"))
+  val client: ContentClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
@@ -65,7 +71,7 @@ abstract class ContentClientTest[F[_]](port: Int)(implicit
       .willReturn(okJson(searchResponse))
     preservicaServer.stubFor(searchMapping)
 
-    valueFromF(client.findExpiredClosedDocuments(AuthDetails("", "")))
+    valueFromF(client.findExpiredClosedDocuments("secretName"))
 
     val events =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(searchMapping.build())).getServeEvents.asScala
@@ -91,7 +97,7 @@ abstract class ContentClientTest[F[_]](port: Int)(implicit
     preservicaServer.stubFor(get(urlPathMatching("/api/admin/documents")).willReturn(okXml(documentResponse.toString)))
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.findExpiredClosedDocuments(AuthDetails("", "")))
+      valueFromF(client.findExpiredClosedDocuments("secretName"))
     }
     error.getMessage should equal("Cannot find index definition closure-result-index-definition")
   }
@@ -117,7 +123,7 @@ abstract class ContentClientTest[F[_]](port: Int)(implicit
         .willReturn(okXml(documentContentResponse.toString))
     )
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.findExpiredClosedDocuments(AuthDetails("", "")))
+      valueFromF(client.findExpiredClosedDocuments("secretName"))
     }
     error.getMessage should equal("No review date index found for closure result")
   }
@@ -158,7 +164,7 @@ abstract class ContentClientTest[F[_]](port: Int)(implicit
     preservicaServer.stubFor(firstSearchMapping)
     preservicaServer.stubFor(secondSearchMapping)
 
-    valueFromF(client.findExpiredClosedDocuments(AuthDetails("", "")))
+    valueFromF(client.findExpiredClosedDocuments("secretName"))
 
     val firstEvents =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(firstSearchMapping.build())).getServeEvents.asScala

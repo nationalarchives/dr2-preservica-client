@@ -6,26 +6,22 @@ import cats.effect.Sync
 import sttp.client3._
 import sttp.client3.upicklejson.asJson
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
-import uk.gov.nationalarchives.dp.client.Client.AuthDetails
+import uk.gov.nationalarchives.dp.client.Client.ClientConfig
+
 import upickle.default._
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
 
 trait ContentClient[F[_]] {
-  def findExpiredClosedDocuments(authDetails: AuthDetails): F[List[Entity]]
+  def findExpiredClosedDocuments(secretName: String): F[List[Entity]]
 }
 object ContentClient {
   case class SearchField(name: String, values: List[String])
   case class SearchQuery(q: String, fields: List[SearchField])
 
-  def createContentClient[F[_], S](
-      apiBaseUrl: String,
-      backend: SttpBackend[F, S],
-      duration: FiniteDuration
-  )(implicit
+  def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): ContentClient[F] = new ContentClient[F] {
@@ -34,7 +30,7 @@ object ContentClient {
 
     case class SearchResponse(success: Boolean, value: SearchResponseValue)
 
-    val client: Client[F, S] = Client(apiBaseUrl, backend, duration)
+    private val client: Client[F, S] = Client(clientConfig)
     implicit val fieldWriter: Writer[SearchField] = macroW[SearchField]
     implicit val queryWriter: Writer[SearchQuery] = macroW[SearchQuery]
     implicit val searchResponseValueWriter: Reader[SearchResponseValue] = macroR[SearchResponseValue]
@@ -104,9 +100,9 @@ object ContentClient {
       uri"$apiBaseUrl/api/content/search?$queryParams"
     }
 
-    override def findExpiredClosedDocuments(authDetails: AuthDetails): F[List[Entity]] = {
+    override def findExpiredClosedDocuments(secretName: String): F[List[Entity]] = {
       for {
-        token <- getAuthenticationToken(authDetails)
+        token <- getAuthenticationToken(secretName)
         indexNames <- getClosureResultIndexNames(token)
         res <- search(0, token, indexNames, Nil)
       } yield res

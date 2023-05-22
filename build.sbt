@@ -50,6 +50,7 @@ lazy val releaseSettings = Seq(
 lazy val commonSettings = Seq(
   scalaVersion := scala2Version,
   libraryDependencies ++= Seq(
+    awsSecretsManager,
     catsCore,
     scalaCacheCaffeine,
     scalaXml,
@@ -60,7 +61,9 @@ lazy val commonSettings = Seq(
     zioInteropCats,
     scalaTest % Test,
     wireMock % Test,
-  )
+  ),
+  Test / fork := true,
+  Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
 ) ++ releaseSettings
 
 lazy val fs2Ref = LocalProject("fs2")

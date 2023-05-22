@@ -4,11 +4,12 @@ import uk.gov.nationalarchives.dp.client.{ContentClient, ContentClientTest}
 import zio._
 import zio.interop.catz._
 
-class ZioContentClientTest extends ContentClientTest[Task](9005) {
+class ZioContentClientTest extends ContentClientTest[Task](9001, 9011) {
 
   override def valueFromF[T](value: Task[T]): T = Unsafe.unsafe { implicit unsafe =>
     Runtime.default.unsafe.run(value).getOrThrow()
   }
 
-  override def createClient(url: String): Task[ContentClient[Task]] = contentClient(url)
+  override def createClient(url: String): Task[ContentClient[Task]] =
+    contentClient(url, ssmEndpointUri = "http://localhost:9011")
 }
