@@ -1,0 +1,13 @@
+package uk.gov.nationalarchives.dp.client.fs2
+
+import cats.effect.IO
+import cats.effect.IO.{asyncForIO, cont}
+import cats.effect.unsafe.implicits.global
+import uk.gov.nationalarchives.dp.client.fs2.Fs2Client._
+import uk.gov.nationalarchives.dp.client.{ContentClient, ContentClientTest}
+
+class Fs2ContentClientTest extends ContentClientTest[IO](9006) {
+  override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
+
+  override def createClient(url: String): IO[ContentClient[IO]] = contentClient(url)
+}

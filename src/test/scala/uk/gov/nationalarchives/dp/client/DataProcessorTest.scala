@@ -70,7 +70,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </MetadataResponse>
 
     val fragmentsF = new DataProcessor[F]().fragments(Seq(input))
-    val error = intercept[RuntimeException] {
+    val error = intercept[PreservicaClientException] {
       valueFromF(fragmentsF)
     }
     val expectedMessage = """No content found for elements:
@@ -129,7 +129,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         </Generations>
       </GenerationsResponse>
     val generationsF = new DataProcessor[F]().allGenerationUrls(input)
-    val error = intercept[RuntimeException] {
+    val error = intercept[PreservicaClientException] {
       valueFromF(generationsF)
     }
     val expectedErrorMessage = """No generations found for entity:
@@ -225,5 +225,48 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       3,
       deleted = true
     )
+  }
+
+  "closureResultIndexNames" should "return an error if the short name is missing" in {
+    val res = <index>
+      <term indexName="test_date_index" indexType="DATE"/>
+      <term indexName="test_string_index" indexType="STRING_DEFAULT"/>
+    </index>
+    val entitiesF = new DataProcessor[F]().closureResultIndexNames(res)
+    val error = intercept[PreservicaClientException](valueFromF(entitiesF))
+    error.getMessage should equal("No short name found")
+  }
+
+  "closureResultIndexNames" should "return an error if the date index is missing" in {
+    val res = <index>
+      <shortName>test</shortName>
+      <term indexName="test_string_index" indexType="STRING_DEFAULT"/>
+    </index>
+    val entitiesF = new DataProcessor[F]().closureResultIndexNames(res)
+    val error = intercept[PreservicaClientException](valueFromF(entitiesF))
+    error.getMessage should equal("No review date index found for closure result")
+  }
+
+  "closureResultIndexNames" should "return an error if the string index is missing" in {
+    val res = <index>
+      <shortName>test</shortName>
+      <term indexName="test_string_index" indexType="DATE"/>
+    </index>
+    val entitiesF = new DataProcessor[F]().closureResultIndexNames(res)
+    val error = intercept[PreservicaClientException](valueFromF(entitiesF))
+    error.getMessage should equal("No document status index found for closure result")
+  }
+
+  "closureResultIndexNames" should "return the index names" in {
+    val res = <index>
+      <shortName>test</shortName>
+      <term indexName="test_date_index" indexType="DATE"/>
+      <term indexName="test_string_index" indexType="STRING_DEFAULT"/>
+    </index>
+    val entitiesF = new DataProcessor[F]().closureResultIndexNames(res)
+    val result = valueFromF(entitiesF)
+
+    result.documentStatusName should equal("test.test_string_index")
+    result.reviewDateName should equal("test.test_date_index")
   }
 }

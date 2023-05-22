@@ -1,6 +1,8 @@
 import sbtrelease.ReleaseStateTransformations._
 import Dependencies._
 
+lazy val scala2Version = "2.13.10"
+
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
   publishTo := sonatypePublishToBundle.value,
@@ -46,7 +48,7 @@ lazy val releaseSettings = Seq(
 )
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.13.10",
+  scalaVersion := scala2Version,
   libraryDependencies ++= Seq(
     catsCore,
     scalaCacheCaffeine,
@@ -88,4 +90,6 @@ lazy val zio = project
     libraryDependencies ++= Seq(zioInteropCats, sttpZio)
   ).dependsOn(root % "compile->compile;test->test")
 
+
 scalacOptions ++= Seq("-Wunused:imports", "-Werror")
+
