@@ -93,7 +93,7 @@ object Client {
 
   case class AuthDetails(userName: String, password: String)
 
-  case class BitStreamInfo(name: String, url: String)
+  case class BitStreamInfo(name: String, fileSize: Long, url: String)
 
   case class ClientConfig[F[_], S](
       apiBaseUrl: String,

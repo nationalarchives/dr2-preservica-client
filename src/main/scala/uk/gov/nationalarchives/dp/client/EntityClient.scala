@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, XML}
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.Entities.Entity
 
 trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
@@ -73,8 +74,10 @@ object EntityClient {
         allGenerationElements <- allGenerationUrls
           .map(url => getApiResponseXml(url, token))
           .sequence
-        allBitstreams <- dataProcessor.allBitstreamInfo(allGenerationElements)
-      } yield allBitstreams
+        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
+        bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
+        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
+      } yield allBitstreamInfo
     }
 
     override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] = {

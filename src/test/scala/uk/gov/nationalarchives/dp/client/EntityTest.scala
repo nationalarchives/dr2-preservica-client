@@ -4,7 +4,7 @@ import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Entities.fromType
 
 import java.util.UUID
 

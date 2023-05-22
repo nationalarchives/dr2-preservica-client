@@ -3,7 +3,7 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
-import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.Client._
 
 import java.util.UUID
@@ -72,16 +72,21 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       case generationUrls => me.pure(generationUrls)
     }
 
-  def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
+  def allBitstreamUrls(entity: Seq[Elem]): F[Seq[String]] = {
     me.pure(
-      entity.flatMap(e =>
-        (e \ "Bitstreams" \ "Bitstream").map { b =>
-          val name = b.attribute("filename").map(_.toString).getOrElse("")
-          val url = b.text
-          BitStreamInfo(name, url)
-        }
-      )
+      entity.flatMap(e => (e \ "Bitstreams" \ "Bitstream").map(_.text))
     )
+  }
+
+  def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
+    me.pure {
+      entity.map(e => {
+        val filename = (e \\ "Bitstream" \\ "Filename").text
+        val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
+        val url = (e \\ "AdditionalInformation" \\ "Content").text
+        BitStreamInfo(filename, fileSize, url)
+      })
+    }
   }
 
   def nextPage(elem: Elem): F[Option[String]] =

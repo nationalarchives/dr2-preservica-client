@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entity.fromType
+import uk.gov.nationalarchives.dp.client.Entities.fromType
 import uk.gov.nationalarchives.dp.client.Client._
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -55,8 +55,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-    val generationUrl = s"/api/entity/content-objects/$ref/generations/1"
-    val bitstreamUrl = s"api/entity/content-objects/$ref/generations/1/bitstreams/1"
+    val generationUrl = s"$generationsUrl/1"
+    val bitstreamUrl = s"$generationUrl/bitstreams/1"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -76,17 +76,27 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <Bitstream filename="test.txt">http://localhost:{preservicaPort}{bitstreamUrl}</Bitstream>
       </Bitstreams>
     </GenerationResponse>.toString()
+    val bitstreamResponse = <BitstreamResponse>
+      <xip:Bitstream>
+        <xip:Filename>{fileName}</xip:Filename>
+        <xip:FileSize>1234</xip:FileSize>
+      </xip:Bitstream>
+      <AdditionalInformation>
+        <Content>http://test</Content>
+      </AdditionalInformation>
+    </BitstreamResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(generationsUrl)).willReturn(ok(generationsResponse)))
     preservicaServer.stubFor(get(urlEqualTo(generationUrl)).willReturn(ok(generationResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(bitstreamUrl)).willReturn(ok(bitstreamResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref, secretName)
 
     val bitStreamInfo = valueFromF(response).head
-    bitStreamInfo.url should equal(s"http://localhost:$preservicaPort$bitstreamUrl")
+    bitStreamInfo.url should equal(s"http://test")
     bitStreamInfo.name should equal(fileName)
 
     checkServerCall(entityUrl)
@@ -96,10 +106,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info for multiple generations" in {
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-    val generationOneUrl = s"/api/entity/content-objects/$ref/generations/1"
-    val generationTwoUrl = s"/api/entity/content-objects/$ref/generations/2"
-    val bitstreamOneUrl = s"api/entity/content-objects/$ref/generations/1/bitstreams/1"
-    val bitstreamTwoUrl = s"api/entity/content-objects/$ref/generations/2/bitstreams/2"
+    val generationOneUrl = s"$generationsUrl/1"
+    val generationTwoUrl = s"$generationsUrl/2"
+    val bitstreamOneUrl = s"$generationOneUrl/bitstreams/1"
+    val bitstreamTwoUrl = s"$generationTwoUrl/bitstreams/1"
 
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -128,6 +138,26 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </Bitstreams>
     </GenerationResponse>.toString()
 
+    val bitstreamOneResponse = <BitstreamResponse>
+      <xip:Bitstream>
+        <xip:Filename>test1.txt</xip:Filename>
+        <xip:FileSize>1234</xip:FileSize>
+      </xip:Bitstream>
+      <AdditionalInformation>
+        <Content>http://test</Content>
+      </AdditionalInformation>
+    </BitstreamResponse>.toString()
+
+    val bitstreamTwoResponse = <BitstreamResponse>
+      <xip:Bitstream>
+        <xip:Filename>test2.txt</xip:Filename>
+        <xip:FileSize>1234</xip:FileSize>
+      </xip:Bitstream>
+      <AdditionalInformation>
+        <Content>http://test</Content>
+      </AdditionalInformation>
+    </BitstreamResponse>.toString()
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(generationsUrl)).willReturn(ok(generationsResponse)))
@@ -137,16 +167,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(
       get(urlEqualTo(generationTwoUrl)).willReturn(ok(generationTwoResponse))
     )
+    preservicaServer.stubFor(get(urlEqualTo(bitstreamOneUrl)).willReturn(ok(bitstreamOneResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(bitstreamTwoUrl)).willReturn(ok(bitstreamTwoResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref, secretName)
 
     val bitStreamInfo = valueFromF(response)
     bitStreamInfo.size should equal(2)
-    bitStreamInfo.head.url should equal(s"http://localhost:$preservicaPort$bitstreamOneUrl")
+    bitStreamInfo.head.url should equal(s"http://test")
     bitStreamInfo.head.name should equal("test1.txt")
 
-    bitStreamInfo.last.url should equal(s"http://localhost:$preservicaPort$bitstreamTwoUrl")
+    bitStreamInfo.last.url should equal(s"http://test")
     bitStreamInfo.last.name should equal("test2.txt")
 
     checkServerCall(entityUrl)
@@ -431,12 +463,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     pageOne.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     pageOne.path should equal("information-objects")
-    pageOne.title should be("page1File.txt")
+    pageOne.title.get should be("page1File.txt")
     pageOne.deleted should be(false)
 
     pageTwo.ref.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
     pageTwo.path should equal("structural-objects")
-    pageTwo.title should be("page2File.txt")
+    pageTwo.title.get should be("page2File.txt")
     pageTwo.deleted should be(true)
   }
 

@@ -3,6 +3,7 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
+import uk.gov.nationalarchives.dp.client.Entities.Entity
 
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
@@ -140,27 +141,47 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     error.getMessage should equal(expectedErrorMessage)
   }
 
-  "allBitstreamInfo" should "return the correct names and urls" in {
+  "allBitstreamUrls" should "return the correct urls" in {
     val input = Seq(
       <GenerationResponse>
         <Bitstreams>
-          <Bitstream filename="test1">http://test1</Bitstream>
+          <Bitstream>http://test1</Bitstream>
         </Bitstreams>
       </GenerationResponse>,
       <GenerationResponse>
         <Bitstreams>
-          <Bitstream filename="test2">http://test2</Bitstream>
+          <Bitstream>http://test2</Bitstream>
         </Bitstreams>
       </GenerationResponse>
     )
-    val generationsF = new DataProcessor[F]().allBitstreamInfo(input)
+    val generationsF = new DataProcessor[F]().allBitstreamUrls(input)
     val generations = valueFromF(generationsF)
 
     generations.size should equal(2)
-    generations.head.url should equal("http://test1")
-    generations.head.name should equal("test1")
-    generations.last.url should equal("http://test2")
-    generations.last.name should equal("test2")
+    generations.head should equal("http://test1")
+    generations.last should equal("http://test2")
+  }
+
+  "allBitstreamInfo" should "return the correct bitstream information" in {
+    val input = Seq(
+      <BitstreamResponse>
+        <xip:Bitstream>
+          <xip:Filename>test.text</xip:Filename>
+          <xip:FileSize>1234</xip:FileSize>
+        </xip:Bitstream>
+        <AdditionalInformation>
+          <Content>http://test</Content>
+        </AdditionalInformation>
+      </BitstreamResponse>
+    )
+
+    val generationsF = new DataProcessor[F]().allBitstreamInfo(input)
+    val response = valueFromF(generationsF)
+
+    response.size should equal(1)
+    response.head.name should equal("test.text")
+    response.head.fileSize should equal(1234)
+    response.head.url should equal("http://test")
   }
 
   "getNextPage" should "return the next page" in {
@@ -208,7 +229,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       entity.path should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
-      entity.title should equal(s"file$fileNumber.txt")
+      entity.title.get should equal(s"file$fileNumber.txt")
     }
 
     checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", 1)
