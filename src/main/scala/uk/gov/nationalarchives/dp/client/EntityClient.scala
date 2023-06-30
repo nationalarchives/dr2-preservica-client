@@ -15,6 +15,8 @@ import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
 
 trait EntityClient[F[_], S] {
+  val dateFormatter: DateTimeFormatter
+
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
@@ -32,6 +34,7 @@ object EntityClient {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
+    val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
 
     private val client: Client[F, S] = Client(clientConfig)
@@ -97,7 +100,7 @@ object EntityClient {
         dateTime: ZonedDateTime,
         secretName: String
     ): F[Seq[Entity]] = {
-      val dateString = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"))
+      val dateString = dateTime.format(dateFormatter)
       val queryParams = Map("date" -> dateString, "max" -> "100", "start" -> "0")
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
