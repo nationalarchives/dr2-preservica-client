@@ -25,7 +25,12 @@ trait EntityClient[F[_], S] {
       stream: Streams[S]
   )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
-  def entitiesUpdatedSince(dateTime: ZonedDateTime, secretName: String): F[Seq[Entity]]
+  def entitiesUpdatedSince(
+      dateTime: ZonedDateTime,
+      secretName: String,
+      startEntry: Int,
+      maxEntries: Int = 1000
+  ): F[Seq[Entity]]
 }
 
 object EntityClient {
@@ -51,13 +56,7 @@ object EntityClient {
         for {
           entitiesResponseXml <- getApiResponseXml(url.get, token)
           entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
-          nextPageUrl <- dataProcessor.nextPage(entitiesResponseXml)
-          allUpdatedEntities <- updatedEntities(
-            nextPageUrl,
-            token,
-            allEntities ++ entitiesWithUpdates
-          )
-        } yield allUpdatedEntities
+        } yield entitiesWithUpdates
       }
     }
 
@@ -98,10 +97,12 @@ object EntityClient {
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
-        secretName: String
+        secretName: String,
+        startEntry: Int,
+        maxEntries: Int = 1000
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
-      val queryParams = Map("date" -> dateString, "max" -> "100", "start" -> "0")
+      val queryParams = Map("date" -> dateString, "max" -> s"$maxEntries", "start" -> s"$startEntry")
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
