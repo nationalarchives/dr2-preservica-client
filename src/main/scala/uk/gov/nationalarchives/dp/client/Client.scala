@@ -47,9 +47,9 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .headers(Map("Preservica-Access-Token" -> token))
       .response(asXml)
 
-    me.flatMap(backend.send(request))(res => {
+    me.flatMap(backend.send(request)) { res =>
       me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
-    })
+    }
   }
 
   private def getAuthDetails(secretName: String): F[AuthDetails] = {

@@ -63,7 +63,7 @@ object EntityClient {
     override def getBitstreamInfo(
         contentRef: UUID,
         secretName: String
-    ): F[Seq[BitStreamInfo]] = {
+    ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken(secretName)
         contentEntity <- getApiResponseXml(
@@ -80,9 +80,8 @@ object EntityClient {
         bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
-    }
 
-    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] = {
+    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
         entityInfo <- getApiResponseXml(
@@ -93,7 +92,6 @@ object EntityClient {
         fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
       } yield fragments.map(XML.loadString)
-    }
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
