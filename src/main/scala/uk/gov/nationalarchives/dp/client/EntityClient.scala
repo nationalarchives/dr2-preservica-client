@@ -26,6 +26,8 @@ trait EntityClient[F[_], S] {
   )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
   def entitiesUpdatedSince(dateTime: ZonedDateTime, secretName: String): F[Seq[Entity]]
+
+  def test(): F[Response[Either[String, String]]]
 }
 
 object EntityClient {
@@ -105,6 +107,7 @@ object EntityClient {
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
+        _ <- me.pure(Thread.sleep(5000))
         entities <- updatedEntities(url.toString.some, token, Nil)
       } yield entities
     }
@@ -126,5 +129,12 @@ object EntityClient {
         }
       } yield body
     }
+
+    override def test(): F[Response[Either[String, String]]] = {
+      val req = basicRequest
+        .get(uri"https://example.com")
+      backend.send(req)
+    }
+
   }
 }

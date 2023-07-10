@@ -48,6 +48,9 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .response(asXml)
 
     me.flatMap(backend.send(request))(res => {
+      println("PRESERVICA_RESPONSE")
+      println(res.code.code)
+
       me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
     })
   }
