@@ -25,7 +25,12 @@ trait EntityClient[F[_], S] {
       stream: Streams[S]
   )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
-  def entitiesUpdatedSince(dateTime: ZonedDateTime, secretName: String): F[Seq[Entity]]
+  def entitiesUpdatedSince(
+      dateTime: ZonedDateTime,
+      secretName: String,
+      startEntry: Int,
+      maxEntries: Int = 1000
+  ): F[Seq[Entity]]
 }
 
 object EntityClient {
@@ -51,20 +56,14 @@ object EntityClient {
         for {
           entitiesResponseXml <- getApiResponseXml(url.get, token)
           entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
-          nextPageUrl <- dataProcessor.nextPage(entitiesResponseXml)
-          allUpdatedEntities <- updatedEntities(
-            nextPageUrl,
-            token,
-            allEntities ++ entitiesWithUpdates
-          )
-        } yield allUpdatedEntities
+        } yield entitiesWithUpdates
       }
     }
 
     override def getBitstreamInfo(
         contentRef: UUID,
         secretName: String
-    ): F[Seq[BitStreamInfo]] = {
+    ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken(secretName)
         contentEntity <- getApiResponseXml(
@@ -81,9 +80,8 @@ object EntityClient {
         bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
-    }
 
-    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] = {
+    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
         entityInfo <- getApiResponseXml(
@@ -94,14 +92,15 @@ object EntityClient {
         fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
       } yield fragments.map(XML.loadString)
-    }
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
-        secretName: String
+        secretName: String,
+        startEntry: Int,
+        maxEntries: Int = 1000
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
-      val queryParams = Map("date" -> dateString, "max" -> "100", "start" -> "0")
+      val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
