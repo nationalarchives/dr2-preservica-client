@@ -100,7 +100,7 @@ object EntityClient {
         maxEntries: Int = 1000
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
-      val queryParams = Map("date" -> dateString, "max" -> s"$maxEntries", "start" -> s"$startEntry")
+      val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
