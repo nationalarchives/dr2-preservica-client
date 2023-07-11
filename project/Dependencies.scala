@@ -9,6 +9,7 @@ object Dependencies {
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
+  lazy val log4Cats =  "org.typelevel" %% "log4cats-slf4j"   % "2.6.0"
   lazy val sttpUpickle = "com.softwaremill.sttp.client3" %% "upickle" % sttpVersion
   lazy val sttpZio = "com.softwaremill.sttp.client3" %% "zio" % sttpVersion
   lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.20.26"

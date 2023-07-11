@@ -6,7 +6,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient._
-import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient}
+import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper}
 import zio.Task
 import zio.interop.catz._
 
@@ -21,7 +21,7 @@ object ZioClient {
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): Task[EntityClient[Task, ZioStreams]] =
     HttpClientZioBackend().map { backend =>
-      createEntityClient[Task, ZioStreams](ClientConfig(url, backend, duration, ssmEndpointUri))
+      createEntityClient[Task, ZioStreams](ClientConfig(url, LoggingWrapper(backend), duration, ssmEndpointUri))
     }
 
   def adminClient(
