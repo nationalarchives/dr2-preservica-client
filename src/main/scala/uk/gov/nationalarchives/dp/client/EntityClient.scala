@@ -47,11 +47,10 @@ object EntityClient {
 
     private def updatedEntities(
         url: Option[String],
-        token: String,
-        allEntities: Seq[Entity]
+        token: String
     ): F[Seq[Entity]] = {
       if (url.isEmpty) {
-        me.pure(allEntities)
+        me.pure(Nil)
       } else {
         for {
           entitiesResponseXml <- getApiResponseXml(url.get, token)
@@ -104,7 +103,7 @@ object EntityClient {
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
-        entities <- updatedEntities(url.toString.some, token, Nil)
+        entities <- updatedEntities(url.toString.some, token)
       } yield entities
     }
 
