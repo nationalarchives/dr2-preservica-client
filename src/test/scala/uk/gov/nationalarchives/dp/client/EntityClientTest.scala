@@ -460,4 +460,121 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       err.getClass.getSimpleName should equal("PreservicaClientException")
     })
   }
+
+  "entityEventActions" should "return all paginated values in reverse chronological order (most recent EventAction first)" in {
+    val firstPage = <EventActionsResponse>
+      <EventActions>
+        <xip:EventAction commandType="command_create">
+          <xip:Event type="Ingest">
+            <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+            <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+      </EventActions>
+      <Paging>
+        <Next>http://localhost:{
+      preservicaPort
+    }/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions?max=1000&amp;start=1000</Next>
+      </Paging>
+    </EventActionsResponse>
+    val secondPage = <EventActionsResponse>
+      <EventActions>
+        <xip:EventAction commandType="AddIdentifier">
+          <xip:Event type="Modified">
+            <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+            <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+      </EventActions>
+      <Paging>
+      </Paging>
+    </EventActionsResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(firstPage.toString()))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(secondPage.toString()))
+    )
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      client.entityEventActions(
+        Entities.Entity(
+          "CO",
+          UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+          None,
+          deleted = false,
+          "content-objects"
+        ),
+        secretName
+      )
+    )
+
+    val firstResult = response.head
+    val secondResult = response.last
+
+    firstResult.dateOfEvent.toString should equal("2023-06-27T08:14:08.442Z")
+    firstResult.eventRef should equal(UUID.fromString("efe9b25d-c3b4-476a-8ff1-d52fb01ad96b"))
+    firstResult.eventType should be("Modified")
+
+    secondResult.dateOfEvent.toString should equal("2023-06-26T08:14:08.441Z")
+    secondResult.eventRef should equal(UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"))
+    secondResult.eventType should be("Ingest")
+  }
+
+  "entityEventActions" should "return an error if the request is malformed" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      cme.attempt(
+        client.entityEventActions(
+          Entities.Entity(
+            "CO",
+            UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+            None,
+            deleted = false,
+            "content-objects"
+          ),
+          secretName
+        )
+      )
+    )
+
+    response.left.map { err =>
+      err.getClass.getSimpleName should equal("PreservicaClientException")
+    }
+  }
 }
