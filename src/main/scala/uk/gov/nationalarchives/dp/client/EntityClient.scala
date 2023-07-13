@@ -46,11 +46,11 @@ object EntityClient {
     import client._
 
     private def updatedEntities(
-        url: Option[String],
+        url: String,
         token: String
     ): F[Seq[Entity]] =
       for {
-        entitiesResponseXml <- getApiResponseXml(url.get, token)
+        entitiesResponseXml <- getApiResponseXml(url, token)
         entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
 
@@ -98,7 +98,7 @@ object EntityClient {
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
-        entities <- updatedEntities(url.toString.some, token)
+        entities <- updatedEntities(url.toString, token)
       } yield entities
     }
 
