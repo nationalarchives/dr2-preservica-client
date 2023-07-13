@@ -143,7 +143,7 @@ object EntityClient {
         startEntry: Int = 0,
         maxEntries: Int = 1000
     ): F[Seq[EventAction]] = {
-      val queryParams = Map("max" -> maxEntries, "start" -> 0)
+      val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
       val url = uri"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}/event-actions?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
