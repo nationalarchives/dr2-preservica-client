@@ -412,7 +412,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
-  "entitiesUpdatedSince" should "return an entity if once was updated since the datetime specified" in {
+  "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val pageResult = <EntitiesResponse>
       <Entities>
