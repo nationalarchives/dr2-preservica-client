@@ -412,6 +412,47 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
+  "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
+    val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
+    val pageResult = <EntitiesResponse>
+      <Entities>
+        <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/page1/object</Entity>
+      </Entities>
+      <Paging>
+        <Next>http://localhost:{
+      preservicaPort
+    }/api/entity/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z
+          &amp;
+          start=100
+          &amp;
+          max=1000</Next>
+      </Paging>
+    </EntitiesResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/entities/updated-since"))
+        .withQueryParams(
+          Map(
+            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(pageResult.toString()))
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(client.entitiesUpdatedSince(date, secretName, 0))
+
+    val expectedEntity = response.head
+
+    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.path should equal("information-objects")
+    expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.deleted should be(false)
+  }
+
   "entitiesUpdatedSince" should "return an empty list if none have been updated" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val input = <EntitiesResponse>
