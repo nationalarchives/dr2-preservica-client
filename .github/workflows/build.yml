@@ -6,7 +6,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.base_ref == 'main' && github.event.pull_request.merged == true && !contains(github.event.pull_request.labels._.name, 'Version bump') }}
+    if: ${{ github.base_ref == 'main' && github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'Version bump') }}
     steps:
       - uses: actions/checkout@v3
       - run: gh workflow run deploy.yml
