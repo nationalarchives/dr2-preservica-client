@@ -48,16 +48,11 @@ object EntityClient {
     private def updatedEntities(
         url: Option[String],
         token: String
-    ): F[Seq[Entity]] = {
-      if (url.isEmpty) {
-        me.pure(Nil)
-      } else {
-        for {
-          entitiesResponseXml <- getApiResponseXml(url.get, token)
-          entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
-        } yield entitiesWithUpdates
-      }
-    }
+    ): F[Seq[Entity]] =
+      for {
+        entitiesResponseXml <- getApiResponseXml(url.get, token)
+        entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
+      } yield entitiesWithUpdates
 
     override def getBitstreamInfo(
         contentRef: UUID,
