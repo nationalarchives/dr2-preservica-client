@@ -5,6 +5,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
 
+import java.time.ZonedDateTime
+import java.util.UUID
+
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
 
@@ -245,6 +248,63 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       "content-objects",
       3,
       deleted = true
+    )
+  }
+
+  "getEventActions" should "return the correct event actions using the date value from the 'Event'" in {
+    val input = <EventActionsResponse>
+      <EventActions>
+        <xip:EventAction commandType="command_create">
+          <xip:Event type="Ingest">
+            <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+            <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+        <xip:EventAction commandType="AddIdentifier">
+          <xip:Event type="Modified">
+            <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+            <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+        <xip:EventAction commandType="Moved">
+          <xip:Event type="Moved">
+            <xip:Ref>68c3adcc-8e1f-40f7-84a0-ca80c5969ef7</xip:Ref>
+            <xip:Date>2023-06-28T08:14:08.442Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-28T08:14:07.442Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+      </EventActions>
+    </EventActionsResponse>
+
+    val eventActionsF = new DataProcessor[F]().getEventActions(input)
+    val eventActions = valueFromF(eventActionsF)
+
+    eventActions should be(
+      List(
+        DataProcessor.EventAction(
+          UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"),
+          "Ingest",
+          ZonedDateTime.parse("2023-06-26T08:14:08.441Z")
+        ),
+        DataProcessor.EventAction(
+          UUID.fromString("efe9b25d-c3b4-476a-8ff1-d52fb01ad96b"),
+          "Modified",
+          ZonedDateTime.parse("2023-06-27T08:14:08.442Z")
+        ),
+        DataProcessor.EventAction(
+          UUID.fromString("68c3adcc-8e1f-40f7-84a0-ca80c5969ef7"),
+          "Moved",
+          ZonedDateTime.parse("2023-06-28T08:14:08.442Z")
+        )
+      )
     )
   }
 

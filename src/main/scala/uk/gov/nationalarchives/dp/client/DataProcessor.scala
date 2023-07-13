@@ -2,10 +2,11 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
-import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
+import uk.gov.nationalarchives.dp.client.DataProcessor.{ClosureResultIndexNames, EventAction}
 import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.Client._
 
+import java.time.ZonedDateTime
 import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
@@ -106,9 +107,23 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       })
       .sequence
   }
+
+  def getEventActions(elem: Elem): F[Seq[EventAction]] = {
+    me.pure(
+      (elem \ "EventActions" \ "EventAction")
+        .map { e =>
+          val eventRef = UUID.fromString((e \\ "Event" \\ "Ref").text)
+          val eventType = (e \\ "Event").flatMap(event => event.attributes("type")).text
+          val dateOfEvent = ZonedDateTime.parse((e \\ "Event" \\ "Date").text)
+
+          EventAction(eventRef, eventType, dateOfEvent)
+        }
+    )
+  }
 }
 
 object DataProcessor {
+  case class EventAction(eventRef: UUID, eventType: String, dateOfEvent: ZonedDateTime)
   case class ClosureResultIndexNames(reviewDateName: String, documentStatusName: String)
 
   def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
