@@ -3,9 +3,7 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.effect.Sync
 import cats.implicits._
-import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache._
-import scalacache.caffeine._
 import scalacache.memoization._
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
@@ -31,9 +29,7 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
 
   implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
 
-  implicit val cache: Cache[F, String, F[String]] = CaffeineCache(
-    Caffeine.newBuilder.build[String, Entry[F[String]]]
-  )
+  implicit val cache: Cache[F, String, F[String]] = new PreservicaClientCache()
 
   val backend: SttpBackend[F, S] = clientConfig.backend
   val duration: FiniteDuration = clientConfig.duration

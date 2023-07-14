@@ -9,6 +9,8 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.fromType
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.TestUtils.deleteCacheFiles
+
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters._
@@ -33,6 +35,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    deleteCacheFiles()
   }
 
   override def afterEach(): Unit = {

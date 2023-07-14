@@ -52,7 +52,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     awsSecretsManager,
     catsCore,
-    scalaCacheCaffeine,
+    scalaCacheCore,
     scalaXml,
     sttpCore,
     sttpFs2,

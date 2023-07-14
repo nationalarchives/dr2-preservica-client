@@ -10,6 +10,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
+import uk.gov.nationalarchives.dp.client.TestUtils.deleteCacheFiles
 import upickle.default
 import upickle.default._
 
@@ -34,6 +35,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.start()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    deleteCacheFiles()
   }
 
   override def afterEach(): Unit = {
