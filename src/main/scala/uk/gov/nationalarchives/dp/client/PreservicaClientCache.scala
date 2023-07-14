@@ -30,7 +30,6 @@ class PreservicaClientCache[F[_]: Sync] extends AbstractCache[F, String, F[Strin
   }
 
   override protected def doPut(key: String, value: F[String], ttl: Option[Duration]): F[Unit] = {
-    println(ttl)
     value.map(s => {
       Files.write(key.toPath, s.getBytes(), StandardOpenOption.CREATE)
       val ttlMillis = ttl.map(_.toMillis).getOrElse(0)
