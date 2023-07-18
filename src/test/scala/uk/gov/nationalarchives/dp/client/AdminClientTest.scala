@@ -9,8 +9,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
 import uk.gov.nationalarchives.dp.client.FileInfo._
-import uk.gov.nationalarchives.dp.client.TestUtils.deleteCacheFiles
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 import scala.xml.{Elem, Node}
 
@@ -19,6 +20,8 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
 ) extends AnyFlatSpec
     with BeforeAndAfterEach
     with TableDrivenPropertyChecks {
+
+  val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
   def valueFromF[T](value: F[T]): T
 
@@ -35,7 +38,6 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
     preservicaServer.start()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-    deleteCacheFiles()
   }
 
   override def afterEach(): Unit = {
