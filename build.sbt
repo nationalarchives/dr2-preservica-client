@@ -59,6 +59,7 @@ lazy val commonSettings = Seq(
     sttpUpickle,
     sttpZio,
     zioInteropCats,
+    mockito % Test,
     scalaTest % Test,
     wireMock % Test,
   ),
