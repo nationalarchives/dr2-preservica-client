@@ -57,7 +57,7 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
 
   val mockFiles: List[Path] = List(Path.of("path1"), Path.of("path2"))
 
-  case class TestClass(
+  case class MockPreservicaClientCache(
       readStringMock: Path => String = defaultReadStringMock,
       getAttributeMock: (Path, String) => Array[Byte] = defaultGetAttributeMock,
       writeMock: (Path, Array[Byte]) => Path = defaultWriteMock,
@@ -93,15 +93,15 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
   private val testPath: Path = Path.of(s"/tmp/cache_$testKey")
 
   "doGet" should "return a value if the current time is less than the cache expiry" in {
-    val testClass: TestClass = TestClass()
-    val res = valueFromF(testClass.doGet(testKey))
+    val mockPreservicaClientCache: MockPreservicaClientCache = MockPreservicaClientCache()
+    val res = valueFromF(mockPreservicaClientCache.doGet(testKey))
     res.isDefined should be(true)
     valueFromF(res.get) should be("cachedValue")
   }
 
   "doGet" should "return nothing if the current time is greater than the cache expiry" in {
-    val testClass: TestClass = TestClass(mockCurrentTime = 30)
-    val res = valueFromF(testClass.doGet(testKey))
+    val mockPreservicaClientCache: MockPreservicaClientCache = MockPreservicaClientCache(mockCurrentTime = 30)
+    val res = valueFromF(mockPreservicaClientCache.doGet(testKey))
     res.isDefined should be(false)
   }
 
@@ -110,82 +110,82 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
 
     when(readStringMock.apply(any[Path])).thenThrow(new RuntimeException("Error getting cache result"))
 
-    val testClass: TestClass = TestClass(readStringMock)
-    val res = valueFromF(testClass.doGet(testKey))
+    val mockPreservicaClientCache: MockPreservicaClientCache = MockPreservicaClientCache(readStringMock)
+    val res = valueFromF(mockPreservicaClientCache.doGet(testKey))
     res.isDefined should be(false)
   }
 
   "doGet" should "call the file API methods with the correct values" in {
-    val testClass: TestClass = TestClass()
-    valueFromF(testClass.doGet(testKey))
-    verify(testClass.getAttributeMock).apply(testPath, "user:ttl")
-    verify(testClass.getAttributeMock).apply(testPath, "user:entry")
-    verify(testClass.readStringMock).apply(testPath)
+    val mockPreservicaClientCache: MockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doGet(testKey))
+    verify(mockPreservicaClientCache.getAttributeMock).apply(testPath, "user:ttl")
+    verify(mockPreservicaClientCache.getAttributeMock).apply(testPath, "user:entry")
+    verify(mockPreservicaClientCache.readStringMock).apply(testPath)
   }
 
   "doPut" should "set the ttl attribute to zero if a duration is not passed" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doPut(testKey, Sync[F].pure("value"), None))
-    verify(testClass.setAttributeMock).apply(testPath, "user:ttl", "0".getBytes())
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doPut(testKey, Sync[F].pure("value"), None))
+    verify(mockPreservicaClientCache.setAttributeMock).apply(testPath, "user:ttl", "0".getBytes())
   }
 
   "doPut" should "set the ttl attribute to the value of duration in milliseconds" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doPut(testKey, Sync[F].pure("value"), Option(1.seconds)))
-    verify(testClass.setAttributeMock).apply(testPath, "user:ttl", "1000".getBytes())
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doPut(testKey, Sync[F].pure("value"), Option(1.seconds)))
+    verify(mockPreservicaClientCache.setAttributeMock).apply(testPath, "user:ttl", "1000".getBytes())
   }
 
   "doPut" should "set the entry attribute to the current time" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doPut(testKey, Sync[F].pure("value"), None))
-    verify(testClass.setAttributeMock).apply(testPath, "user:entry", "10".getBytes())
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doPut(testKey, Sync[F].pure("value"), None))
+    verify(mockPreservicaClientCache.setAttributeMock).apply(testPath, "user:entry", "10".getBytes())
   }
 
   "doPut" should "throw an error if the write operation fails" in {
     val writeMock = mock[(Path, Array[Byte]) => Path]
     when(writeMock.apply(any[Path], any[Array[Byte]])).thenThrow(new RuntimeException("Error writing file"))
-    val testClass = TestClass(writeMock = writeMock)
+    val mockPreservicaClientCache = MockPreservicaClientCache(writeMock = writeMock)
     val ex = intercept[RuntimeException] {
-      valueFromF(testClass.doPut(testKey, Sync[F].pure("value"), None))
+      valueFromF(mockPreservicaClientCache.doPut(testKey, Sync[F].pure("value"), None))
     }
     ex.getMessage should equal("Error writing file")
   }
 
   "doPut" should "write a file with the correct contents" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doPut(testKey, Sync[F].pure("value"), Option(1.seconds)))
-    verify(testClass.writeMock).apply(testPath, "value".getBytes())
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doPut(testKey, Sync[F].pure("value"), Option(1.seconds)))
+    verify(mockPreservicaClientCache.writeMock).apply(testPath, "value".getBytes())
   }
 
   "doRemove" should "call delete with the correct arguments" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doRemove(testKey))
-    verify(testClass.deleteMock).apply(testPath)
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doRemove(testKey))
+    verify(mockPreservicaClientCache.deleteMock).apply(testPath)
   }
 
   "doRemove" should "throw an error if the file delete fails" in {
     val deleteMock = mock[Path => Unit]
     when(deleteMock.apply(any[Path])).thenThrow(new RuntimeException("Error deleting file"))
-    val testClass = TestClass(deleteMock = deleteMock)
+    val mockPreservicaClientCache = MockPreservicaClientCache(deleteMock = deleteMock)
     val ex = intercept[RuntimeException] {
-      valueFromF(testClass.doRemove(testKey))
+      valueFromF(mockPreservicaClientCache.doRemove(testKey))
     }
     ex.getMessage should equal("Error deleting file")
   }
 
   "doRemoveAll" should "delete all files in the tmp directory" in {
-    val testClass = TestClass()
-    valueFromF(testClass.doRemoveAll)
-    verify(testClass.deleteMock).apply(mockFiles.head)
-    verify(testClass.deleteMock).apply(mockFiles.last)
+    val mockPreservicaClientCache = MockPreservicaClientCache()
+    valueFromF(mockPreservicaClientCache.doRemoveAll)
+    verify(mockPreservicaClientCache.deleteMock).apply(mockFiles.head)
+    verify(mockPreservicaClientCache.deleteMock).apply(mockFiles.last)
   }
 
   "doRemoveAll" should "throw an error if the file delete fails" in {
     val deleteMock = mock[Path => Unit]
     when(deleteMock.apply(mockFiles.head)).thenThrow(new RuntimeException("Error deleting file"))
-    val testClass = TestClass(deleteMock = deleteMock)
+    val mockPreservicaClientCache = MockPreservicaClientCache(deleteMock = deleteMock)
     val ex = intercept[RuntimeException] {
-      valueFromF(testClass.doRemoveAll)
+      valueFromF(mockPreservicaClientCache.doRemoveAll)
     }
     ex.getMessage should equal("Error deleting file")
   }
