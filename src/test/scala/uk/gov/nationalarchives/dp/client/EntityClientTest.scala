@@ -412,23 +412,20 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
-  "entitiesUpdatedSince" should "return paginated values" in {
+  "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
-    val firstPage = <EntitiesResponse>
+    val pageResult = <EntitiesResponse>
       <Entities>
         <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/page1/object</Entity>
       </Entities>
       <Paging>
         <Next>http://localhost:{
       preservicaPort
-    }/api/entity/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z&amp;start=100&amp;max=100</Next>
-      </Paging>
-    </EntitiesResponse>
-    val secondPage = <EntitiesResponse>
-      <Entities>
-        <Entity title="page2File.txt" ref="6ca62825-4225-4dad-ac93-1d018bade02f" type="SO" deleted="true">http://localhost/page2/object</Entity>
-      </Entities>
-      <Paging>
+    }/api/entity/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z
+          &amp;
+          start=100
+          &amp;
+          max=1000</Next>
       </Paging>
     </EntitiesResponse>
 
@@ -438,38 +435,22 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         .withQueryParams(
           Map(
             "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("100"),
+            "max" -> equalTo("1000"),
             "start" -> equalTo("0")
           ).asJava
         )
-        .willReturn(ok(firstPage.toString()))
+        .willReturn(ok(pageResult.toString()))
     )
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/updated-since"))
-        .withQueryParams(
-          Map(
-            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("100"),
-            "start" -> equalTo("100")
-          ).asJava
-        )
-        .willReturn(ok(secondPage.toString()))
-    )
+
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(client.entitiesUpdatedSince(date, secretName))
+    val response = valueFromF(client.entitiesUpdatedSince(date, secretName, 0))
 
-    val pageOne = response.head
-    val pageTwo = response.last
+    val expectedEntity = response.head
 
-    pageOne.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
-    pageOne.path should equal("information-objects")
-    pageOne.title.get should be("page1File.txt")
-    pageOne.deleted should be(false)
-
-    pageTwo.ref.toString should equal("6ca62825-4225-4dad-ac93-1d018bade02f")
-    pageTwo.path should equal("structural-objects")
-    pageTwo.title.get should be("page2File.txt")
-    pageTwo.deleted should be(true)
+    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.path should equal("information-objects")
+    expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.deleted should be(false)
   }
 
   "entitiesUpdatedSince" should "return an empty list if none have been updated" in {
@@ -484,7 +465,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         .withQueryParams(
           Map(
             "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("100"),
+            "max" -> equalTo("1000"),
             "start" -> equalTo("0")
           ).asJava
         )
@@ -492,7 +473,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(client.entitiesUpdatedSince(date, secretName))
+    val response = valueFromF(client.entitiesUpdatedSince(date, secretName, 0))
 
     response.size should equal(0)
   }
@@ -514,10 +495,127 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, secretName)))
+    val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, secretName, 0)))
 
     response.left.map(err => {
       err.getClass.getSimpleName should equal("PreservicaClientException")
     })
+  }
+
+  "entityEventActions" should "return all paginated values in reverse chronological order (most recent EventAction first)" in {
+    val firstPage = <EventActionsResponse>
+      <EventActions>
+        <xip:EventAction commandType="command_create">
+          <xip:Event type="Ingest">
+            <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+            <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+      </EventActions>
+      <Paging>
+        <Next>http://localhost:{
+      preservicaPort
+    }/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions?max=1000&amp;start=1000</Next>
+      </Paging>
+    </EventActionsResponse>
+    val secondPage = <EventActionsResponse>
+      <EventActions>
+        <xip:EventAction commandType="AddIdentifier">
+          <xip:Event type="Modified">
+            <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+            <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+            <xip:User>test user</xip:User>
+          </xip:Event>
+          <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+        </xip:EventAction>
+      </EventActions>
+      <Paging>
+      </Paging>
+    </EventActionsResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(firstPage.toString()))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(secondPage.toString()))
+    )
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      client.entityEventActions(
+        Entities.Entity(
+          "CO",
+          UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+          None,
+          deleted = false,
+          "content-objects"
+        ),
+        secretName
+      )
+    )
+
+    val firstResult = response.head
+    val secondResult = response.last
+
+    firstResult.dateOfEvent.toString should equal("2023-06-27T08:14:08.442Z")
+    firstResult.eventRef should equal(UUID.fromString("efe9b25d-c3b4-476a-8ff1-d52fb01ad96b"))
+    firstResult.eventType should be("Modified")
+
+    secondResult.dateOfEvent.toString should equal("2023-06-26T08:14:08.441Z")
+    secondResult.eventRef should equal(UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"))
+    secondResult.eventType should be("Ingest")
+  }
+
+  "entityEventActions" should "return an error if the request is malformed" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      cme.attempt(
+        client.entityEventActions(
+          Entities.Entity(
+            "CO",
+            UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+            None,
+            deleted = false,
+            "content-objects"
+          ),
+          secretName
+        )
+      )
+    )
+
+    response.left.map { err =>
+      err.getClass.getSimpleName should equal("PreservicaClientException")
+    }
   }
 }

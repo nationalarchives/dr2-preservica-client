@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, XML}
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.Entity
 
 trait EntityClient[F[_], S] {
@@ -25,7 +26,19 @@ trait EntityClient[F[_], S] {
       stream: Streams[S]
   )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
-  def entitiesUpdatedSince(dateTime: ZonedDateTime, secretName: String): F[Seq[Entity]]
+  def entitiesUpdatedSince(
+      dateTime: ZonedDateTime,
+      secretName: String,
+      startEntry: Int,
+      maxEntries: Int = 1000
+  ): F[Seq[Entity]]
+
+  def entityEventActions(
+      entity: Entity,
+      secretName: String,
+      startEntry: Int = 0,
+      maxEntries: Int = 1000
+  ): F[Seq[EventAction]]
 }
 
 object EntityClient {
@@ -41,30 +54,39 @@ object EntityClient {
     import client._
 
     private def updatedEntities(
+        url: String,
+        token: String
+    ): F[Seq[Entity]] =
+      for {
+        entitiesResponseXml <- getApiResponseXml(url, token)
+        entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
+      } yield entitiesWithUpdates
+
+    private def eventActions(
         url: Option[String],
         token: String,
-        allEntities: Seq[Entity]
-    ): F[Seq[Entity]] = {
+        currentCollectionOfEventActions: Seq[EventAction]
+    ): F[Seq[EventAction]] = {
       if (url.isEmpty) {
-        me.pure(allEntities)
+        me.pure(currentCollectionOfEventActions)
       } else {
         for {
-          entitiesResponseXml <- getApiResponseXml(url.get, token)
-          entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
-          nextPageUrl <- dataProcessor.nextPage(entitiesResponseXml)
-          allUpdatedEntities <- updatedEntities(
+          eventActionsResponseXml <- getApiResponseXml(url.get, token)
+          eventActionsBatch <- dataProcessor.getEventActions(eventActionsResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(eventActionsResponseXml)
+          allEventActions <- eventActions(
             nextPageUrl,
             token,
-            allEntities ++ entitiesWithUpdates
+            currentCollectionOfEventActions ++ eventActionsBatch
           )
-        } yield allUpdatedEntities
+        } yield allEventActions
       }
     }
 
     override def getBitstreamInfo(
         contentRef: UUID,
         secretName: String
-    ): F[Seq[BitStreamInfo]] = {
+    ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken(secretName)
         contentEntity <- getApiResponseXml(
@@ -81,9 +103,8 @@ object EntityClient {
         bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
-    }
 
-    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] = {
+    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
         entityInfo <- getApiResponseXml(
@@ -94,19 +115,34 @@ object EntityClient {
         fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
       } yield fragments.map(XML.loadString)
-    }
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
-        secretName: String
+        secretName: String,
+        startEntry: Int,
+        maxEntries: Int = 1000
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
-      val queryParams = Map("date" -> dateString, "max" -> "100", "start" -> "0")
+      val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
-        entities <- updatedEntities(url.toString.some, token, Nil)
+        entities <- updatedEntities(url.toString, token)
       } yield entities
+    }
+
+    override def entityEventActions(
+        entity: Entity,
+        secretName: String,
+        startEntry: Int = 0,
+        maxEntries: Int = 1000
+    ): F[Seq[EventAction]] = {
+      val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
+      val url = uri"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}/event-actions?$queryParams"
+      for {
+        token <- getAuthenticationToken(secretName)
+        eventActions <- eventActions(url.toString.some, token, Nil)
+      } yield eventActions.reverse // most recent event first
     }
 
     def streamBitstreamContent[T](
