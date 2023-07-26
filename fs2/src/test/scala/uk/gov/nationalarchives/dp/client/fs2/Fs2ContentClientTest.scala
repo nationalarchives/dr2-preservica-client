@@ -10,5 +10,5 @@ class Fs2ContentClientTest extends ContentClientTest[IO](9006, 9008) {
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(url: String): IO[ContentClient[IO]] =
-    contentClient(url, ssmEndpointUri = "http://localhost:9008")
+    contentClient(url, zeroSeconds, ssmEndpointUri = "http://localhost:9008")
 }

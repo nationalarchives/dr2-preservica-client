@@ -9,8 +9,11 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.fromType
 import uk.gov.nationalarchives.dp.client.Client._
+
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
@@ -23,6 +26,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   def createClient(url: String): F[EntityClient[F, S]]
 
   def testClient(url: String): EntityClient[F, S] = valueFromF(createClient(url))
+
+  val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
 
