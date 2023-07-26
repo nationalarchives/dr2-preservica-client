@@ -13,6 +13,8 @@ import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery
 import upickle.default
 import upickle.default._
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(implicit
@@ -23,6 +25,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
 
   def createClient(url: String): F[ContentClient[F]]
 
+  val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val preservicaServer = new WireMockServer(preservicaPort)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
 
