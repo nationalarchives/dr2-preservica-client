@@ -21,15 +21,9 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
   )
   forAll(entityTypes) { (entityType, expectedPath) =>
     "fromType" should s"return an object with path $expectedPath for entity type $entityType" in {
-      valueFromF(fromType(entityType, UUID.randomUUID(), None, deleted = false)).path should equal(
+      valueFromF(fromType(entityType, UUID.randomUUID(), None, deleted = false)).path.get should equal(
         expectedPath
       )
     }
-  }
-
-  "fromType" should s"return an an error for an unknown entity type" in {
-    intercept[PreservicaClientException] {
-      valueFromF(fromType("PO", UUID.randomUUID(), None, deleted = false))
-    }.getMessage should equal("Entity type PO not recognised")
   }
 }

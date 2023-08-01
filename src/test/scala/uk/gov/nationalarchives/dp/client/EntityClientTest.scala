@@ -1,13 +1,14 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entities.fromType
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, fromType}
 import uk.gov.nationalarchives.dp.client.Client._
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -268,7 +269,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
+    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -313,7 +314,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
+    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -377,7 +378,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path}/${entity.ref}"
+    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -417,6 +418,17 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
+  "metadataForEntityUrl" should "return an error if the entity path is empty" in {
+    val id = UUID.randomUUID()
+    val entity = Entity(None, id, None, deleted = true, None)
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.metadataForEntity(entity, secretName))
+    }
+    ex.getMessage should equal(s"No path found for entity id $id. Was this a deleted entity?")
+  }
+
   "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val pageResult = <EntitiesResponse>
@@ -453,7 +465,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedEntity = response.head
 
     expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
-    expectedEntity.path should equal("information-objects")
+    expectedEntity.path.get should equal("information-objects")
     expectedEntity.title.get should be("page1File.txt")
     expectedEntity.deleted should be(false)
   }
@@ -568,11 +580,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response = valueFromF(
       client.entityEventActions(
         Entities.Entity(
-          "CO",
+          "CO".some,
           UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
           None,
           deleted = false,
-          "content-objects"
+          "content-objects".some
         ),
         secretName
       )
@@ -608,11 +620,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       cme.attempt(
         client.entityEventActions(
           Entities.Entity(
-            "CO",
+            "CO".some,
             UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
             None,
             deleted = false,
-            "content-objects"
+            "content-objects".some
           ),
           secretName
         )
@@ -622,5 +634,25 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
+  }
+
+  "entityEventActions" should "return an error if the entity path is empty" in {
+    val id = UUID.randomUUID()
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(
+        client.entityEventActions(
+          Entities.Entity(
+            None,
+            id,
+            None,
+            deleted = true,
+            None
+          ),
+          secretName
+        )
+      )
+    }
+    ex.getMessage should equal(s"No path found for entity id $id. Was this a deleted entity?")
   }
 }

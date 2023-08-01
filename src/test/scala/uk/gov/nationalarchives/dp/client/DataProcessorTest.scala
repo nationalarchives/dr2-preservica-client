@@ -229,7 +229,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         fileNumber: Int,
         deleted: Boolean = false
     ) = {
-      entity.path should equal(entityType)
+      entity.path.get should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.get should equal(s"file$fileNumber.txt")

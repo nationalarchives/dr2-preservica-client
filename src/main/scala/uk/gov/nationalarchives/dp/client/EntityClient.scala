@@ -107,8 +107,12 @@ object EntityClient {
     override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(s"No path found for entity id ${entity.ref}. Was this a deleted entity?")
+        )
         entityInfo <- getApiResponseXml(
-          s"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}",
+          s"$apiBaseUrl/api/entity/$path/${entity.ref}",
           token
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
@@ -138,8 +142,12 @@ object EntityClient {
         maxEntries: Int = 1000
     ): F[Seq[EventAction]] = {
       val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
-      val url = uri"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}/event-actions?$queryParams"
       for {
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(s"No path found for entity id ${entity.ref}. Was this a deleted entity?")
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken(secretName)
         eventActions <- eventActions(url.toString.some, token, Nil)
       } yield eventActions.reverse // most recent event first
