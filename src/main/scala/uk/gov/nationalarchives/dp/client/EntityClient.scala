@@ -49,6 +49,8 @@ object EntityClient {
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
+    private val missingPathExceptionMessage: UUID => String = ref =>
+      s"No path found for entity id $ref. Could this entity have been deleted?"
 
     private val client: Client[F, S] = Client(clientConfig)
     import client._
@@ -107,9 +109,10 @@ object EntityClient {
     override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
+
         path <- me.fromOption(
           entity.path,
-          PreservicaClientException(s"No path found for entity id ${entity.ref}. Was this a deleted entity?")
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         entityInfo <- getApiResponseXml(
           s"$apiBaseUrl/api/entity/$path/${entity.ref}",
@@ -145,7 +148,7 @@ object EntityClient {
       for {
         path <- me.fromOption(
           entity.path,
-          PreservicaClientException(s"No path found for entity id ${entity.ref}. Was this a deleted entity?")
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken(secretName)

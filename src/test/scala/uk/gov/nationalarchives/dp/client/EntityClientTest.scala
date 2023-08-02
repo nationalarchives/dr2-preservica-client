@@ -426,7 +426,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.metadataForEntity(entity, secretName))
     }
-    ex.getMessage should equal(s"No path found for entity id $id. Was this a deleted entity?")
+    ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
   }
 
   "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
@@ -653,6 +653,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         )
       )
     }
-    ex.getMessage should equal(s"No path found for entity id $id. Was this a deleted entity?")
+    ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
   }
 }
