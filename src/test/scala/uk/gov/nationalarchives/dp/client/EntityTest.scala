@@ -1,6 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.implicits.catsSyntaxOptionId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
@@ -13,11 +14,12 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
     with TableDrivenPropertyChecks {
   def valueFromF[T](value: F[T]): T
 
-  val entityTypes: TableFor2[String, String] = Table(
+  val entityTypes: TableFor2[String, Option[String]] = Table(
     ("entityType", "expectedPath"),
-    ("IO", "information-objects"),
-    ("CO", "content-objects"),
-    ("SO", "structural-objects")
+    ("IO", "information-objects".some),
+    ("CO", "content-objects".some),
+    ("SO", "structural-objects".some),
+    ("UnexpectedEntityType", None)
   )
   forAll(entityTypes) { (entityType, expectedPath) =>
     "fromType" should s"return an object with path $expectedPath for entity type $entityType" in {
@@ -25,11 +27,5 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
         expectedPath
       )
     }
-  }
-
-  "fromType" should s"return an an error for an unknown entity type" in {
-    intercept[PreservicaClientException] {
-      valueFromF(fromType("PO", UUID.randomUUID(), None, deleted = false))
-    }.getMessage should equal("Entity type PO not recognised")
   }
 }

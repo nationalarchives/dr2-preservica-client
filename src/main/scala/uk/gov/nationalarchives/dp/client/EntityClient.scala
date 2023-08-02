@@ -49,6 +49,8 @@ object EntityClient {
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
+    private val missingPathExceptionMessage: UUID => String = ref =>
+      s"No path found for entity id $ref. Could this entity have been deleted?"
 
     private val client: Client[F, S] = Client(clientConfig)
     import client._
@@ -107,8 +109,13 @@ object EntityClient {
     override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
       for {
         token <- getAuthenticationToken(secretName)
+
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
+        )
         entityInfo <- getApiResponseXml(
-          s"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}",
+          s"$apiBaseUrl/api/entity/$path/${entity.ref}",
           token
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
@@ -138,8 +145,12 @@ object EntityClient {
         maxEntries: Int = 1000
     ): F[Seq[EventAction]] = {
       val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
-      val url = uri"$apiBaseUrl/api/entity/${entity.path}/${entity.ref}/event-actions?$queryParams"
       for {
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken(secretName)
         eventActions <- eventActions(url.toString.some, token, Nil)
       } yield eventActions.reverse // most recent event first
