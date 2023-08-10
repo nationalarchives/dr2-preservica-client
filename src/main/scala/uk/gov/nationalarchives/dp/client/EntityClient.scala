@@ -61,7 +61,7 @@ object EntityClient {
     private val client: Client[F, S] = Client(clientConfig)
     import client._
 
-    private def updatedEntities(
+    private def getEntities(
         url: String,
         token: String
     ): F[Seq[Entity]] =
@@ -90,15 +90,6 @@ object EntityClient {
         } yield allEventActions
       }
     }
-
-    private def entitiesWithIdentifier(
-        url: String,
-        token: String
-    ): F[Seq[Entity]] =
-      for {
-        entitiesWithIdentifierResponseXml <- getApiResponseXml(url, token)
-        listOfEntitiesWithIdentifier <- dataProcessor.getEntities(entitiesWithIdentifierResponseXml)
-      } yield listOfEntitiesWithIdentifier
 
     override def getBitstreamInfo(
         contentRef: UUID,
@@ -149,8 +140,8 @@ object EntityClient {
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
-        entities <- updatedEntities(url.toString, token)
-      } yield entities
+        updatedEntities <- getEntities(url.toString, token)
+      } yield updatedEntities
     }
 
     override def entityEventActions(
@@ -180,8 +171,8 @@ object EntityClient {
       val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
-        entities <- entitiesWithIdentifier(url.toString, token)
-      } yield entities
+        entitiesWithIdentifier <- getEntities(url.toString, token)
+      } yield entitiesWithIdentifier
     }
 
     def streamBitstreamContent[T](
