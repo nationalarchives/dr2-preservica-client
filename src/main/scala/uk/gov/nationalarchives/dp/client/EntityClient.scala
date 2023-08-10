@@ -39,6 +39,12 @@ trait EntityClient[F[_], S] {
       startEntry: Int = 0,
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
+
+  def entitiesByIdentifier(
+      identifierName: String,
+      value: String,
+      secretName: String
+  ): F[Seq[Entity]]
 }
 
 object EntityClient {
@@ -61,7 +67,7 @@ object EntityClient {
     ): F[Seq[Entity]] =
       for {
         entitiesResponseXml <- getApiResponseXml(url, token)
-        entitiesWithUpdates <- dataProcessor.getUpdatedEntities(entitiesResponseXml)
+        entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
 
     private def eventActions(
@@ -84,6 +90,15 @@ object EntityClient {
         } yield allEventActions
       }
     }
+
+    private def entitiesWithIdentifier(
+        url: String,
+        token: String
+    ): F[Seq[Entity]] =
+      for {
+        entitiesWithIdentifierResponseXml <- getApiResponseXml(url, token)
+        listOfEntitiesWithIdentifier <- dataProcessor.getEntities(entitiesWithIdentifierResponseXml)
+      } yield listOfEntitiesWithIdentifier
 
     override def getBitstreamInfo(
         contentRef: UUID,
@@ -154,6 +169,19 @@ object EntityClient {
         token <- getAuthenticationToken(secretName)
         eventActions <- eventActions(url.toString.some, token, Nil)
       } yield eventActions.reverse // most recent event first
+    }
+
+    override def entitiesByIdentifier(
+        identifierName: String,
+        value: String,
+        secretName: String
+    ): F[Seq[Entity]] = {
+      val queryParams = Map("type" -> identifierName, "value" -> value)
+      val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
+      for {
+        token <- getAuthenticationToken(secretName)
+        entities <- entitiesWithIdentifier(url.toString, token)
+      } yield entities
     }
 
     def streamBitstreamContent[T](

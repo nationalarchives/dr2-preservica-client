@@ -93,20 +93,18 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def nextPage(elem: Elem): F[Option[String]] =
     me.pure((elem \ "Paging" \ "Next").headOption.map(_.text))
 
-  def getUpdatedEntities(elem: Elem): F[Seq[Entity]] = {
-    (elem \ "Entities" \ "Entity")
-      .map(e => {
-        val entityAttributes = e.attributes
-        def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
+  def getEntities(elem: Elem): F[Seq[Entity]] =
+    (elem \ "Entities" \ "Entity").map { e =>
+      val entityAttributes = e.attributes
 
-        val ref = UUID.fromString(attrToString("ref"))
-        val title = entityAttributes.get("title").map(_.toString)
-        val entityType = attrToString("type")
-        val deleted = attrToString("deleted").nonEmpty
-        fromType(entityType, ref, title, deleted)
-      })
-      .sequence
-  }
+      def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
+
+      val ref = UUID.fromString(attrToString("ref"))
+      val title = entityAttributes.get("title").map(_.toString)
+      val entityType = attrToString("type")
+      val deleted = attrToString("deleted").nonEmpty
+      fromType(entityType, ref, title, deleted)
+    }.sequence
 
   def getEventActions(elem: Elem): F[Seq[EventAction]] = {
     me.pure(
@@ -123,8 +121,9 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 }
 
 object DataProcessor {
-  case class EventAction(eventRef: UUID, eventType: String, dateOfEvent: ZonedDateTime)
-  case class ClosureResultIndexNames(reviewDateName: String, documentStatusName: String)
-
   def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
+
+  case class EventAction(eventRef: UUID, eventType: String, dateOfEvent: ZonedDateTime)
+
+  case class ClosureResultIndexNames(reviewDateName: String, documentStatusName: String)
 }
