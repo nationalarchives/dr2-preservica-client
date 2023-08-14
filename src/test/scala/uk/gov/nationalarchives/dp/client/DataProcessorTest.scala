@@ -211,7 +211,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     nextPage.isDefined should be(false)
   }
 
-  "updatedEntities" should "return the correct entity objects" in {
+  "getEntities" should "return the correct entity objects" in {
     val input = <EntitiesResponse>
       <Entities>
         <Entity title="file1.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO" description="A description">http://localhost/file1/object</Entity>
@@ -219,7 +219,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         <Entity title="file3.txt" ref="99fb8809-be86-4636-9b3f-4a181de0bc36" type="CO" deleted="true">http://localhost/file3/object</Entity>
       </Entities>
     </EntitiesResponse>
-    val entitiesF = new DataProcessor[F]().getUpdatedEntities(input)
+    val entitiesF = new DataProcessor[F]().getEntities(input)
     val entities = valueFromF(entitiesF)
 
     def checkResponse(

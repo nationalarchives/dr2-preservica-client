@@ -658,4 +658,92 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
   }
+
+  "entitiesByIdentifier" should "return an entity if it has the identifier specified" in {
+    val pageResult = <EntitiesResponse>
+      <Entities>
+        <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="SO">http://localhost/page1/object</Entity>
+      </Entities>
+      <Paging>
+        <Next>http://localhost:
+          {preservicaPort}
+          /api/entity/entities/by-identifier?type=testIdentifier&amp;value=testValue
+        </Next>
+      </Paging>
+    </EntitiesResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+        .withQueryParams(
+          Map(
+            "type" -> equalTo("testIdentifier"),
+            "value" -> equalTo("testValue")
+          ).asJava
+        )
+        .willReturn(ok(pageResult.toString()))
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      client.entitiesByIdentifier("testIdentifier", "testValue", secretName)
+    )
+
+    val expectedEntity = response.head
+
+    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.path.get should equal("structural-objects")
+    expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.deleted should be(false)
+  }
+
+  "entitiesByIdentifier" should "return an empty list if no entities have the identifier specified" in {
+    val pageResult = <EntitiesResponse>
+      <Entities></Entities>
+    </EntitiesResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+        .withQueryParams(
+          Map(
+            "type" -> equalTo("testIdentifier"),
+            "value" -> equalTo("testValueDoesNotExist")
+          ).asJava
+        )
+        .willReturn(ok(pageResult.toString()))
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      client.entitiesByIdentifier("testIdentifier", "testValueDoesNotExist", secretName)
+    )
+
+    response.size should equal(0)
+  }
+
+  "entitiesByIdentifier" should "return an error if the request is malformed" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+        .withQueryParams(
+          Map(
+            "type" -> equalTo("testIdentifier"),
+            "value" -> equalTo("testValue")
+          ).asJava
+        )
+        .willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      cme.attempt(
+        client.entitiesByIdentifier("testIdentifier", "testValue", secretName)
+      )
+    )
+
+    response.left.map { err =>
+      err.getClass.getSimpleName should equal("PreservicaClientException")
+    }
+  }
 }
