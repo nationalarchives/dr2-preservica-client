@@ -214,7 +214,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
   "updatedEntities" should "return the correct entity objects" in {
     val input = <EntitiesResponse>
       <Entities>
-        <Entity title="file1.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/file1/object</Entity>
+        <Entity title="file1.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO" description="A description">http://localhost/file1/object</Entity>
         <Entity title="file2.txt" ref="2d8a9935-3a1a-45ce-aadb-f01f2ddc9405" type="SO">http://localhost/file2/object</Entity>
         <Entity title="file3.txt" ref="99fb8809-be86-4636-9b3f-4a181de0bc36" type="CO" deleted="true">http://localhost/file3/object</Entity>
       </Entities>
@@ -227,26 +227,30 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         uuid: String,
         entityType: String,
         fileNumber: Int,
+        description: String,
         deleted: Boolean = false
     ) = {
       entity.path.get should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.get should equal(s"file$fileNumber.txt")
+      entity.description should equal(description)
     }
 
-    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", 1)
+    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", 1, "A description")
     checkResponse(
       entities.tail.head,
       "2d8a9935-3a1a-45ce-aadb-f01f2ddc9405",
       "structural-objects",
-      2
+      2,
+      ""
     )
     checkResponse(
       entities.last,
       "99fb8809-be86-4636-9b3f-4a181de0bc36",
       "content-objects",
       3,
+      "",
       deleted = true
     )
   }
