@@ -45,6 +45,8 @@ trait EntityClient[F[_], S] {
       value: String,
       secretName: String
   ): F[Seq[Entity]]
+
+  def entityParentFolderRef(entity: Entity, secretName: String): F[UUID]
 }
 
 object EntityClient {
@@ -69,6 +71,9 @@ object EntityClient {
         entitiesResponseXml <- getApiResponseXml(url, token)
         entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
+
+    private def getParentRef(url: String, token: String): F[UUID] =
+      getApiResponsePlainText(url, token).map(parentRef => UUID.fromString(parentRef))
 
     private def eventActions(
         url: Option[String],
@@ -173,6 +178,18 @@ object EntityClient {
         token <- getAuthenticationToken(secretName)
         entitiesWithIdentifier <- getEntities(url.toString, token)
       } yield entitiesWithIdentifier
+    }
+
+    override def entityParentFolderRef(entity: Entity, secretName: String): F[UUID] = {
+      for {
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/parent-ref"
+        token <- getAuthenticationToken(secretName)
+        parentRef <- getParentRef(url.toString, token)
+      } yield parentRef
     }
 
     def streamBitstreamContent[T](

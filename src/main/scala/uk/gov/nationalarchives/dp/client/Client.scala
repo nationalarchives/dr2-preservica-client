@@ -25,6 +25,7 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
 ) {
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
+
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
   implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
@@ -42,6 +43,17 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .get(apiUri)
       .headers(Map("Preservica-Access-Token" -> token))
       .response(asXml)
+
+    me.flatMap(backend.send(request)) { res =>
+      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
+    }
+  }
+
+  private[client] def getApiResponsePlainText(url: String, token: String): F[String] = {
+    val apiUri = uri"$url"
+    val request = basicRequest
+      .get(apiUri)
+      .headers(Map("Preservica-Access-Token" -> token))
 
     me.flatMap(backend.send(request)) { res =>
       me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))

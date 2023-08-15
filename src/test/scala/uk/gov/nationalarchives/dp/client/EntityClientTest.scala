@@ -743,4 +743,65 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
   }
+
+  "entityParentFolderRef" should "return a parentRef" in {
+    val entityRef = UUID.fromString("9ff761f2-1396-4752-a7a7-1f80d24f9ea5")
+    val path = "information-objects"
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/$path/$entityRef/parent-ref"))
+        .willReturn(ok("58412111-c73d-4414-a8fc-495cfc57f7e1"))
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      cme.attempt(
+        client.entityParentFolderRef(
+          Entities.Entity(
+            Some("IO"),
+            entityRef,
+            None,
+            deleted = true,
+            Some(path)
+          ),
+          secretName
+        )
+      )
+    )
+
+    response.isRight should be(true)
+    response.map { parentPath =>
+      parentPath should equal(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
+    }
+  }
+
+  "entityParentFolderRef" should "return an error if the UUID is not correct" in {
+    val entityRef = UUID.fromString("9ff761f2-1396-4752-a7a7-1f80d24f9ea5")
+    val path = "information-objects"
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(s"/api/entity/$path/$entityRef/parent-ref"))
+        .willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response = valueFromF(
+      cme.attempt(
+        client.entityParentFolderRef(
+          Entities.Entity(
+            Some("IO"),
+            entityRef,
+            None,
+            deleted = true,
+            Some(path)
+          ),
+          secretName
+        )
+      )
+    )
+
+    response.left.map { err =>
+      err.getClass.getSimpleName should equal("PreservicaClientException")
+    }
+  }
 }
