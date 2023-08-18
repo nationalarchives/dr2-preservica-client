@@ -11,6 +11,50 @@ import java.util.UUID
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
 
+  "childNodeFromEntity" should "return the node requested even if it is lowercase" in {
+    val input =
+      <MetadataResponse>
+        <xip:Object>
+          <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+        </xip:Object>
+        <AdditionalInformation>
+          <Metadata>
+            <Fragment>test1</Fragment>
+            <Fragment>test2</Fragment>
+          </Metadata>
+        </AdditionalInformation>
+      </MetadataResponse>
+
+    val childNodeResponseF = new DataProcessor[F]().childNodeFromEntity(input, "Object", "ref")
+    val value = valueFromF(childNodeResponseF)
+
+    value should equal("6da319fa-07e0-4a83-9c5a-b6bad08445b1")
+  }
+
+  "childNodeFromEntity" should "return an error if child node does not exist" in {
+    val input =
+      <MetadataResponse>
+        <xip:Object>
+          <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+        </xip:Object>
+        <AdditionalInformation>
+          <Metadata>
+            <Fragment>test1</Fragment>
+            <Fragment>test2</Fragment>
+          </Metadata>
+        </AdditionalInformation>
+      </MetadataResponse>
+
+    val childNodeResponseF = new DataProcessor[F]().childNodeFromEntity(input, "Object", "InvalidNode")
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(childNodeResponseF)
+    }
+    val expectedMessage = "Either Object or InvalidNode does not exist on entity"
+
+    error.getMessage should equal(expectedMessage)
+  }
+
   "fragmentUrls" should "return fragments" in {
     val input =
       <MetadataResponse>
