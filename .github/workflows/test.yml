@@ -13,4 +13,4 @@ jobs:
           message: ":warning: Secrets found in repository dp-preservica-client"
           slack-url: ${{ secrets.SLACK_WEBHOOK }}
       - name: Run tests
-        run: sbt test scalafmtCheckAll
+        run: sbt scalafmtCheckAll test
