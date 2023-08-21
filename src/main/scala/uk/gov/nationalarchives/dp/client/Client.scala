@@ -48,6 +48,32 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     }
   }
 
+  private[client] def addApiResponseXml(url: String, requestBody: String, token: String): F[Elem] = {
+    val apiUri = uri"$url"
+    val request = basicRequest
+      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
+      .post(uri"$url")
+      .body(requestBody)
+      .response(asXml)
+
+    me.flatMap(backend.send(request)) { res =>
+      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.POST, apiUri, res.code, err)))
+    }
+  }
+
+  private[client] def updateApiResponseXml(url: String, requestBody: String, token: String): F[Elem] = {
+    val apiUri = uri"$url"
+    val request = basicRequest
+      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
+      .put(uri"$url")
+      .body(requestBody)
+      .response(asXml)
+
+    me.flatMap(backend.send(request)) { res =>
+      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.PUT, apiUri, res.code, err)))
+    }
+  }
+
   private def getAuthDetails(secretName: String): F[AuthDetails] = {
     val valueRequest = GetSecretValueRequest
       .builder()

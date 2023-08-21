@@ -14,6 +14,7 @@ import scala.xml.{Elem, XML}
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.Entity
+import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateEntityRequest}
 
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
@@ -21,6 +22,10 @@ trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
+
+  def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[String]
+
+  def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
@@ -59,6 +64,13 @@ object EntityClient {
       s"No path found for entity id $ref. Could this entity have been deleted?"
 
     private val client: Client[F, S] = Client(clientConfig)
+
+    private val entityPathAndNodeNames = Map(
+      "content-objects" -> "ContentObject",
+      "information-objects" -> "InformationObject",
+      "structural-objects" -> "StructuralObject"
+    )
+
     import client._
 
     private def getEntities(
@@ -89,6 +101,103 @@ object EntityClient {
           )
         } yield allEventActions
       }
+    }
+
+    private def validateEntityUpdateInputs(
+        entityPath: String,
+        parentRef: Option[UUID],
+        secretName: String
+    ): F[(String, String)] =
+      for {
+        nodeName <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+
+        _ <- me.fromEither {
+          if (entityPath != "structural-objects" && parentRef.isEmpty)
+            Left(
+              PreservicaClientException(
+                "You must pass in the parent ref if you would like to add/update a non-structural object."
+              )
+            )
+          else Right(())
+        }
+        token <- getAuthenticationToken(secretName)
+      } yield (nodeName, token)
+
+    private def createUpdateRequestBody(
+        ref: Option[UUID],
+        titleToChange: Option[String],
+        descriptionToChange: Option[String],
+        parentRef: Option[UUID],
+        securityTag: SecurityTag,
+        nodeName: String,
+        addOpeningXipTag: Boolean = false
+    ): String = {
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
+            <$nodeName xmlns="http://preservica.com/XIP/v6.5">
+              ${if (ref.nonEmpty) s"<Ref>${ref.get}</Ref>"}
+              ${if (titleToChange.nonEmpty) s"<Title>${titleToChange.get}</Title>"}
+              ${if (descriptionToChange.nonEmpty) s"<Description>${descriptionToChange.get}</Description>"}
+              <SecurityTag>$securityTag</SecurityTag>
+              ${if (parentRef.nonEmpty) s"<Parent>${parentRef.get}</Parent>"}
+            </$nodeName>"""
+    }
+
+    override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[String] = {
+      val path = addEntityRequest.entityPath
+      for {
+        _ <- me.fromEither {
+          if (path == "content-objects")
+            Left(
+              PreservicaClientException("You currently cannot create a content object via the API.")
+            )
+          else Right(())
+        }
+        nodeNameAndToken <- validateEntityUpdateInputs(path, addEntityRequest.parentRef, secretName)
+        (nodeName, token) = nodeNameAndToken
+        addXipTag = if (path == "information-objects") true else false
+        addRequestBody = createUpdateRequestBody(
+          addEntityRequest.ref,
+          addEntityRequest.title,
+          addEntityRequest.description,
+          addEntityRequest.parentRef,
+          addEntityRequest.securityTag,
+          nodeName,
+          addXipTag
+        )
+        // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
+        fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
+        url = uri"$apiBaseUrl/api/entity/$path"
+        _ <- addApiResponseXml(url.toString, fullRequestBody, token)
+        response = "Entity was added"
+      } yield response
+    }
+
+    override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {
+      for {
+        _ <- me.fromOption(
+          updateEntityRequest.titleToChange.orElse(updateEntityRequest.descriptionToChange),
+          PreservicaClientException("Both the title and description are 'None'! Entity cannot be updated")
+        )
+        path = updateEntityRequest.entityPath
+        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
+
+        nodeNameAndToken <- validateEntityUpdateInputs(path, updateEntityRequest.parentRef, secretName)
+        (nodeName, token) = nodeNameAndToken
+        updateRequestBody = createUpdateRequestBody(
+          Some(updateEntityRequest.ref),
+          updateEntityRequest.titleToChange,
+          updateEntityRequest.descriptionToChange,
+          updateEntityRequest.parentRef,
+          updateEntityRequest.securityTag,
+          nodeName
+        )
+        _ <- updateApiResponseXml(url.toString, updateRequestBody, token)
+        response = "Entity was updated"
+      } yield response
     }
 
     override def getBitstreamInfo(
@@ -193,4 +302,30 @@ object EntityClient {
       } yield body
     }
   }
+
+  case class AddEntityRequest(
+      ref: Option[UUID],
+      title: Option[String],
+      description: Option[String],
+      entityPath: String,
+      securityTag: SecurityTag,
+      parentRef: Option[UUID]
+  )
+
+  case class UpdateEntityRequest(
+      ref: UUID,
+      titleToChange: Option[String],
+      descriptionToChange: Option[String],
+      entityPath: String,
+      securityTag: SecurityTag,
+      parentRef: Option[UUID]
+  )
+
+  sealed trait SecurityTag {
+    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+  }
+
+  case object Open extends SecurityTag
+
+  case object Closed extends SecurityTag
 }
