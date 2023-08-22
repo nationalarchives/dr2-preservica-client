@@ -13,7 +13,7 @@ import java.util.UUID
 import scala.xml.{Elem, XML}
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.Entity
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
 
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
@@ -45,6 +45,13 @@ trait EntityClient[F[_], S] {
       value: String,
       secretName: String
   ): F[Seq[Entity]]
+
+  def addIdentifiersForEntity(
+      entityRef: UUID,
+      entityPath: String,
+      identifiers: List[Identifier],
+      secretName: String
+  ): F[String]
 }
 
 object EntityClient {
@@ -60,6 +67,12 @@ object EntityClient {
 
     private val client: Client[F, S] = Client(clientConfig)
     import client._
+
+    private val entityPathAndNodeNames = Map(
+      "content-objects" -> "ContentObject",
+      "information-objects" -> "InformationObject",
+      "structural-objects" -> "StructuralObject"
+    )
 
     private def getEntities(
         url: String,
@@ -174,6 +187,40 @@ object EntityClient {
         entitiesWithIdentifier <- getEntities(url.toString, token)
       } yield entitiesWithIdentifier
     }
+
+    override def addIdentifiersForEntity(
+        entityRef: UUID,
+        entityPath: String,
+        identifiers: List[Identifier],
+        secretName: String
+    ): F[String] =
+      for {
+        _ <- me.fromEither(
+          if (identifiers.isEmpty)
+            Left(PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!"))
+          else Right(())
+        )
+
+        _ <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+        token <- getAuthenticationToken(secretName)
+        identifiersAsXml = identifiers.map { identifier =>
+          s"""<Identifier xmlns="http://preservica.com/XIP/v6.5">
+                    <Type>${identifier.identifierName}</Type>
+                    <Value>${identifier.value}</Value>
+                  </Identifier>"""
+        }
+        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
+
+        _ <- addApiResponseXml(
+          s"$apiBaseUrl/api/entity/$entityPath/$entityRef/identifiers",
+          requestBody,
+          token
+        )
+        response = s"The ${if (identifiers.length > 1) "Identifiers were" else "Identifier was"} added"
+      } yield response
 
     def streamBitstreamContent[T](
         stream: Streams[S]

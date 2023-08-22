@@ -34,4 +34,6 @@ object Entities {
         Entity(None, ref, title, deleted, None)
       }
   }
+
+  case class Identifier(identifierName: String, value: String)
 }

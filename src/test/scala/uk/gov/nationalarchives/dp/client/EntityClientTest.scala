@@ -8,7 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, fromType}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, fromType}
 import uk.gov.nationalarchives.dp.client.Client._
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -57,6 +57,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   val ref: UUID = UUID.randomUUID()
   val entityUrl = s"/api/entity/content-objects/$ref"
+
+  private val identifier = Identifier(
+    "TestIdentifierName",
+    "TestIdentifierValue"
+  )
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
@@ -741,6 +746,137 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
+    }
+  }
+
+  "addIdentifiersForEntity" should s"make a correct request to add an identifier to an Entity" in {
+    val entityResponse =
+      <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
+            <xip:Type>TestIdentifierName</xip:Type>
+            <xip:Value>TestIdentifierValue</xip:Value>
+            <xip:Entity>{ref}</xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+        <Paging>
+          <TotalResults>1</TotalResults>
+        </Paging>
+        <AdditionalInformation>
+          <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+        </AdditionalInformation>
+      </IdentifiersResponse>.toString()
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifiersForEntityResponse: F[String] =
+      client.addIdentifiersForEntity(ref, "structural-objects", List(identifier), secretName)
+
+    val _ = valueFromF(addIdentifiersForEntityResponse)
+
+    val requestMade = preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBody.map(_.toChar).mkString
+
+    requestMade should be(
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Identifier xmlns="http://preservica.com/XIP/v6.5">
+                    <Type>TestIdentifierName</Type>
+                    <Value>TestIdentifierValue</Value>
+                  </Identifier>"""
+    )
+  }
+
+  "addIdentifiersForEntity" should "return an error if an invalid path was passed in" in {
+    val identifier = Identifier(
+      "TestIdentifierName",
+      "TestIdentifierValue"
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifiersForEntityResponse: F[String] =
+      client.addIdentifiersForEntity(ref, "invalid-objects", List(identifier), secretName)
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(addIdentifiersForEntityResponse)
+    }
+
+    error.getMessage should be(s"The entityPath 'invalid-objects' does not exist")
+  }
+
+  "addIdentifiersForEntity" should "return an error if no identifiers were passed in" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifiersForEntityResponse: F[String] =
+      client.addIdentifiersForEntity(ref, "structural-objects", Nil, secretName)
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(addIdentifiersForEntityResponse)
+    }
+
+    error.getMessage should be(
+      "No identifiers were passed in. You must pass in at least one identifier!"
+    )
+  }
+
+  "addIdentifiersForEntity" should s"return an exception if the API call does" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(badRequest())
+    )
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifiersForEntityResponse: F[String] =
+      client.addIdentifiersForEntity(ref, "structural-objects", List(identifier), secretName)
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(addIdentifiersForEntityResponse)
+    }
+
+    error.getMessage should equal(
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/structural-objects/$ref/identifiers with method POST "
+    )
+  }
+
+  List(
+    (List(identifier), "The Identifier was added"),
+    (List(identifier, identifier), "The Identifiers were added")
+  ).foreach { case (identifiers, expectedResponseMessage) =>
+    "addIdentifiersForEntity" should s"return a message confirmation if $expectedResponseMessage" in {
+      val entityResponse =
+        <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
+            <xip:Type>TestIdentifierName</xip:Type>
+            <xip:Value>TestIdentifierValue</xip:Value>
+            <xip:Entity>
+              {ref}
+            </xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+        <Paging>
+          <TotalResults>1</TotalResults>
+        </Paging>
+        <AdditionalInformation>
+          <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+        </AdditionalInformation>
+      </IdentifiersResponse>.toString()
+
+      preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+      preservicaServer.stubFor(
+        post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+      )
+
+      val client = testClient(s"http://localhost:$preservicaPort")
+      val addIdentifiersForEntityResponse: F[String] =
+        client.addIdentifiersForEntity(ref, "structural-objects", identifiers, secretName)
+
+      val response = valueFromF(addIdentifiersForEntityResponse)
+
+      response should be(expectedResponseMessage)
     }
   }
 }
