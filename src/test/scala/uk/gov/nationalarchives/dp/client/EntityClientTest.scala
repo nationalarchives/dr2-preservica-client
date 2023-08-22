@@ -73,7 +73,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     "addEntity" should s"make a correct request $withOrWithout a predefined reference to add an entity" in {
       val entityResponse =
         <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-          <xip:ContentObject>
+          <xip:StructuralObject>
             <xip:Ref>
               {ref}
             </xip:Ref>
@@ -81,7 +81,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Description>A description</xip:Description>
             <xip:SecurityTag>open</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-          </xip:ContentObject>
+          </xip:StructuralObject>
           <AdditionalInformation>
             <Generations>
             </Generations>
@@ -124,7 +124,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addEntity" should s"make a correct request with the object details inside a XIP node if entity path to add is an 'information object'" in {
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-      <xip:ContentObject>
+      <xip:InformationObject>
         <xip:Ref>
           {ref}
         </xip:Ref>
@@ -132,7 +132,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <xip:Description>A description</xip:Description>
         <xip:SecurityTag>open</xip:SecurityTag>
         <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:ContentObject>
+      </xip:InformationObject>
       <AdditionalInformation>
         <Generations>
         </Generations>
@@ -237,7 +237,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addEntity" should s"return a message confirmation if the object got updated" in {
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-      <xip:ContentObject>
+      <xip:StructuralObject>
         <xip:Ref>
           {ref}
         </xip:Ref>
@@ -245,7 +245,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <xip:Description>A description</xip:Description>
         <xip:SecurityTag>open</xip:SecurityTag>
         <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:ContentObject>
+      </xip:StructuralObject>
       <AdditionalInformation>
         <Generations>
         </Generations>
@@ -304,7 +304,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
         val entityResponse =
           <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-          <xip:ContentObject>
+          <xip:StructuralObject>
             <xip:Ref>
               {ref}
             </xip:Ref>
@@ -312,7 +312,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Description>A description</xip:Description>
             <xip:SecurityTag>open</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-          </xip:ContentObject>
+          </xip:StructuralObject>
           <AdditionalInformation>
             <Generations>
             </Generations>
@@ -421,7 +421,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "updateEntity" should s"return a message confirmation if the object got updated" in {
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-      <xip:ContentObject>
+      <xip:StructuralObject>
         <xip:Ref>
           {ref}
         </xip:Ref>
@@ -429,7 +429,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <xip:Description>A description</xip:Description>
         <xip:SecurityTag>open</xip:SecurityTag>
         <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:ContentObject>
+      </xip:StructuralObject>
       <AdditionalInformation>
         <Generations>
         </Generations>
