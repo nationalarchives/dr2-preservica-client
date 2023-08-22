@@ -23,7 +23,7 @@ trait EntityClient[F[_], S] {
 
   def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
 
-  def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[String]
+  def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String]
 
@@ -146,7 +146,7 @@ object EntityClient {
             </$nodeName>"""
     }
 
-    override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[String] = {
+    override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID] = {
       val path = addEntityRequest.entityPath
       for {
         _ <- me.fromEither {
@@ -171,9 +171,9 @@ object EntityClient {
         // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
         fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
         url = uri"$apiBaseUrl/api/entity/$path"
-        _ <- addApiResponseXml(url.toString, fullRequestBody, token)
-        response = "Entity was added"
-      } yield response
+        addEntityResponse <- addApiResponseXml(url.toString, fullRequestBody, token)
+        ref <- dataProcessor.childNodeFromEntity(addEntityResponse, nodeName, "Ref")
+      } yield UUID.fromString(ref.trim)
     }
 
     override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {

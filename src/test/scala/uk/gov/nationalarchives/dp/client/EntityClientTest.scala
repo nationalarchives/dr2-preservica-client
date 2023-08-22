@@ -101,7 +101,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       )
 
       val client = testClient(s"http://localhost:$preservicaPort")
-      val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+      val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
       val _ = valueFromF(addEntityResponse)
 
@@ -152,7 +152,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
     val _ = valueFromF(addEntityResponse)
 
@@ -183,7 +183,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addEntityResponse)
@@ -203,7 +203,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
-    val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addEntityResponse)
@@ -223,7 +223,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       None
     )
 
-    val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addEntityResponse)
@@ -265,11 +265,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[String] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
 
     val response = valueFromF(addEntityResponse)
 
-    response should be("Entity was added")
+    response should be(ref)
   }
 
   "addEntity" should s"return an exception if the API call does" in {
