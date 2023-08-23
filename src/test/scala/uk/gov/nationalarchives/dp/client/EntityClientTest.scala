@@ -688,7 +688,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
-      client.entitiesByIdentifier("testIdentifier", "testValue", secretName)
+      client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"), secretName)
     )
 
     val expectedEntity = response.head
@@ -718,7 +718,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
-      client.entitiesByIdentifier("testIdentifier", "testValueDoesNotExist", secretName)
+      client.entitiesByIdentifier(Identifier("testIdentifier", "testValueDoesNotExist"), secretName)
     )
 
     response.size should equal(0)
@@ -740,7 +740,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
       cme.attempt(
-        client.entitiesByIdentifier("testIdentifier", "testValue", secretName)
+        client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"), secretName)
       )
     )
 

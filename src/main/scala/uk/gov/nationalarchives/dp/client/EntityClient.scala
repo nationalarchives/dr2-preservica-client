@@ -41,8 +41,7 @@ trait EntityClient[F[_], S] {
   ): F[Seq[EventAction]]
 
   def entitiesByIdentifier(
-      identifierName: String,
-      value: String,
+      identifier: Identifier,
       secretName: String
   ): F[Seq[Entity]]
 
@@ -176,11 +175,10 @@ object EntityClient {
     }
 
     override def entitiesByIdentifier(
-        identifierName: String,
-        value: String,
+        identifier: Identifier,
         secretName: String
     ): F[Seq[Entity]] = {
-      val queryParams = Map("type" -> identifierName, "value" -> value)
+      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
       val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
