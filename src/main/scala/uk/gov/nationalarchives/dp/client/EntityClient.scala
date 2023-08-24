@@ -218,11 +218,11 @@ object EntityClient {
     }
 
     override def nodesFromEntity(
-                                  entityRef: UUID,
-                                  entityPath: String,
-                                  childNodeNames: List[String],
-                                  secretName: String
-                                ): F[Map[String, String]] = {
+        entityRef: UUID,
+        entityPath: String,
+        childNodeNames: List[String],
+        secretName: String
+    ): F[Map[String, String]] = {
       val entityPathAndNodeNames = Map(
         "content-objects" -> "ContentObject",
         "information-objects" -> "InformationObject",
