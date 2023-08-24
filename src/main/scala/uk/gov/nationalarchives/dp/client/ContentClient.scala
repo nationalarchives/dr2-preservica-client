@@ -44,7 +44,7 @@ object ContentClient {
         val entityTypeAndRefSplit = info.split("\\|")
         val entityType = entityTypeAndRefSplit.head.split(":").last
         val entityRef = UUID.fromString(entityTypeAndRefSplit.last)
-        fromType[F](entityType, entityRef, None, deleted = false)
+        fromType[F](entityType, entityRef, None, None, deleted = false)
       })
       .sequence
 

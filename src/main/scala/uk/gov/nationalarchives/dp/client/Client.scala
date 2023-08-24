@@ -25,6 +25,7 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
 ) {
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
+
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
   implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]

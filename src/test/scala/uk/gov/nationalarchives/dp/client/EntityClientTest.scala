@@ -482,6 +482,111 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
+  "nodesFromEntity" should "return a Map of names and values of the nodes requested" in {
+    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+
+    val entityResponse =
+      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <xip:ContentObject>
+          <xip:Ref>
+            {ref}
+          </xip:Ref>
+          <xip:Title>page1File.txt</xip:Title>
+          <xip:Description>A description</xip:Description>
+          <xip:SecurityTag>open</xip:SecurityTag>
+          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
+        </xip:ContentObject>
+        <AdditionalInformation>
+          <Generations>http://localhost:
+            {preservicaPort}{generationsUrl}
+          </Generations>
+        </AdditionalInformation>
+      </EntityResponse>.toString()
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response: F[Map[String, String]] =
+      client.nodesFromEntity(ref, "content-objects", List("parent", "description"), secretName)
+
+    val nodeAndValue = valueFromF(response)
+    nodeAndValue.size should equal(2)
+
+    nodeAndValue("parent") should be("58412111-c73d-4414-a8fc-495cfc57f7e1")
+    nodeAndValue("description") should be("A description")
+
+    checkServerCall(entityUrl)
+  }
+
+  "nodesFromEntity" should "return an empty Map if no names of nodes were requested" in {
+    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+
+    val entityResponse =
+      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <xip:ContentObject>
+          <xip:Ref>
+            {ref}
+          </xip:Ref>
+          <xip:Title>page1File.txt</xip:Title>
+          <xip:Description>A description</xip:Description>
+          <xip:SecurityTag>open</xip:SecurityTag>
+          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
+        </xip:ContentObject>
+        <AdditionalInformation>
+          <Generations>http://localhost:
+            {preservicaPort}{generationsUrl}
+          </Generations>
+        </AdditionalInformation>
+      </EntityResponse>.toString()
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val response: F[Map[String, String]] = client.nodesFromEntity(ref, "content-objects", Nil, secretName)
+
+    val nodeAndValue = valueFromF(response)
+    nodeAndValue.size should equal(0)
+
+    checkServerCall(entityUrl)
+  }
+
+  "nodesFromEntity" should "throw an error if an invalid path was passed in" in {
+    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+
+    val entityResponse =
+      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <xip:ContentObject>
+          <xip:Ref>
+            {ref}
+          </xip:Ref>
+          <xip:Title>page1File.txt</xip:Title>
+          <xip:Description>A description</xip:Description>
+          <xip:SecurityTag>open</xip:SecurityTag>
+          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
+        </xip:ContentObject>
+        <AdditionalInformation>
+          <Generations>http://localhost:
+            {preservicaPort}{generationsUrl}
+          </Generations>
+        </AdditionalInformation>
+      </EntityResponse>.toString()
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+
+    val client = testClient(s"http://localhost:$preservicaPort")
+
+    val childNodeResponseF = client.nodesFromEntity(ref, "invalid-objects", List("parent", "description"), secretName)
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(childNodeResponseF)
+    }
+
+    error.getMessage should be("The entityPath 'invalid-objects' does not exist")
+  }
+
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
@@ -692,7 +797,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -737,7 +842,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a multiple fragments when the object has multiple fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
@@ -801,7 +906,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -828,7 +933,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error if the server is unavailable" in {
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
-    val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), deleted = false))
+    val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), Option("description"), deleted = false))
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = client.metadataForEntity(entity, secretName)
 
@@ -844,7 +949,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "metadataForEntityUrl" should "return an error if the entity path is empty" in {
     val id = UUID.randomUUID()
-    val entity = Entity(None, id, None, deleted = true, None)
+    val entity = Entity(None, id, None, None, deleted = true, None)
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     val client = testClient(s"http://localhost:$preservicaPort")
     val ex = intercept[PreservicaClientException] {
@@ -1007,6 +1112,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           "CO".some,
           UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
           None,
+          None,
           deleted = false,
           "content-objects".some
         ),
@@ -1047,6 +1153,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             "CO".some,
             UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
             None,
+            None,
             deleted = false,
             "content-objects".some
           ),
@@ -1069,6 +1176,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           Entities.Entity(
             None,
             id,
+            None,
             None,
             deleted = true,
             None
