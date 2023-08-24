@@ -114,15 +114,14 @@ object EntityClient {
           PreservicaClientException(s"The entityPath '$entityPath' does not exist")
         )
 
-        _ <- me.fromEither {
+        _ <-
           if (entityPath != "structural-objects" && parentRef.isEmpty)
-            Left(
+            me.raiseError(
               PreservicaClientException(
                 "You must pass in the parent ref if you would like to add/update a non-structural object."
               )
             )
-          else Right(())
-        }
+          else me.unit
         token <- getAuthenticationToken(secretName)
       } yield (nodeName, token)
 
@@ -149,13 +148,13 @@ object EntityClient {
     override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID] = {
       val path = addEntityRequest.entityPath
       for {
-        _ <- me.fromEither {
+        _ <-
           if (path == "content-objects")
-            Left(
+            me.raiseError(
               PreservicaClientException("You currently cannot create a content object via the API.")
             )
-          else Right(())
-        }
+          else me.unit
+
         nodeNameAndToken <- validateEntityUpdateInputs(path, addEntityRequest.parentRef, secretName)
         (nodeName, token) = nodeNameAndToken
         addXipTag = if (path == "information-objects") true else false
