@@ -30,8 +30,8 @@ lazy val releaseSettings = Seq(
 
   scmInfo := Some(
     ScmInfo(
-      url("https://github.com/nationalarchives/dp-preservica-client"),
-      "git@github.com:nationalarchives/dp-preservica-client.git"
+      url("https://github.com/nationalarchives/dr2-preservica-client"),
+      "git@github.com:nationalarchives/dr2-preservica-client.git"
     )
   ),
   developers := List(
@@ -39,12 +39,12 @@ lazy val releaseSettings = Seq(
       id = "tna-digital-archiving-jenkins",
       name = "TNA Digital Archiving",
       email = "digitalpreservation@nationalarchives.gov.uk",
-      url = url("https://github.com/nationalarchives/dp-preservica-client")
+      url = url("https://github.com/nationalarchives/dr2-preservica-client")
     )
   ),
   description := "A client to communicate with the Preservica API",
   licenses := List("MIT" -> new URL("https://choosealicense.com/licenses/mit/")),
-  homepage := Some(url("https://github.com/nationalarchives/dp-preservica-client"))
+  homepage := Some(url("https://github.com/nationalarchives/dr2-preservica-client"))
 )
 
 lazy val commonSettings = Seq(
