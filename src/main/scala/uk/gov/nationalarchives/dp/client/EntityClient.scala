@@ -18,6 +18,13 @@ import uk.gov.nationalarchives.dp.client.Entities.Entity
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
 
+  def nodesFromEntity(
+      entityRef: UUID,
+      entityPath: String,
+      childNodeNames: List[String],
+      secretName: String
+  ): F[Map[String, String]]
+
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
@@ -89,6 +96,41 @@ object EntityClient {
           )
         } yield allEventActions
       }
+    }
+
+    private def entity(entityRef: UUID, entityPath: String, secretName: String): F[Elem] =
+      for {
+        path <- me.fromOption(
+          entityPath.some,
+          PreservicaClientException(missingPathExceptionMessage(entityRef))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/$entityRef"
+        token <- getAuthenticationToken(secretName)
+        entity <- getApiResponseXml(url.toString(), token)
+      } yield entity
+
+    override def nodesFromEntity(
+        entityRef: UUID,
+        entityPath: String,
+        childNodeNames: List[String],
+        secretName: String
+    ): F[Map[String, String]] = {
+      val entityPathAndNodeNames = Map(
+        "content-objects" -> "ContentObject",
+        "information-objects" -> "InformationObject",
+        "structural-objects" -> "StructuralObject"
+      )
+
+      for {
+        nodeName <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+        entityResponse <- entity(entityRef, entityPath, secretName)
+        childNodeValues <- childNodeNames.distinct
+          .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
+          .sequence
+      } yield childNodeNames.zip(childNodeValues).toMap
     }
 
     override def getBitstreamInfo(
