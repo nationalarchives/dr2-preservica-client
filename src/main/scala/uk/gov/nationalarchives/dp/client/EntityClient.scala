@@ -130,9 +130,7 @@ object EntityClient {
         childNodeValues <- childNodeNames.distinct
           .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
           .sequence
-
-        childNodeNamesAndValues = childNodeNames.zip(childNodeValues)
-      } yield childNodeNamesAndValues.toMap
+      } yield childNodeNames.zip(childNodeValues).toMap
     }
 
     override def getBitstreamInfo(
