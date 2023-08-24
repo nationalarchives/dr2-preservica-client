@@ -237,7 +237,13 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       entity.description.getOrElse("") should equal(description)
     }
 
-    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", "file1.txt", "A description")
+    checkResponse(
+      entities.head,
+      "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91",
+      "information-objects",
+      "file1.txt",
+      "A description"
+    )
     checkResponse(
       entities.tail.head,
       "2d8a9935-3a1a-45ce-aadb-f01f2ddc9405",
