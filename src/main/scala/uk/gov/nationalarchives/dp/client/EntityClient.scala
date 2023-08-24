@@ -157,7 +157,7 @@ object EntityClient {
 
         nodeNameAndToken <- validateEntityUpdateInputs(path, addEntityRequest.parentRef, secretName)
         (nodeName, token) = nodeNameAndToken
-        addXipTag = if (path == "information-objects") true else false
+        addXipTag = path == "information-objects"
         addRequestBody = createUpdateRequestBody(
           addEntityRequest.ref,
           addEntityRequest.title,
