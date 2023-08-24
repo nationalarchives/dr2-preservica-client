@@ -5,6 +5,7 @@ import cats.implicits._
 import cats.effect.Sync
 import sttp.client3._
 import sttp.client3.upicklejson.asJson
+import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.Entities._
@@ -52,12 +53,12 @@ object ContentClient {
       val queryParams = Map("name" -> definitionName, "type" -> "CustomIndexDefinition")
       val apiUri = uri"$apiBaseUrl/api/admin/documents?$queryParams"
       for {
-        documents <- getApiResponseXml(apiUri.toString(), token)
+        documents <- sendXMLApiRequest(apiUri.toString(), token, Method.GET)
         apiId <- me.fromOption(
           dataProcessor.existingApiId(documents, "Document", definitionName),
           PreservicaClientException(s"Cannot find index definition $definitionName")
         )
-        definitionContent <- getApiResponseXml(s"$apiBaseUrl/api/admin/documents/$apiId/content", token)
+        definitionContent <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/documents/$apiId/content", token, Method.GET)
         indexNames <- dataProcessor.closureResultIndexNames(definitionContent)
       } yield indexNames
     }

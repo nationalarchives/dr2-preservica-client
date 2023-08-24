@@ -78,7 +78,7 @@ object EntityClient {
         token: String
     ): F[Seq[Entity]] =
       for {
-        entitiesResponseXml <- getApiResponseXml(url, token)
+        entitiesResponseXml <- sendXMLApiRequest(url, token, Method.GET)
         entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
 
@@ -91,7 +91,7 @@ object EntityClient {
         me.pure(currentCollectionOfEventActions)
       } else {
         for {
-          eventActionsResponseXml <- getApiResponseXml(url.get, token)
+          eventActionsResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
           eventActionsBatch <- dataProcessor.getEventActions(eventActionsResponseXml)
           nextPageUrl <- dataProcessor.nextPage(eventActionsResponseXml)
           allEventActions <- eventActions(
@@ -171,7 +171,7 @@ object EntityClient {
         // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
         fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
         url = uri"$apiBaseUrl/api/entity/$path"
-        addEntityResponse <- addApiResponseXml(url.toString, fullRequestBody, token)
+        addEntityResponse <- sendXMLApiRequest(url.toString, token, Method.POST, Some(fullRequestBody))
         ref <- dataProcessor.childNodeFromEntity(addEntityResponse, nodeName, "Ref")
       } yield UUID.fromString(ref.trim)
     }
@@ -195,7 +195,7 @@ object EntityClient {
           updateEntityRequest.securityTag,
           nodeName
         )
-        _ <- updateApiResponseXml(url.toString, updateRequestBody, token)
+        _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
         response = "Entity was updated"
       } yield response
     }
@@ -206,18 +206,19 @@ object EntityClient {
     ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken(secretName)
-        contentEntity <- getApiResponseXml(
+        contentEntity <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/content-objects/$contentRef",
-          token
+          token,
+          Method.GET
         )
         generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- getApiResponseXml(generationUrl, token)
+        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
         allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
         allGenerationElements <- allGenerationUrls
-          .map(url => getApiResponseXml(url, token))
+          .map(url => sendXMLApiRequest(url, token, Method.GET))
           .sequence
         allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
+        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
 
@@ -229,12 +230,13 @@ object EntityClient {
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        entityInfo <- getApiResponseXml(
+        entityInfo <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/$path/${entity.ref}",
-          token
+          token,
+          Method.GET
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-        fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
+        fragmentResponse <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
       } yield fragments.map(XML.loadString)
 

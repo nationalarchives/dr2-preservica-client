@@ -36,41 +36,22 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
   val apiBaseUrl: String = clientConfig.apiBaseUrl
   val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
-  private[client] def getApiResponseXml(url: String, token: String): F[Elem] = {
-    val apiUri = uri"$url"
-    val request = basicRequest
-      .get(apiUri)
-      .headers(Map("Preservica-Access-Token" -> token))
-      .response(asXml)
-
-    me.flatMap(backend.send(request)) { res =>
-      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
-    }
-  }
-
-  private[client] def addApiResponseXml(url: String, requestBody: String, token: String): F[Elem] = {
+  private[client] def sendXMLApiRequest(
+      url: String,
+      token: String,
+      method: Method,
+      requestBody: Option[String] = None
+  ) = {
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
-      .post(uri"$url")
-      .body(requestBody)
+      .method(method, apiUri)
       .response(asXml)
-
-    me.flatMap(backend.send(request)) { res =>
-      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.POST, apiUri, res.code, err)))
-    }
-  }
-
-  private[client] def updateApiResponseXml(url: String, requestBody: String, token: String): F[Elem] = {
-    val apiUri = uri"$url"
-    val request = basicRequest
-      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
-      .put(uri"$url")
-      .body(requestBody)
-      .response(asXml)
-
-    me.flatMap(backend.send(request)) { res =>
-      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.PUT, apiUri, res.code, err)))
+    val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
+    me.flatMap(backend.send(requestWithBody)) { res =>
+      me.fromEither(
+        res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
+      )
     }
   }
 

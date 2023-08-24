@@ -79,7 +79,7 @@ object AdminClient {
         elementName: String
     ) = for {
       token <- getAuthenticationToken(secretName)
-      res <- getApiResponseXml(s"$apiBaseUrl/api/admin/$path", token)
+      res <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/$path", token, Method.GET)
       _ <- fileInfo.map { info =>
         val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
           case Some(id) => deleteDocument(path, id, token)
