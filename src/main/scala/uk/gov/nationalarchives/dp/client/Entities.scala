@@ -10,12 +10,12 @@ object Entities {
       entityType: Option[String],
       ref: UUID,
       title: Option[String],
-      description: String,
+      description: Option[String],
       deleted: Boolean,
       path: Option[String]
   )
 
-  def fromType[F[_]](entityType: String, ref: UUID, title: Option[String], description: String, deleted: Boolean)(
+  def fromType[F[_]](entityType: String, ref: UUID, title: Option[String], description: Option[String], deleted: Boolean)(
       implicit me: MonadError[F, Throwable]
   ): F[Entity] = entityType match {
     case "IO" =>

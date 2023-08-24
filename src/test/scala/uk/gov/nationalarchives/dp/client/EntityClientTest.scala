@@ -268,7 +268,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), "description", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
@@ -313,7 +313,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return a multiple fragments when the object has multiple fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), "description", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
@@ -377,7 +377,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("IO", entityId, Option("title"), "description", deleted = false))
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
@@ -404,7 +404,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "metadataForEntityUrl" should "return an error if the server is unavailable" in {
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
-    val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), "description", deleted = false))
+    val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), Option("description"), deleted = false))
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = client.metadataForEntity(entity, secretName)
 
@@ -420,7 +420,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "metadataForEntityUrl" should "return an error if the entity path is empty" in {
     val id = UUID.randomUUID()
-    val entity = Entity(None, id, None, "description", deleted = true, None)
+    val entity = Entity(None, id, None, None, deleted = true, None)
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     val client = testClient(s"http://localhost:$preservicaPort")
     val ex = intercept[PreservicaClientException] {
@@ -583,7 +583,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           "CO".some,
           UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
           None,
-          "description",
+          None,
           deleted = false,
           "content-objects".some
         ),
@@ -624,7 +624,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             "CO".some,
             UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
             None,
-            "description",
+            None,
             deleted = false,
             "content-objects".some
           ),
@@ -648,7 +648,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             None,
             id,
             None,
-            "description",
+            None,
             deleted = true,
             None
           ),

@@ -234,7 +234,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.get should equal(s"file$fileNumber.txt")
-      entity.description should equal(description)
+      entity.description.getOrElse("") should equal(description)
     }
 
     checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", 1, "A description")

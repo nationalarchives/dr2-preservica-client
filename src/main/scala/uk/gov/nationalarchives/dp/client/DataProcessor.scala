@@ -101,7 +101,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 
       val ref = UUID.fromString(attrToString("ref"))
       val title = entityAttributes.get("title").map(_.toString)
-      val description = attrToString("description")
+      val description = entityAttributes.get("description").map(_.toString)
       val entityType = attrToString("type")
       val deleted = attrToString("deleted").nonEmpty
       fromType(entityType, ref, title, description, deleted)
