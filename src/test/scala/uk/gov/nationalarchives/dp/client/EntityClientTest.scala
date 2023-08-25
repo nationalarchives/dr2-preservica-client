@@ -110,7 +110,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       val _ = valueFromF(addEntityResponse)
 
-      val requestMade = preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBody.map(_.toChar).mkString
+      val requestMade = getRequestMade(preservicaServer)
 
       requestMade should be(
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -161,7 +161,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val _ = valueFromF(addEntityResponse)
 
-    val requestMade = preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBody.map(_.toChar).mkString
+    val requestMade = getRequestMade(preservicaServer)
 
     requestMade should be(
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -341,8 +341,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
         val _ = valueFromF(updateEntityResponse)
 
-        val requestMade =
-          preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBody.map(_.toChar).mkString
+        val requestMade = getRequestMade(preservicaServer)
 
         requestMade should be(
           s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1311,7 +1310,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val _ = valueFromF(addIdentifiersForEntityResponse)
 
-    val requestMade = preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBody.map(_.toChar).mkString
+    val requestMade = getRequestMade(preservicaServer)
 
     requestMade should be(
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1411,4 +1410,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       response should be(expectedResponseMessage)
     }
   }
+
+  private def getRequestMade(preservicaServer: WireMockServer) =
+    preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
 }
