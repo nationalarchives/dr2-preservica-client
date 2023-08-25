@@ -18,6 +18,12 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
   }
 
+  def childNodeFromEntity(entityResponse: Elem, nodeName: String, childNodeName: String): F[String] =
+    me.fromOption(
+      (entityResponse \ nodeName \ childNodeName.capitalize).headOption.map(_.text),
+      PreservicaClientException(s"Either $nodeName or $childNodeName does not exist on entity")
+    )
+
   def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] = {
     (res \\ elementName).find(n => (n \ "Name").text == fileName).map(n => (n \ "ApiId").text)
   }
