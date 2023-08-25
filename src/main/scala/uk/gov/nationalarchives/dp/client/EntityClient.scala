@@ -14,7 +14,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateE
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.xml.{Elem, XML}
+import scala.xml.{Elem, PrettyPrinter, XML}
 
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
@@ -344,12 +344,14 @@ object EntityClient {
           PreservicaClientException(s"The entityPath '$entityPath' does not exist")
         )
         token <- getAuthenticationToken(secretName)
-        identifiersAsXml = identifiers.map { identifier =>
-          s"""<Identifier xmlns="http://preservica.com/XIP/v6.5">
-                    <Type>${identifier.identifierName}</Type>
-                    <Value>${identifier.value}</Value>
-                  </Identifier>"""
+        identifiersAsXml: List[String] = identifiers.map { identifier =>
+          val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+            <Type>{identifier.identifierName}</Type>
+            <Value>{identifier.value}</Value>
+          </Identifier>
+          new PrettyPrinter(80, 2).format(xml)
         }
+
         requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
 
         _ <- sendXMLApiRequest(

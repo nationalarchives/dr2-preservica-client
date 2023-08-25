@@ -13,13 +13,14 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, fromType}
 import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateEntityRequest, Open}
+import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, Open, UpdateEntityRequest}
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
+import scala.xml.PrettyPrinter
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
     cme: MonadError[F, Throwable]
@@ -1312,13 +1313,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val requestMade = getRequestMade(preservicaServer)
 
-    requestMade should be(
-      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Identifier xmlns="http://preservica.com/XIP/v6.5">
-                    <Type>TestIdentifierName</Type>
-                    <Value>TestIdentifierValue</Value>
-                  </Identifier>"""
-    )
+    val expectedXml =
+      new PrettyPrinter(80, 2).format(
+        <Identifier xmlns="http://preservica.com/XIP/v6.5">
+          <Type>TestIdentifierName</Type>
+          <Value>TestIdentifierValue</Value>
+        </Identifier>
+      )
+
+    requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
   }
 
   "addIdentifiersForEntity" should "return an error if an invalid path was passed in" in {
