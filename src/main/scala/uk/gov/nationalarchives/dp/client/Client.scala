@@ -37,15 +37,22 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
   val apiBaseUrl: String = clientConfig.apiBaseUrl
   val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
-  private[client] def getApiResponseXml(url: String, token: String): F[Elem] = {
+  private[client] def sendXMLApiRequest(
+      url: String,
+      token: String,
+      method: Method,
+      requestBody: Option[String] = None
+  ) = {
     val apiUri = uri"$url"
     val request = basicRequest
-      .get(apiUri)
-      .headers(Map("Preservica-Access-Token" -> token))
+      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
+      .method(method, apiUri)
       .response(asXml)
-
-    me.flatMap(backend.send(request)) { res =>
-      me.fromEither(res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err)))
+    val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
+    me.flatMap(backend.send(requestWithBody)) { res =>
+      me.fromEither(
+        res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
+      )
     }
   }
 
