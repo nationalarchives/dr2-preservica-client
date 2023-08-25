@@ -23,7 +23,7 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
   )
   forAll(entityTypes) { (entityType, expectedPath) =>
     "fromType" should s"return an object with path $expectedPath for entity type $entityType" in {
-      valueFromF(fromType(entityType, UUID.randomUUID(), None, deleted = false)).path should equal(
+      valueFromF(fromType(entityType, UUID.randomUUID(), None, None, deleted = false)).path should equal(
         expectedPath
       )
     }

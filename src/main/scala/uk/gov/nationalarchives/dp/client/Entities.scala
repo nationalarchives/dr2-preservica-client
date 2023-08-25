@@ -10,28 +10,35 @@ object Entities {
       entityType: Option[String],
       ref: UUID,
       title: Option[String],
+      description: Option[String],
       deleted: Boolean,
       path: Option[String]
   )
 
-  def fromType[F[_]](entityType: String, ref: UUID, title: Option[String], deleted: Boolean)(implicit
+  def fromType[F[_]](
+      entityType: String,
+      ref: UUID,
+      title: Option[String],
+      description: Option[String],
+      deleted: Boolean
+  )(implicit
       me: MonadError[F, Throwable]
   ): F[Entity] = entityType match {
     case "IO" =>
       me.pure {
-        Entity("IO".some, ref, title, deleted, "information-objects".some)
+        Entity("IO".some, ref, title, description, deleted, "information-objects".some)
       }
     case "CO" =>
       me.pure {
-        Entity("CO".some, ref, title, deleted, "content-objects".some)
+        Entity("CO".some, ref, title, description, deleted, "content-objects".some)
       }
     case "SO" =>
       me.pure {
-        Entity("SO".some, ref, title, deleted, "structural-objects".some)
+        Entity("SO".some, ref, title, description, deleted, "structural-objects".some)
       }
     case _ =>
       me.pure {
-        Entity(None, ref, title, deleted, None)
+        Entity(None, ref, title, description, deleted, None)
       }
   }
 

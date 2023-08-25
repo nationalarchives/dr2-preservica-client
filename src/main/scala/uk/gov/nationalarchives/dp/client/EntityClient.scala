@@ -6,21 +6,33 @@ import cats.implicits._
 import sttp.capabilities.Streams
 import sttp.client3._
 import sttp.model.Method
+import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
+import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, XML}
-import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
 
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
 
+  def nodesFromEntity(
+      entityRef: UUID,
+      entityPath: String,
+      childNodeNames: List[String],
+      secretName: String
+  ): F[Map[String, String]]
+
   def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
+
+  def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID]
+
+  def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
@@ -65,7 +77,6 @@ object EntityClient {
       s"No path found for entity id $ref. Could this entity have been deleted?"
 
     private val client: Client[F, S] = Client(clientConfig)
-    import client._
 
     private val entityPathAndNodeNames = Map(
       "content-objects" -> "ContentObject",
@@ -73,12 +84,14 @@ object EntityClient {
       "structural-objects" -> "StructuralObject"
     )
 
+    import client._
+
     private def getEntities(
         url: String,
         token: String
     ): F[Seq[Entity]] =
       for {
-        entitiesResponseXml <- getApiResponseXml(url, token)
+        entitiesResponseXml <- sendXMLApiRequest(url, token, Method.GET)
         entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
 
@@ -91,7 +104,7 @@ object EntityClient {
         me.pure(currentCollectionOfEventActions)
       } else {
         for {
-          eventActionsResponseXml <- getApiResponseXml(url.get, token)
+          eventActionsResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
           eventActionsBatch <- dataProcessor.getEventActions(eventActionsResponseXml)
           nextPageUrl <- dataProcessor.nextPage(eventActionsResponseXml)
           allEventActions <- eventActions(
@@ -103,24 +116,156 @@ object EntityClient {
       }
     }
 
+    private def entity(entityRef: UUID, entityPath: String, secretName: String): F[Elem] =
+      for {
+        path <- me.fromOption(
+          entityPath.some,
+          PreservicaClientException(missingPathExceptionMessage(entityRef))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/$entityRef"
+        token <- getAuthenticationToken(secretName)
+        entity <- sendXMLApiRequest(url.toString(), token, Method.GET)
+      } yield entity
+
+    private def validateEntityUpdateInputs(
+        entityPath: String,
+        parentRef: Option[UUID],
+        secretName: String
+    ): F[(String, String)] =
+      for {
+        nodeName <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+
+        _ <-
+          if (entityPath != "structural-objects" && parentRef.isEmpty)
+            me.raiseError(
+              PreservicaClientException(
+                "You must pass in the parent ref if you would like to add/update a non-structural object."
+              )
+            )
+          else me.unit
+        token <- getAuthenticationToken(secretName)
+      } yield (nodeName, token)
+
+    private def createUpdateRequestBody(
+        ref: Option[UUID],
+        titleToChange: Option[String],
+        descriptionToChange: Option[String],
+        parentRef: Option[UUID],
+        securityTag: SecurityTag,
+        nodeName: String,
+        addOpeningXipTag: Boolean = false
+    ): String = {
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
+            <$nodeName xmlns="http://preservica.com/XIP/v6.5">
+              ${if (ref.nonEmpty) s"<Ref>${ref.get}</Ref>"}
+              ${if (titleToChange.nonEmpty) s"<Title>${titleToChange.get}</Title>"}
+              ${if (descriptionToChange.nonEmpty) s"<Description>${descriptionToChange.get}</Description>"}
+              <SecurityTag>$securityTag</SecurityTag>
+              ${if (parentRef.nonEmpty) s"<Parent>${parentRef.get}</Parent>"}
+            </$nodeName>"""
+    }
+
+    override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID] = {
+      val path = addEntityRequest.entityPath
+      for {
+        _ <-
+          if (path == "content-objects")
+            me.raiseError(
+              PreservicaClientException("You currently cannot create a content object via the API.")
+            )
+          else me.unit
+
+        nodeNameAndToken <- validateEntityUpdateInputs(path, addEntityRequest.parentRef, secretName)
+        (nodeName, token) = nodeNameAndToken
+        addXipTag = path == "information-objects"
+        addRequestBody = createUpdateRequestBody(
+          addEntityRequest.ref,
+          addEntityRequest.title,
+          addEntityRequest.description,
+          addEntityRequest.parentRef,
+          addEntityRequest.securityTag,
+          nodeName,
+          addXipTag
+        )
+        // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
+        fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
+        url = uri"$apiBaseUrl/api/entity/$path"
+        addEntityResponse <- sendXMLApiRequest(url.toString, token, Method.POST, Some(fullRequestBody))
+        ref <- dataProcessor.childNodeFromEntity(addEntityResponse, nodeName, "Ref")
+      } yield UUID.fromString(ref.trim)
+    }
+
+    override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {
+      for {
+        _ <- me.fromOption(
+          updateEntityRequest.titleToChange.orElse(updateEntityRequest.descriptionToChange),
+          PreservicaClientException("Both the title and description are 'None'! Entity cannot be updated")
+        )
+        path = updateEntityRequest.entityPath
+        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
+
+        nodeNameAndToken <- validateEntityUpdateInputs(path, updateEntityRequest.parentRef, secretName)
+        (nodeName, token) = nodeNameAndToken
+        updateRequestBody = createUpdateRequestBody(
+          Some(updateEntityRequest.ref),
+          updateEntityRequest.titleToChange,
+          updateEntityRequest.descriptionToChange,
+          updateEntityRequest.parentRef,
+          updateEntityRequest.securityTag,
+          nodeName
+        )
+        _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
+        response = "Entity was updated"
+      } yield response
+    }
+
+    override def nodesFromEntity(
+        entityRef: UUID,
+        entityPath: String,
+        childNodeNames: List[String],
+        secretName: String
+    ): F[Map[String, String]] = {
+      val entityPathAndNodeNames = Map(
+        "content-objects" -> "ContentObject",
+        "information-objects" -> "InformationObject",
+        "structural-objects" -> "StructuralObject"
+      )
+
+      for {
+        nodeName <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+        entityResponse <- entity(entityRef, entityPath, secretName)
+        childNodeValues <- childNodeNames.distinct
+          .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
+          .sequence
+      } yield childNodeNames.zip(childNodeValues).toMap
+    }
+
     override def getBitstreamInfo(
         contentRef: UUID,
         secretName: String
     ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken(secretName)
-        contentEntity <- getApiResponseXml(
+        contentEntity <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/content-objects/$contentRef",
-          token
+          token,
+          Method.GET
         )
         generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- getApiResponseXml(generationUrl, token)
+        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
         allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
         allGenerationElements <- allGenerationUrls
-          .map(url => getApiResponseXml(url, token))
+          .map(url => sendXMLApiRequest(url, token, Method.GET))
           .sequence
         allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamXmls <- allUrls.map(url => getApiResponseXml(url, token)).sequence
+        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
 
@@ -132,12 +277,13 @@ object EntityClient {
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        entityInfo <- getApiResponseXml(
+        entityInfo <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/$path/${entity.ref}",
-          token
+          token,
+          Method.GET
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-        fragmentResponse <- fragmentUrls.map(url => getApiResponseXml(url, token)).sequence
+        fragmentResponse <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponse)
       } yield fragments.map(XML.loadString)
 
@@ -238,4 +384,30 @@ object EntityClient {
       } yield body
     }
   }
+
+  case class AddEntityRequest(
+      ref: Option[UUID],
+      title: Option[String],
+      description: Option[String],
+      entityPath: String,
+      securityTag: SecurityTag,
+      parentRef: Option[UUID]
+  )
+
+  case class UpdateEntityRequest(
+      ref: UUID,
+      titleToChange: Option[String],
+      descriptionToChange: Option[String],
+      entityPath: String,
+      securityTag: SecurityTag,
+      parentRef: Option[UUID]
+  )
+
+  sealed trait SecurityTag {
+    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+  }
+
+  case object Open extends SecurityTag
+
+  case object Closed extends SecurityTag
 }

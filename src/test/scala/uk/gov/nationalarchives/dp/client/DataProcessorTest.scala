@@ -11,6 +11,50 @@ import java.util.UUID
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
 
+  "childNodeFromEntity" should "return the node requested even if it is lowercase" in {
+    val input =
+      <MetadataResponse>
+        <xip:Object>
+          <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+        </xip:Object>
+        <AdditionalInformation>
+          <Metadata>
+            <Fragment>test1</Fragment>
+            <Fragment>test2</Fragment>
+          </Metadata>
+        </AdditionalInformation>
+      </MetadataResponse>
+
+    val childNodeResponseF = new DataProcessor[F]().childNodeFromEntity(input, "Object", "ref")
+    val value = valueFromF(childNodeResponseF)
+
+    value should equal("6da319fa-07e0-4a83-9c5a-b6bad08445b1")
+  }
+
+  "childNodeFromEntity" should "return an error if child node does not exist" in {
+    val input =
+      <MetadataResponse>
+        <xip:Object>
+          <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+        </xip:Object>
+        <AdditionalInformation>
+          <Metadata>
+            <Fragment>test1</Fragment>
+            <Fragment>test2</Fragment>
+          </Metadata>
+        </AdditionalInformation>
+      </MetadataResponse>
+
+    val childNodeResponseF = new DataProcessor[F]().childNodeFromEntity(input, "Object", "InvalidNode")
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(childNodeResponseF)
+    }
+    val expectedMessage = "Either Object or InvalidNode does not exist on entity"
+
+    error.getMessage should equal(expectedMessage)
+  }
+
   "fragmentUrls" should "return fragments" in {
     val input =
       <MetadataResponse>
@@ -214,7 +258,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
   "getEntities" should "return the correct entity objects" in {
     val input = <EntitiesResponse>
       <Entities>
-        <Entity title="file1.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/file1/object</Entity>
+        <Entity title="file1.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO" description="A description">http://localhost/file1/object</Entity>
         <Entity title="file2.txt" ref="2d8a9935-3a1a-45ce-aadb-f01f2ddc9405" type="SO">http://localhost/file2/object</Entity>
         <Entity ref="99fb8809-be86-4636-9b3f-4a181de0bc36" deleted="true">http://localhost/file3/object</Entity>
       </Entities>
@@ -227,24 +271,34 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         uuid: String,
         entityType: String,
         fileName: String,
+        description: String,
         deleted: Boolean = false
     ) = {
       entity.path.getOrElse("") should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.getOrElse("") should equal(fileName)
+      entity.description.getOrElse("") should equal(description)
     }
 
-    checkResponse(entities.head, "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91", "information-objects", "file1.txt")
+    checkResponse(
+      entities.head,
+      "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91",
+      "information-objects",
+      "file1.txt",
+      "A description"
+    )
     checkResponse(
       entities.tail.head,
       "2d8a9935-3a1a-45ce-aadb-f01f2ddc9405",
       "structural-objects",
-      "file2.txt"
+      "file2.txt",
+      ""
     )
     checkResponse(
       entities.last,
       "99fb8809-be86-4636-9b3f-4a181de0bc36",
+      "",
       "",
       "",
       deleted = true
