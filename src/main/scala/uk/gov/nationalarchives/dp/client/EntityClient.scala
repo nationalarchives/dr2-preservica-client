@@ -332,11 +332,12 @@ object EntityClient {
         secretName: String
     ): F[String] =
       for {
-        _ <- me.fromEither(
+        _ <-
           if (identifiers.isEmpty)
-            Left(PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!"))
-          else Right(())
-        )
+            me.raiseError(
+              PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!")
+            )
+          else me.unit
 
         _ <- me.fromOption(
           entityPathAndNodeNames.get(entityPath),
