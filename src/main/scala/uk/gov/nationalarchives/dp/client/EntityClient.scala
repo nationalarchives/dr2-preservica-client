@@ -228,13 +228,7 @@ object EntityClient {
         entityPath: String,
         childNodeNames: List[String],
         secretName: String
-    ): F[Map[String, String]] = {
-      val entityPathAndNodeNames = Map(
-        "content-objects" -> "ContentObject",
-        "information-objects" -> "InformationObject",
-        "structural-objects" -> "StructuralObject"
-      )
-
+    ): F[Map[String, String]] =
       for {
         nodeName <- me.fromOption(
           entityPathAndNodeNames.get(entityPath),
@@ -245,7 +239,6 @@ object EntityClient {
           .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
           .sequence
       } yield childNodeNames.zip(childNodeValues).toMap
-    }
 
     override def getBitstreamInfo(
         contentRef: UUID,
@@ -358,10 +351,11 @@ object EntityClient {
         }
         requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
 
-        _ <- addApiResponseXml(
+        _ <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/$entityPath/$entityRef/identifiers",
-          requestBody,
-          token
+          token,
+          Method.POST,
+          Some(requestBody)
         )
         response = s"The ${if (identifiers.length > 1) "Identifiers were" else "Identifier was"} added"
       } yield response
