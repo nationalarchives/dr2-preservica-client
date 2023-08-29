@@ -90,7 +90,6 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
         }
       } yield token
     }.flatten
-
 }
 object Client {
   case class Token(token: String)
@@ -110,5 +109,4 @@ object Client {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ) = new Client[F, S](clientConfig)
-
 }

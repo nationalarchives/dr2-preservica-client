@@ -8,13 +8,13 @@ import sttp.client3._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.Entity
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
 import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.xml.{Elem, XML}
+import scala.xml.{Elem, PrettyPrinter, XML}
 
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
@@ -53,10 +53,16 @@ trait EntityClient[F[_], S] {
   ): F[Seq[EventAction]]
 
   def entitiesByIdentifier(
-      identifierName: String,
-      value: String,
+      identifier: Identifier,
       secretName: String
   ): F[Seq[Entity]]
+
+  def addIdentifiersForEntity(
+      entityRef: UUID,
+      entityPath: String,
+      identifiers: List[Identifier],
+      secretName: String
+  ): F[String]
 }
 
 object EntityClient {
@@ -222,13 +228,7 @@ object EntityClient {
         entityPath: String,
         childNodeNames: List[String],
         secretName: String
-    ): F[Map[String, String]] = {
-      val entityPathAndNodeNames = Map(
-        "content-objects" -> "ContentObject",
-        "information-objects" -> "InformationObject",
-        "structural-objects" -> "StructuralObject"
-      )
-
+    ): F[Map[String, String]] =
       for {
         nodeName <- me.fromOption(
           entityPathAndNodeNames.get(entityPath),
@@ -239,7 +239,6 @@ object EntityClient {
           .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
           .sequence
       } yield childNodeNames.zip(childNodeValues).toMap
-    }
 
     override def getBitstreamInfo(
         contentRef: UUID,
@@ -315,17 +314,54 @@ object EntityClient {
     }
 
     override def entitiesByIdentifier(
-        identifierName: String,
-        value: String,
+        identifier: Identifier,
         secretName: String
     ): F[Seq[Entity]] = {
-      val queryParams = Map("type" -> identifierName, "value" -> value)
+      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
       val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
       for {
         token <- getAuthenticationToken(secretName)
         entitiesWithIdentifier <- getEntities(url.toString, token)
       } yield entitiesWithIdentifier
     }
+
+    override def addIdentifiersForEntity(
+        entityRef: UUID,
+        entityPath: String,
+        identifiers: List[Identifier],
+        secretName: String
+    ): F[String] =
+      for {
+        _ <-
+          if (identifiers.isEmpty)
+            me.raiseError(
+              PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!")
+            )
+          else me.unit
+
+        _ <- me.fromOption(
+          entityPathAndNodeNames.get(entityPath),
+          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
+        )
+        token <- getAuthenticationToken(secretName)
+        identifiersAsXml: List[String] = identifiers.map { identifier =>
+          val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+            <Type>{identifier.identifierName}</Type>
+            <Value>{identifier.value}</Value>
+          </Identifier>
+          new PrettyPrinter(80, 2).format(xml)
+        }
+
+        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
+
+        _ <- sendXMLApiRequest(
+          s"$apiBaseUrl/api/entity/$entityPath/$entityRef/identifiers",
+          token,
+          Method.POST,
+          Some(requestBody)
+        )
+        response = s"The ${if (identifiers.length > 1) "Identifiers were" else "Identifier was"} added"
+      } yield response
 
     def streamBitstreamContent[T](
         stream: Streams[S]
