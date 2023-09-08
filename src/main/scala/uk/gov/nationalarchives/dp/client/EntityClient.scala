@@ -9,7 +9,7 @@ import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
-import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, UpdateEntityRequest}
+import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityType, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -21,7 +21,7 @@ trait EntityClient[F[_], S] {
 
   def nodesFromEntity(
       entityRef: UUID,
-      entityPath: String,
+      entityType: EntityType,
       childNodeNames: List[String],
       secretName: String
   ): F[Map[String, String]]
@@ -59,7 +59,7 @@ trait EntityClient[F[_], S] {
 
   def addIdentifiersForEntity(
       entityRef: UUID,
-      entityPath: String,
+      entityType: EntityType,
       identifiers: List[Identifier],
       secretName: String
   ): F[String]
@@ -77,12 +77,6 @@ object EntityClient {
       s"No path found for entity id $ref. Could this entity have been deleted?"
 
     private val client: Client[F, S] = Client(clientConfig)
-
-    private val entityPathAndNodeNames = Map(
-      "content-objects" -> "ContentObject",
-      "information-objects" -> "InformationObject",
-      "structural-objects" -> "StructuralObject"
-    )
 
     import client._
 
@@ -128,18 +122,13 @@ object EntityClient {
       } yield entity
 
     private def validateEntityUpdateInputs(
-        entityPath: String,
+        entityType: EntityType,
         parentRef: Option[UUID],
         secretName: String
     ): F[(String, String)] =
       for {
-        nodeName <- me.fromOption(
-          entityPathAndNodeNames.get(entityPath),
-          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
-        )
-
         _ <-
-          if (entityPath != "structural-objects" && parentRef.isEmpty)
+          if (entityType.entityPath != StructuralObject.entityPath && parentRef.isEmpty)
             me.raiseError(
               PreservicaClientException(
                 "You must pass in the parent ref if you would like to add/update a non-structural object."
@@ -147,7 +136,7 @@ object EntityClient {
             )
           else me.unit
         token <- getAuthenticationToken(secretName)
-      } yield (nodeName, token)
+      } yield (entityType.toString, token)
 
     private def createUpdateRequestBody(
         ref: Option[UUID],
@@ -170,18 +159,22 @@ object EntityClient {
     }
 
     override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID] = {
-      val path = addEntityRequest.entityPath
+      val path = addEntityRequest.entityType.entityPath
       for {
         _ <-
-          if (path == "content-objects")
+          if (path == ContentObject.entityPath)
             me.raiseError(
               PreservicaClientException("You currently cannot create a content object via the API.")
             )
           else me.unit
 
-        nodeNameAndToken <- validateEntityUpdateInputs(path, addEntityRequest.parentRef, secretName)
+        nodeNameAndToken <- validateEntityUpdateInputs(
+          addEntityRequest.entityType,
+          addEntityRequest.parentRef,
+          secretName
+        )
         (nodeName, token) = nodeNameAndToken
-        addXipTag = path == "information-objects"
+        addXipTag = path == InformationObject.entityPath
         addRequestBody = createUpdateRequestBody(
           addEntityRequest.ref,
           addEntityRequest.title,
@@ -205,10 +198,14 @@ object EntityClient {
           updateEntityRequest.titleToChange.orElse(updateEntityRequest.descriptionToChange),
           PreservicaClientException("Both the title and description are 'None'! Entity cannot be updated")
         )
-        path = updateEntityRequest.entityPath
+        path = updateEntityRequest.entityType.entityPath
         url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
 
-        nodeNameAndToken <- validateEntityUpdateInputs(path, updateEntityRequest.parentRef, secretName)
+        nodeNameAndToken <- validateEntityUpdateInputs(
+          updateEntityRequest.entityType,
+          updateEntityRequest.parentRef,
+          secretName
+        )
         (nodeName, token) = nodeNameAndToken
         updateRequestBody = createUpdateRequestBody(
           Some(updateEntityRequest.ref),
@@ -225,19 +222,17 @@ object EntityClient {
 
     override def nodesFromEntity(
         entityRef: UUID,
-        entityPath: String,
+        entityType: EntityType,
         childNodeNames: List[String],
         secretName: String
     ): F[Map[String, String]] =
       for {
-        nodeName <- me.fromOption(
-          entityPathAndNodeNames.get(entityPath),
-          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
-        )
-        entityResponse <- entity(entityRef, entityPath, secretName)
-        childNodeValues <- childNodeNames.distinct
-          .map(childNodeName => dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName))
-          .sequence
+        entityResponse <- entity(entityRef, entityType.entityPath, secretName)
+
+        childNodeValues <- childNodeNames.distinct.map { childNodeName =>
+          val nodeName = entityType.toString
+          dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName)
+        }.sequence
       } yield childNodeNames.zip(childNodeValues).toMap
 
     override def getBitstreamInfo(
@@ -247,7 +242,7 @@ object EntityClient {
       for {
         token <- getAuthenticationToken(secretName)
         contentEntity <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/content-objects/$contentRef",
+          s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$contentRef",
           token,
           Method.GET
         )
@@ -327,7 +322,7 @@ object EntityClient {
 
     override def addIdentifiersForEntity(
         entityRef: UUID,
-        entityPath: String,
+        entityType: EntityType,
         identifiers: List[Identifier],
         secretName: String
     ): F[String] =
@@ -339,10 +334,6 @@ object EntityClient {
             )
           else me.unit
 
-        _ <- me.fromOption(
-          entityPathAndNodeNames.get(entityPath),
-          PreservicaClientException(s"The entityPath '$entityPath' does not exist")
-        )
         token <- getAuthenticationToken(secretName)
         identifiersAsXml: List[String] = identifiers.map { identifier =>
           val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
@@ -355,7 +346,7 @@ object EntityClient {
         requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
 
         _ <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/$entityPath/$entityRef/identifiers",
+          s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
           token,
           Method.POST,
           Some(requestBody)
@@ -386,7 +377,7 @@ object EntityClient {
       ref: Option[UUID],
       title: Option[String],
       description: Option[String],
-      entityPath: String,
+      entityType: EntityType,
       securityTag: SecurityTag,
       parentRef: Option[UUID]
   )
@@ -395,7 +386,7 @@ object EntityClient {
       ref: UUID,
       titleToChange: Option[String],
       descriptionToChange: Option[String],
-      entityPath: String,
+      entityType: EntityType,
       securityTag: SecurityTag,
       parentRef: Option[UUID]
   )
@@ -407,4 +398,21 @@ object EntityClient {
   case object Open extends SecurityTag
 
   case object Closed extends SecurityTag
+
+  sealed trait EntityType {
+    val entityPath: String
+    override def toString: String = getClass.getSimpleName.dropRight(1)
+  }
+
+  case object StructuralObject extends EntityType {
+    override val entityPath = "structural-objects"
+  }
+
+  case object InformationObject extends EntityType {
+    override val entityPath = "information-objects"
+  }
+
+  case object ContentObject extends EntityType {
+    override val entityPath = "content-objects"
+  }
 }

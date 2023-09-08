@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
+import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, InformationObject, StructuralObject}
 
 import java.util.UUID
 
@@ -26,15 +27,15 @@ object Entities {
   ): F[Entity] = entityType match {
     case "IO" =>
       me.pure {
-        Entity("IO".some, ref, title, description, deleted, "information-objects".some)
+        Entity("IO".some, ref, title, description, deleted, InformationObject.entityPath.some)
       }
     case "CO" =>
       me.pure {
-        Entity("CO".some, ref, title, description, deleted, "content-objects".some)
+        Entity("CO".some, ref, title, description, deleted, ContentObject.entityPath.some)
       }
     case "SO" =>
       me.pure {
-        Entity("SO".some, ref, title, description, deleted, "structural-objects".some)
+        Entity("SO".some, ref, title, description, deleted, StructuralObject.entityPath.some)
       }
     case _ =>
       me.pure {
