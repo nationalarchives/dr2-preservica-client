@@ -13,7 +13,14 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, fromType}
 import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, Open, UpdateEntityRequest}
+import uk.gov.nationalarchives.dp.client.EntityClient.{
+  AddEntityRequest,
+  Open,
+  UpdateEntityRequest,
+  StructuralObject,
+  InformationObject,
+  ContentObject
+}
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -101,7 +108,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         reference,
         Some("page1FileCorrection.txt"),
         Some("A new description"),
-        "structural-objects",
+        StructuralObject,
         Open,
         Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
       )
@@ -152,7 +159,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       None,
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "information-objects",
+      InformationObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -183,7 +190,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       None,
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "content-objects",
+      ContentObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -198,33 +205,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     error.getMessage should be("You currently cannot create a content object via the API.")
   }
 
-  "addEntity" should "return an error if an invalid path was passed in" in {
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityRequest = AddEntityRequest(
-      Some(ref),
-      Some("page1FileCorrection.txt"),
-      Some("A new description"),
-      "invalid-objects",
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
-
-    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(addEntityResponse)
-    }
-
-    error.getMessage should be("The entityPath 'invalid-objects' does not exist")
-  }
-
   "addEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient(s"http://localhost:$preservicaPort")
     val addEntityRequest = AddEntityRequest(
       Some(ref),
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "information-objects",
+      InformationObject,
       Open,
       None
     )
@@ -265,7 +252,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       Some(ref),
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "structural-objects",
+      StructuralObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -286,7 +273,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "structural-objects",
+      StructuralObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -332,7 +319,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           ref,
           potentialTitle,
           potentialDescription,
-          "structural-objects",
+          StructuralObject,
           Open,
           Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
         )
@@ -366,7 +353,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       ref,
       None,
       None,
-      "structural-objects",
+      StructuralObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -381,33 +368,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     error.getMessage should be("Both the title and description are 'None'! Entity cannot be updated")
   }
 
-  "updateEntity" should "return an error if an invalid path was passed in" in {
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val updateEntityRequest = UpdateEntityRequest(
-      ref,
-      Some("page1FileCorrection.txt"),
-      Some("A new description"),
-      "invalid-objects",
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
-
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(updateEntityResponse)
-    }
-
-    error.getMessage should be("The entityPath 'invalid-objects' does not exist")
-  }
-
   "updateEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient(s"http://localhost:$preservicaPort")
     val updateEntityRequest = UpdateEntityRequest(
       ref,
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "information-objects",
+      InformationObject,
       Open,
       None
     )
@@ -448,7 +415,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       ref,
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "structural-objects",
+      StructuralObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -471,7 +438,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
       Some("page1FileCorrection.txt"),
       Some("A new description"),
-      "structural-objects",
+      StructuralObject,
       Open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
@@ -513,7 +480,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response: F[Map[String, String]] =
-      client.nodesFromEntity(ref, "content-objects", List("parent", "description"), secretName)
+      client.nodesFromEntity(ref, ContentObject, List("parent", "description"), secretName)
 
     val nodeAndValue = valueFromF(response)
     nodeAndValue.size should equal(2)
@@ -549,47 +516,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Map[String, String]] = client.nodesFromEntity(ref, "content-objects", Nil, secretName)
+    val response: F[Map[String, String]] = client.nodesFromEntity(ref, ContentObject, Nil, secretName)
 
     val nodeAndValue = valueFromF(response)
     nodeAndValue.size should equal(0)
 
     checkServerCall(entityUrl)
-  }
-
-  "nodesFromEntity" should "throw an error if an invalid path was passed in" in {
-    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-
-    val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-        <xip:ContentObject>
-          <xip:Ref>
-            {ref}
-          </xip:Ref>
-          <xip:Title>page1File.txt</xip:Title>
-          <xip:Description>A description</xip:Description>
-          <xip:SecurityTag>open</xip:SecurityTag>
-          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-        </xip:ContentObject>
-        <AdditionalInformation>
-          <Generations>http://localhost:
-            {preservicaPort}{generationsUrl}
-          </Generations>
-        </AdditionalInformation>
-      </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-
-    val childNodeResponseF = client.nodesFromEntity(ref, "invalid-objects", List("parent", "description"), secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(childNodeResponseF)
-    }
-
-    error.getMessage should be("The entityPath 'invalid-objects' does not exist")
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
@@ -1119,7 +1051,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           None,
           None,
           deleted = false,
-          "content-objects".some
+          ContentObject.entityPath.some
         ),
         secretName
       )
@@ -1160,7 +1092,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             None,
             None,
             deleted = false,
-            "content-objects".some
+            ContentObject.entityPath.some
           ),
           secretName
         )
@@ -1307,7 +1239,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, "structural-objects", List(identifier), secretName)
+      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
 
     val _ = valueFromF(addIdentifiersForEntityResponse)
 
@@ -1324,27 +1256,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
   }
 
-  "addIdentifiersForEntity" should "return an error if an invalid path was passed in" in {
-    val identifier = Identifier(
-      "TestIdentifierName",
-      "TestIdentifierValue"
-    )
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, "invalid-objects", List(identifier), secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(addIdentifiersForEntityResponse)
-    }
-
-    error.getMessage should be(s"The entityPath 'invalid-objects' does not exist")
-  }
-
   "addIdentifiersForEntity" should "return an error if no identifiers were passed in" in {
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, "structural-objects", Nil, secretName)
+      client.addIdentifiersForEntity(ref, StructuralObject, Nil, secretName)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addIdentifiersForEntityResponse)
@@ -1363,7 +1278,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, "structural-objects", List(identifier), secretName)
+      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addIdentifiersForEntityResponse)
@@ -1406,7 +1321,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       val client = testClient(s"http://localhost:$preservicaPort")
       val addIdentifiersForEntityResponse: F[String] =
-        client.addIdentifiersForEntity(ref, "structural-objects", identifiers, secretName)
+        client.addIdentifiersForEntity(ref, StructuralObject, identifiers, secretName)
 
       val response = valueFromF(addIdentifiersForEntityResponse)
 
