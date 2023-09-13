@@ -57,10 +57,10 @@ trait EntityClient[F[_], S] {
       secretName: String
   ): F[Seq[Entity]]
 
-  def addIdentifiersForEntity(
+  def addIdentifierForEntity(
       entityRef: UUID,
       entityType: EntityType,
-      identifiers: List[Identifier],
+      identifier: Identifier,
       secretName: String
   ): F[String]
 }
@@ -320,30 +320,23 @@ object EntityClient {
       } yield entitiesWithIdentifier
     }
 
-    override def addIdentifiersForEntity(
+    override def addIdentifierForEntity(
         entityRef: UUID,
         entityType: EntityType,
-        identifiers: List[Identifier],
+        identifier: Identifier,
         secretName: String
     ): F[String] =
       for {
-        _ <-
-          if (identifiers.isEmpty)
-            me.raiseError(
-              PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!")
-            )
-          else me.unit
-
         token <- getAuthenticationToken(secretName)
-        identifiersAsXml: List[String] = identifiers.map { identifier =>
+
+        identifierAsXml: String = {
           val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
             <Type>{identifier.identifierName}</Type>
             <Value>{identifier.value}</Value>
           </Identifier>
           new PrettyPrinter(80, 2).format(xml)
         }
-
-        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
+        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
 
         _ <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
@@ -351,7 +344,7 @@ object EntityClient {
           Method.POST,
           Some(requestBody)
         )
-        response = s"The ${if (identifiers.length > 1) "Identifiers were" else "Identifier was"} added"
+        response = s"The Identifier was added"
       } yield response
 
     def streamBitstreamContent[T](

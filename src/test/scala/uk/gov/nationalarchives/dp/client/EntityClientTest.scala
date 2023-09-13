@@ -1213,7 +1213,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
   }
 
-  "addIdentifiersForEntity" should s"make a correct request to add an identifier to an Entity" in {
+  "addIdentifierForEntity" should s"make a correct request to add an identifier to an Entity" in {
     val entityResponse =
       <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
         <Identifiers>
@@ -1238,10 +1238,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
-    val _ = valueFromF(addIdentifiersForEntityResponse)
+    val _ = valueFromF(addIdentifierForEntityResponse)
 
     val requestMade = getRequestMade(preservicaServer)
 
@@ -1256,32 +1256,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
   }
 
-  "addIdentifiersForEntity" should "return an error if no identifiers were passed in" in {
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, Nil, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(addIdentifiersForEntityResponse)
-    }
-
-    error.getMessage should be(
-      "No identifiers were passed in. You must pass in at least one identifier!"
-    )
-  }
-
-  "addIdentifiersForEntity" should s"return an exception if the API call does" in {
+  "addIdentifierForEntity" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(badRequest())
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(addIdentifiersForEntityResponse)
+      valueFromF(addIdentifierForEntityResponse)
     }
 
     error.getMessage should equal(
@@ -1289,44 +1275,39 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  List(
-    (List(identifier), "The Identifier was added"),
-    (List(identifier, identifier), "The Identifiers were added")
-  ).foreach { case (identifiers, expectedResponseMessage) =>
-    "addIdentifiersForEntity" should s"return a message confirmation if $expectedResponseMessage" in {
-      val entityResponse =
-        <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-        <Identifiers>
-          <xip:Identifier>
-            <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
-            <xip:Type>TestIdentifierName</xip:Type>
-            <xip:Value>TestIdentifierValue</xip:Value>
-            <xip:Entity>
-              {ref}
-            </xip:Entity>
-          </xip:Identifier>
-        </Identifiers>
-        <Paging>
-          <TotalResults>1</TotalResults>
-        </Paging>
-        <AdditionalInformation>
-          <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
-        </AdditionalInformation>
-      </IdentifiersResponse>.toString()
+  "addIdentifierForEntity" should s"return a message confirmation if the Identifier was added" in {
+    val entityResponse =
+      <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <Identifiers>
+        <xip:Identifier>
+          <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
+          <xip:Type>TestIdentifierName</xip:Type>
+          <xip:Value>TestIdentifierValue</xip:Value>
+          <xip:Entity>
+            {ref}
+          </xip:Entity>
+        </xip:Identifier>
+      </Identifiers>
+      <Paging>
+        <TotalResults>1</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+      </AdditionalInformation>
+    </IdentifiersResponse>.toString()
 
-      preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-      preservicaServer.stubFor(
-        post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
-      )
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+    )
 
-      val client = testClient(s"http://localhost:$preservicaPort")
-      val addIdentifiersForEntityResponse: F[String] =
-        client.addIdentifiersForEntity(ref, StructuralObject, identifiers, secretName)
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
-      val response = valueFromF(addIdentifiersForEntityResponse)
+    val response = valueFromF(addIdentifierForEntityResponse)
 
-      response should be(expectedResponseMessage)
-    }
+    response should be("The Identifier was added")
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
