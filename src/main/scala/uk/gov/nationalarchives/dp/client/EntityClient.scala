@@ -194,27 +194,23 @@ object EntityClient {
 
     override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {
       for {
-        _ <- me.fromOption(
-          updateEntityRequest.titleToChange.orElse(updateEntityRequest.descriptionToChange),
-          PreservicaClientException("Both the title and description are 'None'! Entity cannot be updated")
-        )
-        path = updateEntityRequest.entityType.entityPath
-        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
-
         nodeNameAndToken <- validateEntityUpdateInputs(
           updateEntityRequest.entityType,
           updateEntityRequest.parentRef,
           secretName
         )
+
         (nodeName, token) = nodeNameAndToken
         updateRequestBody = createUpdateRequestBody(
           Some(updateEntityRequest.ref),
-          updateEntityRequest.titleToChange,
+          Some(updateEntityRequest.titleToChange),
           updateEntityRequest.descriptionToChange,
           updateEntityRequest.parentRef,
           updateEntityRequest.securityTag,
           nodeName
         )
+        path = updateEntityRequest.entityType.entityPath
+        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
         _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
         response = "Entity was updated"
       } yield response
@@ -377,7 +373,7 @@ object EntityClient {
 
   case class UpdateEntityRequest(
       ref: UUID,
-      titleToChange: Option[String],
+      titleToChange: String,
       descriptionToChange: Option[String],
       entityType: EntityType,
       securityTag: SecurityTag,

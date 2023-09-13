@@ -75,11 +75,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     "TestIdentifierValue"
   )
 
-  val updateRequestPermutations: TableFor2[Option[String], Option[String]] = Table(
+  val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
     ("title", "description"),
-    (Some("page1FileCorrection.txt"), Some("A new description")),
-    (Some("page1FileCorrection.txt"), None),
-    (None, Some("A new description"))
+    ("page1FileCorrection.txt", Some("A new description")),
+    ("page1FileCorrection.txt", None)
   )
 
   List((Some(ref), "with"), (None, "without")).foreach { case (reference, withOrWithout) =>
@@ -336,8 +335,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
-              ${if (updateEntityRequest.titleToChange.nonEmpty)
-              s"<Title>${updateEntityRequest.titleToChange.get}</Title>"}
+              <Title>${updateEntityRequest.titleToChange}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
               s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"}
               <SecurityTag>open</SecurityTag>
@@ -348,31 +346,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
   }
 
-  "updateEntity" should "return an error if neither a title nor description were passed in" in {
-    val updateEntityRequest = UpdateEntityRequest(
-      ref,
-      None,
-      None,
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(updateEntityResponse)
-    }
-
-    error.getMessage should be("Both the title and description are 'None'! Entity cannot be updated")
-  }
-
   "updateEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient(s"http://localhost:$preservicaPort")
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -413,7 +391,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -436,7 +414,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
