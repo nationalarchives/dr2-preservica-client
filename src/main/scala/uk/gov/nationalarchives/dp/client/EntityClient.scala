@@ -57,10 +57,10 @@ trait EntityClient[F[_], S] {
       secretName: String
   ): F[Seq[Entity]]
 
-  def addIdentifiersForEntity(
+  def addIdentifierForEntity(
       entityRef: UUID,
       entityType: EntityType,
-      identifiers: List[Identifier],
+      identifier: Identifier,
       secretName: String
   ): F[String]
 }
@@ -194,27 +194,23 @@ object EntityClient {
 
     override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {
       for {
-        _ <- me.fromOption(
-          updateEntityRequest.titleToChange.orElse(updateEntityRequest.descriptionToChange),
-          PreservicaClientException("Both the title and description are 'None'! Entity cannot be updated")
-        )
-        path = updateEntityRequest.entityType.entityPath
-        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
-
         nodeNameAndToken <- validateEntityUpdateInputs(
           updateEntityRequest.entityType,
           updateEntityRequest.parentRef,
           secretName
         )
+
         (nodeName, token) = nodeNameAndToken
         updateRequestBody = createUpdateRequestBody(
           Some(updateEntityRequest.ref),
-          updateEntityRequest.titleToChange,
+          Some(updateEntityRequest.titleToChange),
           updateEntityRequest.descriptionToChange,
           updateEntityRequest.parentRef,
           updateEntityRequest.securityTag,
           nodeName
         )
+        path = updateEntityRequest.entityType.entityPath
+        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
         _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
         response = "Entity was updated"
       } yield response
@@ -320,30 +316,23 @@ object EntityClient {
       } yield entitiesWithIdentifier
     }
 
-    override def addIdentifiersForEntity(
+    override def addIdentifierForEntity(
         entityRef: UUID,
         entityType: EntityType,
-        identifiers: List[Identifier],
+        identifier: Identifier,
         secretName: String
     ): F[String] =
       for {
-        _ <-
-          if (identifiers.isEmpty)
-            me.raiseError(
-              PreservicaClientException("No identifiers were passed in. You must pass in at least one identifier!")
-            )
-          else me.unit
-
         token <- getAuthenticationToken(secretName)
-        identifiersAsXml: List[String] = identifiers.map { identifier =>
+
+        identifierAsXml: String = {
           val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
             <Type>{identifier.identifierName}</Type>
             <Value>{identifier.value}</Value>
           </Identifier>
           new PrettyPrinter(80, 2).format(xml)
         }
-
-        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${identifiersAsXml.mkString("\n")}"""
+        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
 
         _ <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
@@ -351,7 +340,7 @@ object EntityClient {
           Method.POST,
           Some(requestBody)
         )
-        response = s"The ${if (identifiers.length > 1) "Identifiers were" else "Identifier was"} added"
+        response = s"The Identifier was added"
       } yield response
 
     def streamBitstreamContent[T](
@@ -384,7 +373,7 @@ object EntityClient {
 
   case class UpdateEntityRequest(
       ref: UUID,
-      titleToChange: Option[String],
+      titleToChange: String,
       descriptionToChange: Option[String],
       entityType: EntityType,
       securityTag: SecurityTag,

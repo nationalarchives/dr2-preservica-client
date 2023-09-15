@@ -75,11 +75,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     "TestIdentifierValue"
   )
 
-  val updateRequestPermutations: TableFor2[Option[String], Option[String]] = Table(
+  val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
     ("title", "description"),
-    (Some("page1FileCorrection.txt"), Some("A new description")),
-    (Some("page1FileCorrection.txt"), None),
-    (None, Some("A new description"))
+    ("page1FileCorrection.txt", Some("A new description")),
+    ("page1FileCorrection.txt", None)
   )
 
   List((Some(ref), "with"), (None, "without")).foreach { case (reference, withOrWithout) =>
@@ -336,8 +335,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
-              ${if (updateEntityRequest.titleToChange.nonEmpty)
-              s"<Title>${updateEntityRequest.titleToChange.get}</Title>"}
+              <Title>${updateEntityRequest.titleToChange}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
               s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"}
               <SecurityTag>open</SecurityTag>
@@ -348,31 +346,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
   }
 
-  "updateEntity" should "return an error if neither a title nor description were passed in" in {
-    val updateEntityRequest = UpdateEntityRequest(
-      ref,
-      None,
-      None,
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(updateEntityResponse)
-    }
-
-    error.getMessage should be("Both the title and description are 'None'! Entity cannot be updated")
-  }
-
   "updateEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient(s"http://localhost:$preservicaPort")
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -413,7 +391,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -436,7 +414,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -1213,7 +1191,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
   }
 
-  "addIdentifiersForEntity" should s"make a correct request to add an identifier to an Entity" in {
+  "addIdentifierForEntity" should s"make a correct request to add an identifier to an Entity" in {
     val entityResponse =
       <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
         <Identifiers>
@@ -1238,10 +1216,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
-    val _ = valueFromF(addIdentifiersForEntityResponse)
+    val _ = valueFromF(addIdentifierForEntityResponse)
 
     val requestMade = getRequestMade(preservicaServer)
 
@@ -1256,32 +1234,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
   }
 
-  "addIdentifiersForEntity" should "return an error if no identifiers were passed in" in {
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, Nil, secretName)
-
-    val error = intercept[PreservicaClientException] {
-      valueFromF(addIdentifiersForEntityResponse)
-    }
-
-    error.getMessage should be(
-      "No identifiers were passed in. You must pass in at least one identifier!"
-    )
-  }
-
-  "addIdentifiersForEntity" should s"return an exception if the API call does" in {
+  "addIdentifierForEntity" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(badRequest())
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addIdentifiersForEntityResponse: F[String] =
-      client.addIdentifiersForEntity(ref, StructuralObject, List(identifier), secretName)
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(addIdentifiersForEntityResponse)
+      valueFromF(addIdentifierForEntityResponse)
     }
 
     error.getMessage should equal(
@@ -1289,44 +1253,39 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  List(
-    (List(identifier), "The Identifier was added"),
-    (List(identifier, identifier), "The Identifiers were added")
-  ).foreach { case (identifiers, expectedResponseMessage) =>
-    "addIdentifiersForEntity" should s"return a message confirmation if $expectedResponseMessage" in {
-      val entityResponse =
-        <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-        <Identifiers>
-          <xip:Identifier>
-            <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
-            <xip:Type>TestIdentifierName</xip:Type>
-            <xip:Value>TestIdentifierValue</xip:Value>
-            <xip:Entity>
-              {ref}
-            </xip:Entity>
-          </xip:Identifier>
-        </Identifiers>
-        <Paging>
-          <TotalResults>1</TotalResults>
-        </Paging>
-        <AdditionalInformation>
-          <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
-        </AdditionalInformation>
-      </IdentifiersResponse>.toString()
+  "addIdentifierForEntity" should s"return a message confirmation if the Identifier was added" in {
+    val entityResponse =
+      <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <Identifiers>
+        <xip:Identifier>
+          <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
+          <xip:Type>TestIdentifierName</xip:Type>
+          <xip:Value>TestIdentifierValue</xip:Value>
+          <xip:Entity>
+            {ref}
+          </xip:Entity>
+        </xip:Identifier>
+      </Identifiers>
+      <Paging>
+        <TotalResults>1</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+      </AdditionalInformation>
+    </IdentifiersResponse>.toString()
 
-      preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-      preservicaServer.stubFor(
-        post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
-      )
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+    )
 
-      val client = testClient(s"http://localhost:$preservicaPort")
-      val addIdentifiersForEntityResponse: F[String] =
-        client.addIdentifiersForEntity(ref, StructuralObject, identifiers, secretName)
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val addIdentifierForEntityResponse: F[String] =
+      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
 
-      val response = valueFromF(addIdentifiersForEntityResponse)
+    val response = valueFromF(addIdentifierForEntityResponse)
 
-      response should be(expectedResponseMessage)
-    }
+    response should be("The Identifier was added")
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
