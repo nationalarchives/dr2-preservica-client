@@ -1,6 +1,6 @@
 import sbt._
 object Dependencies {
-  lazy val sttpVersion = "3.8.15"
+  lazy val sttpVersion = "3.8.16"
   lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.9.0"
@@ -9,7 +9,7 @@ object Dependencies {
   lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
-  lazy val log4Cats =  "org.typelevel" %% "log4cats-slf4j"   % "2.6.0"
+  lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
   lazy val sttpUpickle = "com.softwaremill.sttp.client3" %% "upickle" % sttpVersion
   lazy val sttpZio = "com.softwaremill.sttp.client3" %% "zio" % sttpVersion
   lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.20.26"
