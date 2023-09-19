@@ -7,7 +7,6 @@ lazy val releaseSettings = Seq(
   useGpgPinentry := true,
   publishTo := sonatypePublishToBundle.value,
   publishMavenStyle := true,
-
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
     inquireVersions,
@@ -27,7 +26,6 @@ lazy val releaseSettings = Seq(
   version := (ThisBuild / version).value,
   organization := "uk.gov.nationalarchives",
   organizationName := "National Archives",
-
   scmInfo := Some(
     ScmInfo(
       url("https://github.com/nationalarchives/dr2-preservica-client"),
@@ -62,7 +60,7 @@ lazy val commonSettings = Seq(
     zioInteropCats,
     mockito % Test,
     scalaTest % Test,
-    wireMock % Test,
+    wireMock % Test
   ),
   scalacOptions += "-deprecation",
   Test / fork := true,
@@ -86,7 +84,8 @@ lazy val fs2 = project
   .settings(
     name := "preservica-client-fs2",
     libraryDependencies += sttpFs2
-  ).dependsOn(root % "compile->compile;test->test")
+  )
+  .dependsOn(root % "compile->compile;test->test")
 
 lazy val zio = project
   .in(file("zio"))
@@ -94,8 +93,7 @@ lazy val zio = project
   .settings(
     name := "preservica-client-zio",
     libraryDependencies ++= Seq(zioInteropCats, sttpZio)
-  ).dependsOn(root % "compile->compile;test->test")
-
+  )
+  .dependsOn(root % "compile->compile;test->test")
 
 scalacOptions ++= Seq("-Wunused:imports", "-Werror")
-
