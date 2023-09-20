@@ -203,7 +203,7 @@ object EntityClient {
         (nodeName, token) = nodeNameAndToken
         updateRequestBody = createUpdateRequestBody(
           Some(updateEntityRequest.ref),
-          updateEntityRequest.titleToChange,
+          updateEntityRequest.title,
           updateEntityRequest.descriptionToChange,
           updateEntityRequest.parentRef,
           updateEntityRequest.securityTag,
@@ -373,7 +373,7 @@ object EntityClient {
 
   case class UpdateEntityRequest(
       ref: UUID,
-      titleToChange: String,
+      title: String,
       descriptionToChange: Option[String],
       entityType: EntityType,
       securityTag: SecurityTag,

@@ -335,7 +335,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
-              <Title>${updateEntityRequest.titleToChange}</Title>
+              <Title>${updateEntityRequest.title}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
               s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"}
               <SecurityTag>open</SecurityTag>
