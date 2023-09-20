@@ -1,6 +1,6 @@
 import sbt._
 object Dependencies {
-  lazy val sttpVersion = "3.8.16"
+  lazy val sttpVersion = "3.9.0"
   lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.10.0"
@@ -15,5 +15,5 @@ object Dependencies {
   lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.20.26"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.17.22"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "2.35.1"
-  lazy val zioInteropCats = "dev.zio" %% "zio-interop-cats" % "23.0.0.8"
+  lazy val zioInteropCats = "dev.zio" %% "zio-interop-cats" % "23.0.03"
 }
