@@ -105,7 +105,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       val addEntityRequest = AddEntityRequest(
         reference,
-        Some("page1FileCorrection.txt"),
+        "page1FileCorrection.txt",
         Some("A new description"),
         StructuralObject,
         Open,
@@ -156,7 +156,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       None,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -187,7 +187,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addEntity" should "return an error if a content-object entity path was passed in" in {
     val addEntityRequest = AddEntityRequest(
       None,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       ContentObject,
       Open,
@@ -208,7 +208,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -249,7 +249,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -270,7 +270,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = AddEntityRequest(
       Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
