@@ -288,9 +288,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  forAll(updateRequestPermutations) { (potentialTitle, potentialDescription) =>
+  forAll(updateRequestPermutations) { (title, potentialDescription) =>
     {
-      val indexesOfChanges = List(potentialTitle.map(_ => 0), potentialDescription.map(_ => 1)).flatten
+      val indexesOfChanges = List(Some(0), potentialDescription.map(_ => 1)).flatten
       val nodesToUpdate = indexesOfChanges.map(index => updateRequestPermutations.heading.productElement(index))
 
       "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
@@ -316,7 +316,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
         val updateEntityRequest = UpdateEntityRequest(
           ref,
-          potentialTitle,
+          title,
           potentialDescription,
           StructuralObject,
           Open,
