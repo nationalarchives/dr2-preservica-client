@@ -105,7 +105,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       val addEntityRequest = AddEntityRequest(
         reference,
-        Some("page1FileCorrection.txt"),
+        "page1FileCorrection.txt",
         Some("A new description"),
         StructuralObject,
         Open,
@@ -156,7 +156,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       None,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -187,7 +187,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addEntity" should "return an error if a content-object entity path was passed in" in {
     val addEntityRequest = AddEntityRequest(
       None,
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       ContentObject,
       Open,
@@ -208,7 +208,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -249,7 +249,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -270,7 +270,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = AddEntityRequest(
       Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
-      Some("page1FileCorrection.txt"),
+      "page1FileCorrection.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -288,9 +288,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  forAll(updateRequestPermutations) { (potentialTitle, potentialDescription) =>
+  forAll(updateRequestPermutations) { (title, potentialDescription) =>
     {
-      val indexesOfChanges = List(potentialTitle.map(_ => 0), potentialDescription.map(_ => 1)).flatten
+      val indexesOfChanges = List(Some(0), potentialDescription.map(_ => 1)).flatten
       val nodesToUpdate = indexesOfChanges.map(index => updateRequestPermutations.heading.productElement(index))
 
       "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
@@ -316,7 +316,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
         val updateEntityRequest = UpdateEntityRequest(
           ref,
-          potentialTitle,
+          title,
           potentialDescription,
           StructuralObject,
           Open,
@@ -335,7 +335,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
-              <Title>${updateEntityRequest.titleToChange}</Title>
+              <Title>${updateEntityRequest.title}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
               s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"}
               <SecurityTag>open</SecurityTag>
