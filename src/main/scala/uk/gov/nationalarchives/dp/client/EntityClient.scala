@@ -140,7 +140,7 @@ object EntityClient {
 
     private def createUpdateRequestBody(
         ref: Option[UUID],
-        titlePotentiallyChange: String,
+        title: String,
         descriptionToChange: Option[String],
         parentRef: Option[UUID],
         securityTag: SecurityTag,
@@ -151,7 +151,7 @@ object EntityClient {
             ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
             <$nodeName xmlns="http://preservica.com/XIP/v6.5">
               ${if (ref.nonEmpty) s"<Ref>${ref.get}</Ref>"}
-              <Title>$titlePotentiallyChange</Title>
+              <Title>$title</Title>
               ${if (descriptionToChange.nonEmpty) s"<Description>${descriptionToChange.get}</Description>"}
               <SecurityTag>$securityTag</SecurityTag>
               ${if (parentRef.nonEmpty) s"<Parent>${parentRef.get}</Parent>"}
