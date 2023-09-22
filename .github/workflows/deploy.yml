@@ -5,7 +5,7 @@ jobs:
   deploy:
     uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@main
     with:
-      library-name: "Preservica Client"
+      library-name: Preservica Client ${{ github.event.release.tag_name }}
     secrets:
       WORKFLOW_PAT: ${{ secrets.WORKFLOW_TOKEN }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
