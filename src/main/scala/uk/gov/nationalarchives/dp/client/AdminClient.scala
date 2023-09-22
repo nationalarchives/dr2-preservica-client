@@ -9,27 +9,19 @@ import uk.gov.nationalarchives.dp.client.FileInfo._
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 
 trait AdminClient[F[_]] {
+  def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo]): F[Unit]
 
-  def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo], secretName: String): F[Unit]
+  def addOrUpdateTransforms(fileInfo: List[TransformFileInfo]): F[Unit]
 
-  def addOrUpdateTransforms(fileInfo: List[TransformFileInfo], secretName: String): F[Unit]
+  def addOrUpdateIndexDefinitions(fileInfo: List[IndexDefinitionInfo]): F[Unit]
 
-  def addOrUpdateIndexDefinitions(
-      fileInfo: List[IndexDefinitionInfo],
-      secretName: String
-  ): F[Unit]
-
-  def addOrUpdateMetadataTemplates(
-      fileInfo: List[MetadataTemplateInfo],
-      secretName: String
-  ): F[Unit]
+  def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit]
 }
 object AdminClient {
   def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
-
     private val client: Client[F, S] = Client(clientConfig)
     import client._
 
@@ -74,11 +66,10 @@ object AdminClient {
 
     private def updateFiles(
         fileInfo: List[FileInfo],
-        secretName: String,
         path: String,
         elementName: String
     ) = for {
-      token <- getAuthenticationToken(secretName)
+      token <- getAuthenticationToken
       res <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/$path", token, Method.GET)
       _ <- fileInfo.map { info =>
         val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
@@ -89,24 +80,16 @@ object AdminClient {
       }.sequence
     } yield ()
 
-    override def addOrUpdateSchemas(
-        fileInfo: List[SchemaFileInfo],
-        secretName: String
-    ): F[Unit] = updateFiles(fileInfo, secretName, "schemas", "Schema")
+    override def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo]): F[Unit] =
+      updateFiles(fileInfo, "schemas", "Schema")
 
-    override def addOrUpdateTransforms(
-        fileInfo: List[TransformFileInfo],
-        secretName: String
-    ): F[Unit] = updateFiles(fileInfo, secretName, "transforms", "Transform")
+    override def addOrUpdateTransforms(fileInfo: List[TransformFileInfo]): F[Unit] =
+      updateFiles(fileInfo, "transforms", "Transform")
 
-    override def addOrUpdateIndexDefinitions(
-        fileInfo: List[IndexDefinitionInfo],
-        secretName: String
-    ): F[Unit] = updateFiles(fileInfo, secretName, "documents", "Document")
+    override def addOrUpdateIndexDefinitions(fileInfo: List[IndexDefinitionInfo]): F[Unit] =
+      updateFiles(fileInfo, "documents", "Document")
 
-    override def addOrUpdateMetadataTemplates(
-        fileInfo: List[MetadataTemplateInfo],
-        secretName: String
-    ): F[Unit] = updateFiles(fileInfo, secretName, "documents", "Document")
+    override def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit] =
+      updateFiles(fileInfo, "documents", "Document")
   }
 }

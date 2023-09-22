@@ -73,7 +73,6 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
   val metadataTemplateInfo: MetadataTemplateInfo =
     MetadataTemplateInfo("test-file-name", testXmlData.toString)
 
-  val secretName: String = "secretName"
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
 
@@ -89,10 +88,10 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
 
   forAll(t)((methodName, path, response, input) => {
     val result = input match {
-      case i: IndexDefinitionInfo   => client.addOrUpdateIndexDefinitions(i :: Nil, secretName)
-      case mt: MetadataTemplateInfo => client.addOrUpdateMetadataTemplates(mt :: Nil, secretName)
-      case s: SchemaFileInfo        => client.addOrUpdateSchemas(s :: Nil, secretName)
-      case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil, secretName)
+      case i: IndexDefinitionInfo   => client.addOrUpdateIndexDefinitions(i :: Nil)
+      case mt: MetadataTemplateInfo => client.addOrUpdateMetadataTemplates(mt :: Nil)
+      case s: SchemaFileInfo        => client.addOrUpdateSchemas(s :: Nil)
+      case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil)
     }
 
     val url = s"/api/admin/$path"

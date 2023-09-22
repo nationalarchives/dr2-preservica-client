@@ -12,5 +12,5 @@ class ZioAdminClientTest extends AdminClientTest[Task](9004, 9010) {
   }
 
   override def createClient(url: String): Task[AdminClient[Task]] =
-    adminClient(url, zeroSeconds, ssmEndpointUri = "http://localhost:9010")
+    adminClient(url, "secret", zeroSeconds, ssmEndpointUri = "http://localhost:9010")
 }

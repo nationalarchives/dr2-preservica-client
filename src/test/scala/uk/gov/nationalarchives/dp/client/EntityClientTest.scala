@@ -63,7 +63,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   def checkServerCall(url: String): Assertion =
     preservicaServer.getAllServeEvents.asScala.count(_.getRequest.getUrl == url) should equal(1)
 
-  val secretName: String = "secretName"
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
 
@@ -113,7 +112,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       )
 
       val client = testClient(s"http://localhost:$preservicaPort")
-      val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
+      val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
       val _ = valueFromF(addEntityResponse)
 
@@ -164,7 +163,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val _ = valueFromF(addEntityResponse)
 
@@ -195,7 +194,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addEntityResponse)
@@ -215,7 +214,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       None
     )
 
-    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addEntityResponse)
@@ -257,7 +256,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest, secretName)
+    val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val response = valueFromF(addEntityResponse)
 
@@ -280,7 +279,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.addEntity(updateEntityRequest, secretName))
+      valueFromF(client.addEntity(updateEntityRequest))
     }
 
     error.getMessage should equal(
@@ -324,7 +323,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         )
 
         val client = testClient(s"http://localhost:$preservicaPort")
-        val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
+        val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
 
         val _ = valueFromF(updateEntityResponse)
 
@@ -357,7 +356,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       None
     )
 
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
+    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(updateEntityResponse)
@@ -399,7 +398,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest, secretName)
+    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
 
     val response = valueFromF(updateEntityResponse)
 
@@ -424,7 +423,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.updateEntity(updateEntityRequest, secretName))
+      valueFromF(client.updateEntity(updateEntityRequest))
     }
 
     error.getMessage should equal(
@@ -458,7 +457,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response: F[Map[String, String]] =
-      client.nodesFromEntity(ref, ContentObject, List("parent", "description"), secretName)
+      client.nodesFromEntity(ref, ContentObject, List("parent", "description"))
 
     val nodeAndValue = valueFromF(response)
     nodeAndValue.size should equal(2)
@@ -494,7 +493,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Map[String, String]] = client.nodesFromEntity(ref, ContentObject, Nil, secretName)
+    val response: F[Map[String, String]] = client.nodesFromEntity(ref, ContentObject, Nil)
 
     val nodeAndValue = valueFromF(response)
     nodeAndValue.size should equal(0)
@@ -543,7 +542,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(bitstreamUrl)).willReturn(ok(bitstreamResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref, secretName)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
 
     val bitStreamInfo = valueFromF(response).head
     bitStreamInfo.url should equal(s"http://test")
@@ -621,7 +620,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(bitstreamTwoUrl)).willReturn(ok(bitstreamTwoResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref, secretName)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
 
     val bitStreamInfo = valueFromF(response)
     bitStreamInfo.size should equal(2)
@@ -648,7 +647,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref, secretName)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -663,7 +662,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = client.getBitstreamInfo(UUID.randomUUID(), secretName)
+    val response = client.getBitstreamInfo(UUID.randomUUID())
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -683,7 +682,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val response = client.streamBitstreamContent[String](stream)(
       s"$url/bitstream/1",
-      secretName,
       _ => cme.pure(s"Test return value")
     )
     val responseValue = valueFromF(response)
@@ -697,7 +695,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response =
-      client.streamBitstreamContent[Unit](stream)(s"$url/bitstream/1", secretName, _ => cme.unit)
+      client.streamBitstreamContent[Unit](stream)(s"$url/bitstream/1", _ => cme.unit)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -744,7 +742,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(url)
 
-    val res = client.metadataForEntity(entity, secretName)
+    val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
     metadata.size should equal(1)
@@ -806,7 +804,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(url)
 
-    val res = client.metadataForEntity(entity, secretName)
+    val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
     metadata.size should equal(2)
@@ -836,7 +834,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(url)
 
-    val res = client.metadataForEntity(entity, secretName)
+    val res = client.metadataForEntity(entity)
     val error = intercept[PreservicaClientException] {
       valueFromF(res)
     }
@@ -850,7 +848,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
     val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), Option("description"), deleted = false))
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = client.metadataForEntity(entity, secretName)
+    val response = client.metadataForEntity(entity)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -868,7 +866,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     val client = testClient(s"http://localhost:$preservicaPort")
     val ex = intercept[PreservicaClientException] {
-      valueFromF(client.metadataForEntity(entity, secretName))
+      valueFromF(client.metadataForEntity(entity))
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
   }
@@ -904,7 +902,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(client.entitiesUpdatedSince(date, secretName, 0))
+    val response = valueFromF(client.entitiesUpdatedSince(date, 0))
 
     val expectedEntity = response.head
 
@@ -934,7 +932,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(client.entitiesUpdatedSince(date, secretName, 0))
+    val response = valueFromF(client.entitiesUpdatedSince(date, 0))
 
     response.size should equal(0)
   }
@@ -956,7 +954,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     val client = testClient(s"http://localhost:$preservicaPort")
-    val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, secretName, 0)))
+    val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, 0)))
 
     response.left.map(err => {
       err.getClass.getSimpleName should equal("PreservicaClientException")
@@ -1030,8 +1028,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           None,
           deleted = false,
           ContentObject.entityPath.some
-        ),
-        secretName
+        )
       )
     )
 
@@ -1071,8 +1068,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             None,
             deleted = false,
             ContentObject.entityPath.some
-          ),
-          secretName
+          )
         )
       )
     )
@@ -1095,8 +1091,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             None,
             deleted = true,
             None
-          ),
-          secretName
+          )
         )
       )
     }
@@ -1130,7 +1125,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
-      client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"), secretName)
+      client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"))
     )
 
     val expectedEntity = response.head
@@ -1160,7 +1155,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
-      client.entitiesByIdentifier(Identifier("testIdentifier", "testValueDoesNotExist"), secretName)
+      client.entitiesByIdentifier(Identifier("testIdentifier", "testValueDoesNotExist"))
     )
 
     response.size should equal(0)
@@ -1182,7 +1177,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
       cme.attempt(
-        client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"), secretName)
+        client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"))
       )
     )
 
@@ -1217,7 +1212,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
+      client.addIdentifierForEntity(ref, StructuralObject, identifier)
 
     val _ = valueFromF(addIdentifierForEntityResponse)
 
@@ -1242,7 +1237,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
+      client.addIdentifierForEntity(ref, StructuralObject, identifier)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addIdentifierForEntityResponse)
@@ -1281,7 +1276,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier, secretName)
+      client.addIdentifierForEntity(ref, StructuralObject, identifier)
 
     val response = valueFromF(addIdentifierForEntityResponse)
 
