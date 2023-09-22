@@ -15,11 +15,11 @@ lazy val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    releaseStepCommand("publishSigned"),
-    releaseStepCommand("sonatypeBundleRelease"),
-    setNextVersion,
-    commitNextVersion,
-    pushChanges
+//    releaseStepCommand("publishSigned"),
+//    releaseStepCommand("sonatypeBundleRelease"),
+//    setNextVersion,
+//    commitNextVersion,
+//    pushChanges
   ),
   resolvers +=
     "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
