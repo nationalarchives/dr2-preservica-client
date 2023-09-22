@@ -431,76 +431,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  "nodesFromEntity" should "return a Map of names and values of the nodes requested" in {
-    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-
-    val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-        <xip:ContentObject>
-          <xip:Ref>
-            {ref}
-          </xip:Ref>
-          <xip:Title>page1File.txt</xip:Title>
-          <xip:Description>A description</xip:Description>
-          <xip:SecurityTag>open</xip:SecurityTag>
-          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-        </xip:ContentObject>
-        <AdditionalInformation>
-          <Generations>http://localhost:
-            {preservicaPort}{generationsUrl}
-          </Generations>
-        </AdditionalInformation>
-      </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Map[String, String]] =
-      client.nodesFromEntity(ref, ContentObject, List("parent", "description"))
-
-    val nodeAndValue = valueFromF(response)
-    nodeAndValue.size should equal(2)
-
-    nodeAndValue("parent") should be("58412111-c73d-4414-a8fc-495cfc57f7e1")
-    nodeAndValue("description") should be("A description")
-
-    checkServerCall(entityUrl)
-  }
-
-  "nodesFromEntity" should "return an empty Map if no names of nodes were requested" in {
-    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
-
-    val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
-        <xip:ContentObject>
-          <xip:Ref>
-            {ref}
-          </xip:Ref>
-          <xip:Title>page1File.txt</xip:Title>
-          <xip:Description>A description</xip:Description>
-          <xip:SecurityTag>open</xip:SecurityTag>
-          <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-        </xip:ContentObject>
-        <AdditionalInformation>
-          <Generations>http://localhost:
-            {preservicaPort}{generationsUrl}
-          </Generations>
-        </AdditionalInformation>
-      </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-
-    val client = testClient(s"http://localhost:$preservicaPort")
-    val response: F[Map[String, String]] = client.nodesFromEntity(ref, ContentObject, Nil)
-
-    val nodeAndValue = valueFromF(response)
-    nodeAndValue.size should equal(0)
-
-    checkServerCall(entityUrl)
-  }
-
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
     val generationsUrl = s"/api/entity/content-objects/$ref/generations"
@@ -1022,7 +952,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response = valueFromF(
       client.entityEventActions(
         Entities.Entity(
-          "CO".some,
+          ContentObject.some,
           UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
           None,
           None,
@@ -1062,7 +992,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       cme.attempt(
         client.entityEventActions(
           Entities.Entity(
-            "CO".some,
+            ContentObject.some,
             UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
             None,
             None,
@@ -1098,18 +1028,28 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
   }
 
-  "entitiesByIdentifier" should "return an entity if it has the identifier specified" in {
+  "entitiesByIdentifier" should "return a complete entity if it has the identifier specified" in {
+    val id = "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91"
     val pageResult = <EntitiesResponse>
       <Entities>
-        <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="SO">http://localhost/page1/object</Entity>
+        <Entity title="page1File.txt" ref={id} type="SO">http://localhost/page1/object</Entity>
       </Entities>
       <Paging>
-        <Next>http://localhost:
-          {preservicaPort}
-          /api/entity/entities/by-identifier?type=testIdentifier&amp;value=testValue
+        <Next>http://localhost:{
+      preservicaPort
+    }/api/entity/entities/by-identifier?type=testIdentifier&amp;value=testValue
         </Next>
       </Paging>
     </EntitiesResponse>
+
+    val fullEntityResponse = <EntityResponse>
+      <xip:StructuralObject>
+        <xip:Ref>{id}</xip:Ref>
+        <xip:Title>page1File.txt</xip:Title>
+        <xip:Description>A description</xip:Description>
+        <xip:SecurityTag>open</xip:SecurityTag>
+      </xip:StructuralObject>
+    </EntityResponse>
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
@@ -1122,6 +1062,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         )
         .willReturn(ok(pageResult.toString()))
     )
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/structural-objects/$id"))
+        .willReturn(ok(fullEntityResponse.toString))
+    )
 
     val client = testClient(s"http://localhost:$preservicaPort")
     val response = valueFromF(
@@ -1133,6 +1077,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     expectedEntity.path.get should equal("structural-objects")
     expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.description.get should be("A description")
+    expectedEntity.securityTag.get should be(Open)
     expectedEntity.deleted should be(false)
   }
 
@@ -1281,6 +1227,74 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response = valueFromF(addIdentifierForEntityResponse)
 
     response should be("The Identifier was added")
+  }
+
+  "getEntity" should "return the requested entity" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val id = UUID.randomUUID()
+    val fullEntityResponse = <EntityResponse>
+      <xip:StructuralObject>
+        <xip:Ref>{id}</xip:Ref>
+        <xip:Title>title.txt</xip:Title>
+        <xip:Description>A description</xip:Description>
+        <xip:SecurityTag>open</xip:SecurityTag>
+      </xip:StructuralObject>
+    </EntityResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/structural-objects/$id"))
+        .willReturn(ok(fullEntityResponse.toString))
+    )
+    val entity = valueFromF(client.getEntity(id, StructuralObject))
+
+    entity.entityType.get should be(StructuralObject)
+    entity.ref should be(id)
+    entity.title.get should be("title.txt")
+    entity.description.get should be("A description")
+    entity.securityTag.get should be(Open)
+  }
+
+  "getEntity" should "return an error if the returned entity has a different entity type" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val id = UUID.randomUUID()
+    val fullEntityResponse = <EntityResponse>
+      <xip:StructuralObject>
+        <xip:Ref>
+          {id}
+        </xip:Ref>
+        <xip:Title>title.txt</xip:Title>
+        <xip:Description>A description</xip:Description>
+        <xip:SecurityTag>open</xip:SecurityTag>
+      </xip:StructuralObject>
+    </EntityResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/information-objects/$id"))
+        .willReturn(ok(fullEntityResponse.toString))
+    )
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.getEntity(id, InformationObject))
+    }
+    ex.getMessage should be(s"Entity not found for id $id")
+  }
+
+  "getEntity" should "return an error if the entity is not found" in {
+    val host = s"http://localhost:$preservicaPort"
+    val client = testClient(host)
+    val id = UUID.randomUUID()
+    val getUrl = s"/api/entity/information-objects/$id"
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(getUrl))
+        .willReturn(notFound())
+    )
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.getEntity(id, InformationObject))
+    }
+    ex.getMessage should be(s"Status code 404 calling $host$getUrl with method GET ")
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
