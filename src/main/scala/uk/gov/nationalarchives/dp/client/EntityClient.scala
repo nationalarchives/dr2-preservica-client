@@ -140,7 +140,7 @@ object EntityClient {
 
     private def createUpdateRequestBody(
         ref: Option[UUID],
-        titleToChange: Option[String],
+        title: String,
         descriptionToChange: Option[String],
         parentRef: Option[UUID],
         securityTag: SecurityTag,
@@ -151,7 +151,7 @@ object EntityClient {
             ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
             <$nodeName xmlns="http://preservica.com/XIP/v6.5">
               ${if (ref.nonEmpty) s"<Ref>${ref.get}</Ref>"}
-              ${if (titleToChange.nonEmpty) s"<Title>${titleToChange.get}</Title>"}
+              <Title>$title</Title>
               ${if (descriptionToChange.nonEmpty) s"<Description>${descriptionToChange.get}</Description>"}
               <SecurityTag>$securityTag</SecurityTag>
               ${if (parentRef.nonEmpty) s"<Parent>${parentRef.get}</Parent>"}
@@ -203,7 +203,7 @@ object EntityClient {
         (nodeName, token) = nodeNameAndToken
         updateRequestBody = createUpdateRequestBody(
           Some(updateEntityRequest.ref),
-          Some(updateEntityRequest.titleToChange),
+          updateEntityRequest.title,
           updateEntityRequest.descriptionToChange,
           updateEntityRequest.parentRef,
           updateEntityRequest.securityTag,
@@ -364,7 +364,7 @@ object EntityClient {
 
   case class AddEntityRequest(
       ref: Option[UUID],
-      title: Option[String],
+      title: String,
       description: Option[String],
       entityType: EntityType,
       securityTag: SecurityTag,
@@ -373,7 +373,7 @@ object EntityClient {
 
   case class UpdateEntityRequest(
       ref: UUID,
-      titleToChange: String,
+      title: String,
       descriptionToChange: Option[String],
       entityType: EntityType,
       securityTag: SecurityTag,
