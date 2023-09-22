@@ -15,8 +15,8 @@ lazy val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    releaseStepCommand("publishSigned"),
-    releaseStepCommand("sonatypeBundleRelease"),
+//    releaseStepCommand("publishSigned"),
+//    releaseStepCommand("sonatypeBundleRelease"),
     setNextVersion,
     commitNextVersion,
     pushChanges
