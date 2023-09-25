@@ -28,7 +28,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
         val deleted = optionValue("Deleted").isDefined
         val parent = optionValue("Parent").map(UUID.fromString)
-        fromType[F](entityType.entityName, entityRef, title, description, deleted, securityTag, parent)
+        fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
       }
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity not found for id $entityRef")))
   }

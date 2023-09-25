@@ -373,22 +373,22 @@ object EntityClient {
 
   sealed trait EntityType {
     val entityPath: String
-    val entityName: String
+    val entityTypeShort: String
     override def toString: String = getClass.getSimpleName.dropRight(1)
   }
 
   case object StructuralObject extends EntityType {
     override val entityPath = "structural-objects"
-    override val entityName: String = "SO"
+    override val entityTypeShort: String = "SO"
   }
 
   case object InformationObject extends EntityType {
     override val entityPath = "information-objects"
-    override val entityName: String = "IO"
+    override val entityTypeShort: String = "IO"
   }
 
   case object ContentObject extends EntityType {
     override val entityPath = "content-objects"
-    override val entityName: String = "CO"
+    override val entityTypeShort: String = "CO"
   }
 }

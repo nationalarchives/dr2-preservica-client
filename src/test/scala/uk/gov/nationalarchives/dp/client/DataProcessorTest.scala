@@ -4,6 +4,7 @@ import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
+import uk.gov.nationalarchives.dp.client.EntityClient.{Open, StructuralObject}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -403,5 +404,78 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
     result.documentStatusName should equal("test.test_string_index")
     result.reviewDateName should equal("test.test_date_index")
+  }
+
+  "getEntity" should "return the full entity if all fields are provided" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <StructuralObject>
+        <Title>Title</Title>
+        <Description>A description</Description>
+        <SecurityTag>open</SecurityTag>
+        <Deleted>true</Deleted>
+        <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+      </StructuralObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+    response.title.get should equal("Title")
+    response.description.get should equal("A description")
+    response.securityTag.get should equal(Open)
+    response.deleted should equal(true)
+    response.parent.get should equal(UUID.fromString("f567352f-0874-49da-85aa-ac0fbfa3b335"))
+  }
+
+  "getEntity" should "return deleted false if the deleted tag is missing" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <StructuralObject>
+      </StructuralObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+
+    response.deleted should equal(false)
+  }
+
+  "getEntity" should "return a missing security tag if it isn't set to open or closed" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <StructuralObject>
+        <SecurityTag>test</SecurityTag>
+      </StructuralObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+
+    response.securityTag.isDefined should equal(false)
+  }
+
+  "getEntity" should "return a missing parent, title and description if they aren't set" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <StructuralObject>
+      </StructuralObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+
+    response.title.isDefined should equal(false)
+    response.description.isDefined should equal(false)
+    response.parent.isDefined should equal(false)
+  }
+
+  "getEntity" should "return an error if the entity type in the response doesn't match" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <InformationObject>
+      </InformationObject>
+    </EntityResponse>
+
+    val exception = intercept[PreservicaClientException] {
+      valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+    }
+
+    exception.getMessage should equal(s"Entity not found for id $id")
   }
 }
