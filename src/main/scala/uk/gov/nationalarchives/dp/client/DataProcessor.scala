@@ -1,10 +1,11 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.implicits._
 import uk.gov.nationalarchives.dp.client.DataProcessor.{ClosureResultIndexNames, EventAction}
 import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -16,6 +17,20 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       case Some(value) => me.pure(value)
       case None        => me.raiseError(PreservicaClientException("Generation not found"))
     }
+  }
+
+  def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] = {
+    (entityResponse \ entityType.toString).headOption
+      .map { entity =>
+        def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text.trim)
+        val title = optionValue("Title")
+        val description = optionValue("Description")
+        val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
+        val deleted = optionValue("Deleted").isDefined
+        val parent = optionValue("Parent").map(UUID.fromString)
+        fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
+      }
+      .getOrElse(me.raiseError(PreservicaClientException(s"Entity not found for id $entityRef")))
   }
 
   def childNodeFromEntity(entityResponse: Elem, nodeName: String, childNodeName: String): F[String] =
@@ -110,7 +125,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       val description = entityAttributes.get("description").map(_.toString)
       val entityType = attrToString("type")
       val deleted = attrToString("deleted").nonEmpty
-      fromType(entityType, ref, title, description, deleted)
+      fromType[F](entityType, ref, title, description, deleted)
     }.sequence
 
   def getEventActions(elem: Elem): F[Seq[EventAction]] = {

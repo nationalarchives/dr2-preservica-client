@@ -2,18 +2,20 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
-import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, InformationObject, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.util.UUID
 
 object Entities {
   case class Entity(
-      entityType: Option[String],
+      entityType: Option[EntityType],
       ref: UUID,
       title: Option[String],
       description: Option[String],
       deleted: Boolean,
-      path: Option[String]
+      path: Option[String],
+      securityTag: Option[SecurityTag] = None,
+      parent: Option[UUID] = None
   )
 
   def fromType[F[_]](
@@ -21,26 +23,20 @@ object Entities {
       ref: UUID,
       title: Option[String],
       description: Option[String],
-      deleted: Boolean
+      deleted: Boolean,
+      securityTag: Option[SecurityTag] = None,
+      parent: Option[UUID] = None
   )(implicit
       me: MonadError[F, Throwable]
-  ): F[Entity] = entityType match {
-    case "IO" =>
-      me.pure {
-        Entity("IO".some, ref, title, description, deleted, InformationObject.entityPath.some)
-      }
-    case "CO" =>
-      me.pure {
-        Entity("CO".some, ref, title, description, deleted, ContentObject.entityPath.some)
-      }
-    case "SO" =>
-      me.pure {
-        Entity("SO".some, ref, title, description, deleted, StructuralObject.entityPath.some)
-      }
-    case _ =>
-      me.pure {
-        Entity(None, ref, title, description, deleted, None)
-      }
+  ): F[Entity] = {
+    def entity(entityType: Option[EntityType]) =
+      me.pure(Entity(entityType, ref, title, description, deleted, entityType.map(_.entityPath), securityTag, parent))
+    entityType match {
+      case "IO" => entity(InformationObject.some)
+      case "CO" => entity(ContentObject.some)
+      case "SO" => entity(StructuralObject.some)
+      case _    => entity(None)
+    }
   }
 
   case class Identifier(identifierName: String, value: String)
