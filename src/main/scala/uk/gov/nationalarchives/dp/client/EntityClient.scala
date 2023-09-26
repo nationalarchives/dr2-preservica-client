@@ -22,46 +22,41 @@ trait EntityClient[F[_], S] {
   def nodesFromEntity(
       entityRef: UUID,
       entityType: EntityType,
-      childNodeNames: List[String],
-      secretName: String
+      childNodeNames: List[String]
   ): F[Map[String, String]]
 
-  def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]]
+  def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
-  def getBitstreamInfo(contentRef: UUID, secretName: String): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
 
-  def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID]
+  def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
-  def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String]
+  def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
-  )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T]
+  )(url: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
   def entitiesUpdatedSince(
       dateTime: ZonedDateTime,
-      secretName: String,
       startEntry: Int,
       maxEntries: Int = 1000
   ): F[Seq[Entity]]
 
   def entityEventActions(
       entity: Entity,
-      secretName: String,
       startEntry: Int = 0,
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
 
   def entitiesByIdentifier(
-      identifier: Identifier,
-      secretName: String
+      identifier: Identifier
   ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
       entityRef: UUID,
       entityType: EntityType,
-      identifier: Identifier,
-      secretName: String
+      identifier: Identifier
   ): F[String]
 }
 
@@ -110,21 +105,20 @@ object EntityClient {
       }
     }
 
-    private def entity(entityRef: UUID, entityPath: String, secretName: String): F[Elem] =
+    private def entity(entityRef: UUID, entityPath: String): F[Elem] =
       for {
         path <- me.fromOption(
           entityPath.some,
           PreservicaClientException(missingPathExceptionMessage(entityRef))
         )
         url = uri"$apiBaseUrl/api/entity/$path/$entityRef"
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         entity <- sendXMLApiRequest(url.toString(), token, Method.GET)
       } yield entity
 
     private def validateEntityUpdateInputs(
         entityType: EntityType,
-        parentRef: Option[UUID],
-        secretName: String
+        parentRef: Option[UUID]
     ): F[(String, String)] =
       for {
         _ <-
@@ -135,7 +129,7 @@ object EntityClient {
               )
             )
           else me.unit
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
       } yield (entityType.toString, token)
 
     private def createUpdateRequestBody(
@@ -158,7 +152,7 @@ object EntityClient {
             </$nodeName>"""
     }
 
-    override def addEntity(addEntityRequest: AddEntityRequest, secretName: String): F[UUID] = {
+    override def addEntity(addEntityRequest: AddEntityRequest): F[UUID] = {
       val path = addEntityRequest.entityType.entityPath
       for {
         _ <-
@@ -170,8 +164,7 @@ object EntityClient {
 
         nodeNameAndToken <- validateEntityUpdateInputs(
           addEntityRequest.entityType,
-          addEntityRequest.parentRef,
-          secretName
+          addEntityRequest.parentRef
         )
         (nodeName, token) = nodeNameAndToken
         addXipTag = path == InformationObject.entityPath
@@ -192,12 +185,11 @@ object EntityClient {
       } yield UUID.fromString(ref.trim)
     }
 
-    override def updateEntity(updateEntityRequest: UpdateEntityRequest, secretName: String): F[String] = {
+    override def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String] = {
       for {
         nodeNameAndToken <- validateEntityUpdateInputs(
           updateEntityRequest.entityType,
-          updateEntityRequest.parentRef,
-          secretName
+          updateEntityRequest.parentRef
         )
 
         (nodeName, token) = nodeNameAndToken
@@ -219,11 +211,10 @@ object EntityClient {
     override def nodesFromEntity(
         entityRef: UUID,
         entityType: EntityType,
-        childNodeNames: List[String],
-        secretName: String
+        childNodeNames: List[String]
     ): F[Map[String, String]] =
       for {
-        entityResponse <- entity(entityRef, entityType.entityPath, secretName)
+        entityResponse <- entity(entityRef, entityType.entityPath)
 
         childNodeValues <- childNodeNames.distinct.map { childNodeName =>
           val nodeName = entityType.toString
@@ -232,11 +223,10 @@ object EntityClient {
       } yield childNodeNames.zip(childNodeValues).toMap
 
     override def getBitstreamInfo(
-        contentRef: UUID,
-        secretName: String
+        contentRef: UUID
     ): F[Seq[BitStreamInfo]] =
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         contentEntity <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$contentRef",
           token,
@@ -253,9 +243,9 @@ object EntityClient {
         allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
       } yield allBitstreamInfo
 
-    override def metadataForEntity(entity: Entity, secretName: String): F[Seq[Elem]] =
+    override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
 
         path <- me.fromOption(
           entity.path,
@@ -273,7 +263,6 @@ object EntityClient {
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
-        secretName: String,
         startEntry: Int,
         maxEntries: Int = 1000
     ): F[Seq[Entity]] = {
@@ -281,14 +270,13 @@ object EntityClient {
       val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
       val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         updatedEntities <- getEntities(url.toString, token)
       } yield updatedEntities
     }
 
     override def entityEventActions(
         entity: Entity,
-        secretName: String,
         startEntry: Int = 0,
         maxEntries: Int = 1000
     ): F[Seq[EventAction]] = {
@@ -299,19 +287,18 @@ object EntityClient {
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         eventActions <- eventActions(url.toString.some, token, Nil)
       } yield eventActions.reverse // most recent event first
     }
 
     override def entitiesByIdentifier(
-        identifier: Identifier,
-        secretName: String
+        identifier: Identifier
     ): F[Seq[Entity]] = {
       val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
       val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         entitiesWithIdentifier <- getEntities(url.toString, token)
       } yield entitiesWithIdentifier
     }
@@ -319,11 +306,10 @@ object EntityClient {
     override def addIdentifierForEntity(
         entityRef: UUID,
         entityType: EntityType,
-        identifier: Identifier,
-        secretName: String
+        identifier: Identifier
     ): F[String] =
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
 
         identifierAsXml: String = {
           val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
@@ -345,7 +331,7 @@ object EntityClient {
 
     def streamBitstreamContent[T](
         stream: Streams[S]
-    )(url: String, secretName: String, streamFn: stream.BinaryStream => F[T]): F[T] = {
+    )(url: String, streamFn: stream.BinaryStream => F[T]): F[T] = {
       val apiUri = uri"$url"
       def request(token: String) = basicRequest
         .get(apiUri)
@@ -353,7 +339,7 @@ object EntityClient {
         .response(asStream(stream)(streamFn))
 
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         res <- backend.send(request(token))
         body <- me.fromEither {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))

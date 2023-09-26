@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 trait ContentClient[F[_]] {
-  def findExpiredClosedDocuments(secretName: String): F[List[Entity]]
+  def findExpiredClosedDocuments(): F[List[Entity]]
 }
 object ContentClient {
   case class SearchField(name: String, values: List[String])
@@ -26,7 +26,6 @@ object ContentClient {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): ContentClient[F] = new ContentClient[F] {
-
     case class SearchResponseValue(objectIds: List[String], totalHits: Int)
 
     case class SearchResponse(success: Boolean, value: SearchResponseValue)
@@ -101,9 +100,9 @@ object ContentClient {
       uri"$apiBaseUrl/api/content/search?$queryParams"
     }
 
-    override def findExpiredClosedDocuments(secretName: String): F[List[Entity]] = {
+    override def findExpiredClosedDocuments(): F[List[Entity]] = {
       for {
-        token <- getAuthenticationToken(secretName)
+        token <- getAuthenticationToken
         indexNames <- getClosureResultIndexNames(token)
         res <- search(0, token, indexNames, Nil)
       } yield res

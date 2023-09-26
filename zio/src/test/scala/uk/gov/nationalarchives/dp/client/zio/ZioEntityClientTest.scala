@@ -12,5 +12,5 @@ class ZioEntityClientTest extends EntityClientTest[Task, ZioStreams](9013, 9012,
   }
 
   override def createClient(url: String): Task[EntityClient[Task, ZioStreams]] =
-    entityClient(url, zeroSeconds, ssmEndpointUri = "http://localhost:9012")
+    entityClient(url, "secret", zeroSeconds, ssmEndpointUri = "http://localhost:9012")
 }

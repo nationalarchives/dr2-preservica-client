@@ -23,6 +23,7 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
+  val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
@@ -56,7 +57,7 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     }
   }
 
-  private def getAuthDetails(secretName: String): F[AuthDetails] = {
+  private def getAuthDetails: F[AuthDetails] = {
     val valueRequest = GetSecretValueRequest
       .builder()
       .secretId(secretName)
@@ -72,11 +73,11 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me.pure(AuthDetails(username, password))
   }
 
-  private[client] def getAuthenticationToken(secretName: String): F[String] =
+  private[client] def getAuthenticationToken: F[String] =
     memoize[F, F[String]](Some(duration)) {
       val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
       for {
-        authDetails <- getAuthDetails(secretName)
+        authDetails <- getAuthDetails
         res <- basicRequest
           .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
           .post(apiUri)
@@ -100,6 +101,7 @@ object Client {
 
   case class ClientConfig[F[_], S](
       apiBaseUrl: String,
+      secretName: String,
       backend: SttpBackend[F, S],
       duration: FiniteDuration,
       secretsManagerEndpointUri: String

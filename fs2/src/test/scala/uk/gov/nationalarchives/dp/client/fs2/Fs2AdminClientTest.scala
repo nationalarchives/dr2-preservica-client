@@ -10,5 +10,5 @@ class Fs2AdminClientTest extends AdminClientTest[IO](9003, 9007) {
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(url: String): IO[AdminClient[IO]] =
-    adminClient(url, zeroSeconds, ssmEndpointUri = "http://localhost:9007")
+    adminClient(url, "secret", zeroSeconds, ssmEndpointUri = "http://localhost:9007")
 }

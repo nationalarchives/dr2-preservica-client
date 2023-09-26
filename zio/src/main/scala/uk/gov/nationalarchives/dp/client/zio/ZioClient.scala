@@ -17,28 +17,33 @@ object ZioClient {
 
   def entityClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): Task[EntityClient[Task, ZioStreams]] =
     HttpClientZioBackend().map { backend =>
-      createEntityClient[Task, ZioStreams](ClientConfig(url, LoggingWrapper(backend), duration, ssmEndpointUri))
+      createEntityClient[Task, ZioStreams](
+        ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      )
     }
 
   def adminClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): Task[AdminClient[Task]] =
     HttpClientZioBackend().map { backend =>
-      createAdminClient[Task, ZioStreams](ClientConfig(url, backend, duration, ssmEndpointUri))
+      createAdminClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 
   def contentClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): Task[ContentClient[Task]] =
     HttpClientZioBackend().map { backend =>
-      createContentClient[Task, ZioStreams](ClientConfig(url, backend, duration, ssmEndpointUri))
+      createContentClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 }

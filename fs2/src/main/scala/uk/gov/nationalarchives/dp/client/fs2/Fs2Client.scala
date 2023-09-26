@@ -1,6 +1,6 @@
 package uk.gov.nationalarchives.dp.client.fs2
 
-import cats.effect.IO
+import cats.effect._
 import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient._
@@ -16,28 +16,31 @@ object Fs2Client {
 
   def entityClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createEntityClient(ClientConfig(url, LoggingWrapper(backend), duration, ssmEndpointUri)))
+      IO(createEntityClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
   def adminClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): IO[AdminClient[IO]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createAdminClient(ClientConfig(url, LoggingWrapper(backend), duration, ssmEndpointUri)))
+      IO(createAdminClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
   def contentClient(
       url: String,
+      secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
-      cats.effect.IO(createContentClient(ClientConfig(url, LoggingWrapper(backend), duration, ssmEndpointUri)))
+      IO(createContentClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 }

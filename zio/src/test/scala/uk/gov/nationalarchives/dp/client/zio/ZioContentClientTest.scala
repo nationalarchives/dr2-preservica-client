@@ -11,5 +11,5 @@ class ZioContentClientTest extends ContentClientTest[Task](9001, 9011) {
   }
 
   override def createClient(url: String): Task[ContentClient[Task]] =
-    contentClient(url, zeroSeconds, ssmEndpointUri = "http://localhost:9011")
+    contentClient(url, "secret", zeroSeconds, ssmEndpointUri = "http://localhost:9011")
 }

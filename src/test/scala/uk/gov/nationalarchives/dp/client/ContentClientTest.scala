@@ -74,7 +74,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
       .willReturn(okJson(searchResponse))
     preservicaServer.stubFor(searchMapping)
 
-    valueFromF(client.findExpiredClosedDocuments("secretName"))
+    valueFromF(client.findExpiredClosedDocuments())
 
     val events =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(searchMapping.build())).getServeEvents.asScala
@@ -100,7 +100,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.stubFor(get(urlPathMatching("/api/admin/documents")).willReturn(okXml(documentResponse.toString)))
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.findExpiredClosedDocuments("secretName"))
+      valueFromF(client.findExpiredClosedDocuments())
     }
     error.getMessage should equal("Cannot find index definition closure-result-index-definition")
   }
@@ -126,7 +126,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
         .willReturn(okXml(documentContentResponse.toString))
     )
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.findExpiredClosedDocuments("secretName"))
+      valueFromF(client.findExpiredClosedDocuments())
     }
     error.getMessage should equal("No review date index found for closure result")
   }
@@ -167,7 +167,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.stubFor(firstSearchMapping)
     preservicaServer.stubFor(secondSearchMapping)
 
-    valueFromF(client.findExpiredClosedDocuments("secretName"))
+    valueFromF(client.findExpiredClosedDocuments())
 
     val firstEvents =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(firstSearchMapping.build())).getServeEvents.asScala
