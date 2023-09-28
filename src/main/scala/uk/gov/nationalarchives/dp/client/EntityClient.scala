@@ -19,15 +19,11 @@ import scala.xml.{Elem, PrettyPrinter, XML}
 trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
 
-  def nodesFromEntity(
-      entityRef: UUID,
-      entityType: EntityType,
-      childNodeNames: List[String]
-  ): F[Map[String, String]]
-
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+
+  def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
@@ -105,16 +101,14 @@ object EntityClient {
       }
     }
 
-    private def entity(entityRef: UUID, entityPath: String): F[Elem] =
+    override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
+      val url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef"
       for {
-        path <- me.fromOption(
-          entityPath.some,
-          PreservicaClientException(missingPathExceptionMessage(entityRef))
-        )
-        url = uri"$apiBaseUrl/api/entity/$path/$entityRef"
         token <- getAuthenticationToken
-        entity <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
       } yield entity
+    }
 
     private def validateEntityUpdateInputs(
         entityType: EntityType,
@@ -208,20 +202,6 @@ object EntityClient {
       } yield response
     }
 
-    override def nodesFromEntity(
-        entityRef: UUID,
-        entityType: EntityType,
-        childNodeNames: List[String]
-    ): F[Map[String, String]] =
-      for {
-        entityResponse <- entity(entityRef, entityType.entityPath)
-
-        childNodeValues <- childNodeNames.distinct.map { childNodeName =>
-          val nodeName = entityType.toString
-          dataProcessor.childNodeFromEntity(entityResponse, nodeName, childNodeName)
-        }.sequence
-      } yield childNodeNames.zip(childNodeValues).toMap
-
     override def getBitstreamInfo(
         contentRef: UUID
     ): F[Seq[BitStreamInfo]] =
@@ -300,7 +280,16 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         entitiesWithIdentifier <- getEntities(url.toString, token)
-      } yield entitiesWithIdentifier
+        entities <- entitiesWithIdentifier.map { entity =>
+          for {
+            entityType <- me.fromOption(
+              entity.entityType,
+              PreservicaClientException(s"No entity type found for entity ${entity.ref}")
+            )
+            entity <- getEntity(entity.ref, entityType)
+          } yield entity
+        }.sequence
+      } yield entities
     }
 
     override def addIdentifierForEntity(
@@ -368,6 +357,14 @@ object EntityClient {
 
   sealed trait SecurityTag {
     override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+
+  }
+  object SecurityTag {
+    def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
+      case "open"   => Option(Open)
+      case "closed" => Option(Closed)
+      case _        => None
+    }
   }
 
   case object Open extends SecurityTag
@@ -376,18 +373,22 @@ object EntityClient {
 
   sealed trait EntityType {
     val entityPath: String
+    val entityTypeShort: String
     override def toString: String = getClass.getSimpleName.dropRight(1)
   }
 
   case object StructuralObject extends EntityType {
     override val entityPath = "structural-objects"
+    override val entityTypeShort: String = "SO"
   }
 
   case object InformationObject extends EntityType {
     override val entityPath = "information-objects"
+    override val entityTypeShort: String = "IO"
   }
 
   case object ContentObject extends EntityType {
     override val entityPath = "content-objects"
+    override val entityTypeShort: String = "CO"
   }
 }
