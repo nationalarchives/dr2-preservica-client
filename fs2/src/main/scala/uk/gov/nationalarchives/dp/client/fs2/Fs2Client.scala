@@ -6,8 +6,9 @@ import sttp.client3.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
-import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper}
+import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper, WorkflowClient}
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
+import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
 import scala.concurrent.duration._
 
@@ -42,5 +43,15 @@ object Fs2Client {
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO]().use { backend =>
       IO(createContentClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
+    }
+
+  def workflowClient(
+      url: String,
+      secretName: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+  ): IO[WorkflowClient[IO]] =
+    HttpClientFs2Backend.resource[IO]().use { backend =>
+      IO(createWorkflowClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 }
