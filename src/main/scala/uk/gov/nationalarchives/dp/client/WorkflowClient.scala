@@ -8,6 +8,8 @@ import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
+import scala.xml.PrettyPrinter
+
 trait WorkflowClient[F[_]] {
   def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int]
 }
@@ -28,45 +30,41 @@ object WorkflowClient {
 
       val workflowContextIdNode = startWorkflowRequest.workflowContextId
         .map { workflowId =>
-          s"<WorkflowContextId>${workflowId}</WorkflowContextId>"
+          <WorkflowContextId>{workflowId}</WorkflowContextId>
         }
-        .getOrElse("")
 
       val workflowContextNameNode = startWorkflowRequest.workflowContextName
         .map { workflowName =>
-          s"""
-          <WorkflowContextName>${workflowName}</WorkflowContextName>"""
+          <WorkflowContextName>{workflowName}</WorkflowContextName>
         }
-        .getOrElse("")
 
       val parameterNodes = startWorkflowRequest.parameters
         .map { parameter =>
-          s"""
           <Parameter>
-              <Key>${parameter.key}</Key>
-              <Value>${parameter.value}</Value>
-          </Parameter>"""
+              <Key>{parameter.key}</Key>
+              <Value>{parameter.value}</Value>
+          </Parameter>
         }
-        .mkString("")
 
       val correlationIdNode =
         startWorkflowRequest.correlationId
           .map { correlationId =>
-            s"""
-          <CorrelationId>$correlationId</CorrelationId>"""
+            <CorrelationId>{correlationId}</CorrelationId>
           }
-          .mkString("")
 
       val requestNodes =
-        List(workflowContextIdNode, workflowContextNameNode, parameterNodes, correlationIdNode).mkString
+        List(workflowContextIdNode, workflowContextNameNode, correlationIdNode).flatten ++ parameterNodes
 
       val requestBody =
-        s"""
-          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-          <StartWorkflowRequest xmlns="http://workflow.preservica.com">
-          ${requestNodes}
-          </StartWorkflowRequest>"""
+        <StartWorkflowRequest xmlns="http://workflow.preservica.com">
+          {
+          requestNodes.map { requestNode =>
+            requestNode
+          }
+        }
+        </StartWorkflowRequest>
 
+      val requestBodyString = s"<?xml version='1.0' encoding='UTF-8'?>${new PrettyPrinter(100, 2).format(requestBody)}"
       for {
         _ <-
           if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
@@ -77,7 +75,12 @@ object WorkflowClient {
             )
           } else me.unit
         token <- getAuthenticationToken
-        startWorkflowResponse <- sendXMLApiRequest(startWorkflowUrl.toString, token, Method.POST, Some(requestBody))
+        startWorkflowResponse <- sendXMLApiRequest(
+          startWorkflowUrl.toString,
+          token,
+          Method.POST,
+          Some(requestBodyString)
+        )
         id <- dataProcessor.childNodeFromWorkflowInstance(startWorkflowResponse, "Id")
       } yield id.toInt
     }
