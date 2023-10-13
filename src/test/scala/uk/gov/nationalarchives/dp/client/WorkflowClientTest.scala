@@ -82,17 +82,6 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
   private val startWorkflowResponse =
     <WorkflowInstance xmlns="http://workflow.preservica.com">
       <Id>3</Id>
-      <CorrelationToken>correlationTestId</CorrelationToken>
-      <Started>2023-09-22T14:32:39.815Z</Started>
-      <State>ACTIVE</State>
-      <DisplayState>Active</DisplayState>
-      <ArchivalProcessId>1111</ArchivalProcessId>
-      <WorkflowGroupId>1f1e6e7d-1d35-4d6f-a112-5663d1b90daa</WorkflowGroupId>
-      <WorkflowContextId>123</WorkflowContextId>
-      <WorkflowContextName>workflowContextName</WorkflowContextName>
-      <WorkflowDefinitionTextId>definition.text.id</WorkflowDefinitionTextId>
-      <WorkflowDefinitionName>workflowContextName</WorkflowDefinitionName>
-      <Creator>testUser</Creator>
     </WorkflowInstance>.toString()
 
   "startWorkflow" should s"return an exception if a request has both workflowContextName and workflowContextId set to None" in {
