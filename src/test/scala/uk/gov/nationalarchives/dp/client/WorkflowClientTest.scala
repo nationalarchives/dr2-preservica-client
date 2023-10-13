@@ -8,7 +8,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor3
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
-import uk.gov.nationalarchives.dp.client.WorkflowClient.{Parameters, StartWorkflowRequest}
+import uk.gov.nationalarchives.dp.client.WorkflowClient.{Parameter, StartWorkflowRequest}
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
@@ -53,7 +53,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
   private val startWorkflowRequestPermutations: TableFor3[StartWorkflowRequest, String, List[String]] = Table(
     ("Request", "request should not contain the node", "request should contain nodes"),
     (
-      StartWorkflowRequest(None, Some(123), List(Parameters("key", "value")), Some("correlationTestId")),
+      StartWorkflowRequest(None, Some(123), List(Parameter("key", "value")), Some("correlationTestId")),
       "<WorkflowContextName>",
       List("<WorkflowContextId>", "<Parameter>", "<CorrelationId>")
     ),
@@ -61,7 +61,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       StartWorkflowRequest(
         Some("workflowContextName"),
         None,
-        List(Parameters("key", "value")),
+        List(Parameter("key", "value")),
         Some("correlationTestId")
       ),
       "<WorkflowContextId>",
@@ -73,7 +73,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       List("<WorkflowContextName>", "<WorkflowContextId>", "<CorrelationId>")
     ),
     (
-      StartWorkflowRequest(Some("workflowContextName"), Some(123), List(Parameters("key", "value")), None),
+      StartWorkflowRequest(Some("workflowContextName"), Some(123), List(Parameter("key", "value")), None),
       "<CorrelationId>",
       List("<WorkflowContextName>", "<WorkflowContextId>", "<Parameter>")
     )
@@ -100,7 +100,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       StartWorkflowRequest(
         None,
         None,
-        List(Parameters("key", "value"), Parameters("key2", "value2")),
+        List(Parameter("key", "value"), Parameter("key2", "value2")),
         Some("correlationTestId")
       )
     }
@@ -122,7 +122,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
       Some(123),
-      List(Parameters("key", "value"), Parameters("key2", "value2")),
+      List(Parameter("key", "value"), Parameter("key2", "value2")),
       Some("correlationTestId")
     )
 
@@ -178,7 +178,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
       Some(123),
-      List(Parameters("key", "value"), Parameters("key2", "value2")),
+      List(Parameter("key", "value"), Parameter("key2", "value2")),
       Some("testCorrelationId")
     )
 
@@ -197,7 +197,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
       Some(123),
-      List(Parameters("key", "value"), Parameters("key2", "value2")),
+      List(Parameter("key", "value"), Parameter("key2", "value2")),
       Some("correlationTestId")
     )
 

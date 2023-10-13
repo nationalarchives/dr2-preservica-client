@@ -83,12 +83,12 @@ object WorkflowClient {
     }
   }
 
-  case class Parameters(key: String, value: String)
+  case class Parameter(key: String, value: String)
 
   case class StartWorkflowRequest(
       workflowContextName: Option[String] = None,
       workflowContextId: Option[Int] = None,
-      parameters: List[Parameters] = Nil,
+      parameters: List[Parameter] = Nil,
       correlationId: Option[String] = None
   )
 }
