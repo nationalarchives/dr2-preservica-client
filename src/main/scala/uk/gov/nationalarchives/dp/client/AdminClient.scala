@@ -20,7 +20,7 @@ trait AdminClient[F[_]] {
 object AdminClient {
   def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): AdminClient[F] = new AdminClient[F] {
     private val client: Client[F, S] = Client(clientConfig)
     import client._

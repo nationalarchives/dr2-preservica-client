@@ -48,8 +48,8 @@ lazy val releaseSettings = Seq(
 lazy val commonSettings = Seq(
   scalaVersion := scala2Version,
   libraryDependencies ++= Seq(
-    awsSecretsManager,
     catsCore,
+    daAwsSecretsManagerClient,
     scalaCacheCore,
     log4Cats,
     scalaXml,

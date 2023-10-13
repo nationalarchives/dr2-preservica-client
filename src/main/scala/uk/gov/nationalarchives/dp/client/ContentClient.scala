@@ -1,13 +1,13 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.effect.Async
 import cats.implicits._
-import cats.effect.Sync
 import sttp.client3._
 import sttp.client3.upicklejson.asJson
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
+import uk.gov.nationalarchives.dp.client.DataProcessor.ClosureResultIndexNames
 import uk.gov.nationalarchives.dp.client.Entities._
 import upickle.default._
 
@@ -24,7 +24,7 @@ object ContentClient {
 
   def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): ContentClient[F] = new ContentClient[F] {
     case class SearchResponseValue(objectIds: List[String], totalHits: Int)
 

@@ -1,17 +1,18 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits._
+import io.circe.generic.auto._
 import scalacache._
 import scalacache.memoization._
-import software.amazon.awssdk.http.apache.ApacheHttpClient
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerAsyncClient
 import sttp.client3._
 import sttp.client3.upicklejson._
-import sttp.model.Method
+import sttp.model.{Method, Uri}
+import uk.gov.nationalarchives.DASecretsManagerClient
 import uk.gov.nationalarchives.dp.client.Client._
 import upickle.default._
 
@@ -21,9 +22,15 @@ import scala.xml.{Elem, XML}
 
 class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
-    sync: Sync[F]
+    sync: Async[F]
 ) {
+  private val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
+  private val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
+    .httpClient(httpClient)
+    .endpointOverride(URI.create(clientConfig.secretsManagerEndpointUri))
+    .build()
   val secretName: String = clientConfig.secretName
+  val daSecretsManagerClient: DASecretsManagerClient[F] = DASecretsManagerClient[F](secretsManagerAsyncClient, secretName)
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
@@ -57,45 +64,35 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     }
   }
 
-  private def getAuthDetails: F[AuthDetails] = {
-    val valueRequest = GetSecretValueRequest
-      .builder()
-      .secretId(secretName)
-      .build()
-    val secretsManager = SecretsManagerClient.builder
-      .httpClient(ApacheHttpClient.builder.build())
-      .endpointOverride(URI.create(secretsManagerEndpointUri))
-      .region(Region.EU_WEST_2)
-      .build()
-
-    val response = secretsManager.getSecretValue(valueRequest)
-    val (username, password) = upickle.default.read[Map[String, String]](response.secretString).head
-    me.pure(AuthDetails(username, password))
+  private[client] def getToken(authDetails: AuthDetails, apiUri: Uri): F[String] = {
+    for {
+      res <- basicRequest
+        .body(Map("username" -> authDetails.username, "password" -> authDetails.password))
+        .post(apiUri)
+        .response(asJson[Token])
+        .send(backend)
+      token <- {
+        val responseOrError = res.body.left
+          .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
+          .map(_.token)
+        me.fromEither(responseOrError)
+      }
+    } yield token
   }
 
   private[client] def getAuthenticationToken: F[String] =
     memoize[F, F[String]](Some(duration)) {
       val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
       for {
-        authDetails <- getAuthDetails
-        res <- basicRequest
-          .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-          .post(apiUri)
-          .response(asJson[Token])
-          .send(backend)
-        token <- {
-          val responseOrError = res.body.left
-            .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
-            .map(_.token)
-          me.fromEither(responseOrError)
-        }
+        authDetails <- daSecretsManagerClient.getSecretValue[AuthDetails]()
+        token <- getToken(authDetails, apiUri)
       } yield token
     }.flatten
 }
 object Client {
   case class Token(token: String)
 
-  case class AuthDetails(userName: String, password: String)
+  case class AuthDetails(username: String, password: String)
 
   case class BitStreamInfo(name: String, fileSize: Long, url: String)
 
@@ -109,6 +106,6 @@ object Client {
 
   def apply[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      async: Async[F]
   ) = new Client[F, S](clientConfig)
 }

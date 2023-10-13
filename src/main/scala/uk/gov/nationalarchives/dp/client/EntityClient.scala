@@ -1,7 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
 import sttp.capabilities.Streams
 import sttp.client3._
@@ -60,7 +60,7 @@ object EntityClient {
 
   def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
