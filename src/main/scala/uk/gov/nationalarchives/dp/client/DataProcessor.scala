@@ -140,6 +140,12 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         }
     )
   }
+
+  def childNodeFromWorkflowInstance(workflowInstanceResponse: Elem, nodeName: String): F[String] =
+    me.fromOption(
+      (workflowInstanceResponse \ nodeName).headOption.map(_.text),
+      PreservicaClientException(s"'$nodeName' does not exist on the workflowInstance response.")
+    )
 }
 
 object DataProcessor {

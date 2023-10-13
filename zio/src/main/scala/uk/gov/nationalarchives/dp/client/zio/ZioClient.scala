@@ -6,7 +6,8 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient._
-import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper}
+import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
+import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper, WorkflowClient}
 import zio.Task
 import zio.interop.catz._
 
@@ -45,5 +46,15 @@ object ZioClient {
   ): Task[ContentClient[Task]] =
     HttpClientZioBackend().map { backend =>
       createContentClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
+    }
+
+  def workflowClient(
+      url: String,
+      secretName: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+  ): Task[WorkflowClient[Task]] =
+    HttpClientZioBackend().map { backend =>
+      createWorkflowClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 }
