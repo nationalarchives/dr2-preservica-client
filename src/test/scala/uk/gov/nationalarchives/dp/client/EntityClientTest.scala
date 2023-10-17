@@ -4,6 +4,8 @@ import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.http.RequestMethod
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks.forAll
@@ -11,15 +13,15 @@ import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, fromType}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,
-  Open,
-  UpdateEntityRequest,
-  StructuralObject,
+  ContentObject,
   InformationObject,
-  ContentObject
+  Open,
+  StructuralObject,
+  UpdateEntityRequest
 }
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -27,7 +29,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
-import scala.xml.PrettyPrinter
+import scala.xml.{PrettyPrinter, XML}
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
     cme: MonadError[F, Throwable]
@@ -1295,6 +1297,161 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       valueFromF(client.getEntity(id, InformationObject))
     }
     ex.getMessage should be(s"Status code 404 calling $host$getUrl with method GET ")
+  }
+
+  "updateIdentifiers" should "not send a request if no identifiers are passed" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity()
+    valueFromF(client.updateIdentifiers(entity, Nil))
+    preservicaServer.getAllServeEvents.size() should equal(0)
+  }
+
+  "updateIdentifiers" should "send a request to Preservica for each identifier" in {
+    val response = <IdentifierResponse></IdentifierResponse>
+    val entity: Entity = createStructuralEntity()
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val identifiers = List(
+      IdentifierResponse("1", "Name1", "Value1"),
+      IdentifierResponse("2", "Name2", "Value2")
+    )
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    identifiers.foreach { identifier =>
+      preservicaServer.stubFor(
+        put(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers/${identifier.id}"))
+          .willReturn(ok(response.toString))
+      )
+    }
+    valueFromF(client.updateIdentifiers(entity, identifiers))
+
+    val putEvents = preservicaServer.getAllServeEvents.asScala
+      .filter { e =>
+        e.getRequest.getMethod == RequestMethod.PUT && e.getRequest.getUrl.startsWith(
+          s"/api/entity/structural-objects/${entity.ref}/identifiers/"
+        )
+
+      }
+    putEvents.size should equal(2)
+
+    def checkEvent(serveEvent: ServeEvent, id: String) = {
+      val xml = XML.loadString(serveEvent.getRequest.getBodyAsString)
+
+      (xml \ "Type").text should equal(s"Name$id")
+      (xml \ "Value").text should equal(s"Value$id")
+      serveEvent.getRequest.getUrl.endsWith(s"/$id") should be(true)
+    }
+    checkEvent(putEvents.head, "2")
+    checkEvent(putEvents.last, "1")
+  }
+
+  "updateIdentifiers" should "return an error if the entity path is missing" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity().copy(path = None)
+    val identifiers = List(IdentifierResponse("1", "Name1", "Value1"))
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.updateIdentifiers(entity, identifiers))
+    }
+    ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
+  }
+
+  "updateIdentifiers" should "return an error if the update request returns an error" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity()
+    val identifiers = List(IdentifierResponse("1", "Name1", "Value1"))
+    val url = s"/api/entity/structural-objects/${entity.ref}/identifiers/1"
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      put(urlEqualTo(url))
+        .willReturn(serverError())
+    )
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.updateIdentifiers(entity, identifiers))
+    }
+    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method PUT ")
+  }
+
+  "getIdentifiersForEntity" should "return an empty list if there are no identifiers" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity()
+    val response = <IdentifiersResponse></IdentifiersResponse>
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers"))
+        .willReturn(ok(response.toString))
+    )
+    val identifiers = valueFromF(client.getIdentifiersForEntity(entity))
+    identifiers.size should equal(0)
+  }
+
+  "getIdentifiersForEntity" should "return the identifiers for an entity" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity()
+    val response =
+      <IdentifiersResponse>
+      <Identifiers>
+        <Identifier>
+          <xip:ApiId>1</xip:ApiId>
+          <xip:Type>Test Type 1</xip:Type>
+          <xip:Value>Test Value 1</xip:Value>
+          <xip:Entity>{entity.ref.toString}</xip:Entity>
+        </Identifier>
+        <Identifier>
+          <xip:ApiId>2</xip:ApiId>
+          <xip:Type>Test Type 2</xip:Type>
+          <xip:Value>Test Value 2</xip:Value>
+          <xip:Entity>{entity.ref.toString}</xip:Entity>
+        </Identifier>
+      </Identifiers>
+    </IdentifiersResponse>
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers"))
+        .willReturn(ok(response.toString))
+    )
+    val identifiers = valueFromF(client.getIdentifiersForEntity(entity)).sortBy(_.id)
+    identifiers.size should equal(2)
+
+    def checkIdentifier(identifier: IdentifierResponse, id: String) = {
+      identifier.identifierName should equal(s"Test Type $id")
+      identifier.value should equal(s"Test Value $id")
+      identifier.id should equal(id)
+    }
+    checkIdentifier(identifiers.head, "1")
+    checkIdentifier(identifiers.last, "2")
+  }
+
+  private def createStructuralEntity(): Entity = {
+    Entities.Entity(
+      StructuralObject.some,
+      UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+      None,
+      None,
+      deleted = false,
+      StructuralObject.entityPath.some
+    )
+  }
+
+  "getIdentifiersForEntity" should "return an error if the entity path is missing" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity().copy(path = None)
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.getIdentifiersForEntity(entity))
+    }
+    ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
+  }
+
+  "getIdentifiersForEntity" should "return an error if the get request returns an error" in {
+    val client = testClient(s"http://localhost:$preservicaPort")
+    val entity = createStructuralEntity()
+    val url = s"/api/entity/structural-objects/${entity.ref}/identifiers"
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(url))
+        .willReturn(serverError())
+    )
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.getIdentifiersForEntity(entity))
+    }
+    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =

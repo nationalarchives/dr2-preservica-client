@@ -8,7 +8,7 @@ import sttp.client3._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityType, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
@@ -25,9 +25,13 @@ trait EntityClient[F[_], S] {
 
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
+  def getIdentifiersForEntity(entity: Entity): F[Seq[IdentifierResponse]]
+
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
+
+  def updateIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
@@ -108,6 +112,39 @@ object EntityClient {
         entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
       } yield entity
+    }
+
+    override def getIdentifiersForEntity(entity: Entity): F[Seq[IdentifierResponse]] = {
+      for {
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers"
+        token <- getAuthenticationToken
+        identifiers <- entityIdentifiers(url.toString.some, token, Nil)
+      } yield identifiers
+    }
+
+    private def entityIdentifiers(
+        url: Option[String],
+        token: String,
+        currentCollectionOfIdentifiers: Seq[IdentifierResponse]
+    ): F[Seq[IdentifierResponse]] = {
+      if (url.isEmpty) {
+        me.pure(currentCollectionOfIdentifiers)
+      } else {
+        for {
+          identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
+          identifiersBatch <- dataProcessor.getIdentifiers(identifiersResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(identifiersResponseXml)
+          allIdentifiers <- entityIdentifiers(
+            nextPageUrl,
+            token,
+            currentCollectionOfIdentifiers ++ identifiersBatch
+          )
+        } yield allIdentifiers
+      }
     }
 
     private def validateEntityUpdateInputs(
@@ -334,6 +371,26 @@ object EntityClient {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
         }
       } yield body
+    }
+
+    override def updateIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]] = {
+      identifiers.map { identifier =>
+        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.9">
+          <Type>{identifier.identifierName}</Type>
+          <Value>{identifier.value}</Value>
+        </Identifier>
+        val identifierAsXml = new PrettyPrinter(80, 2).format(xml)
+        val requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml""".some
+        for {
+          path <- me.fromOption(
+            entity.path,
+            PreservicaClientException(missingPathExceptionMessage(entity.ref))
+          )
+          token <- getAuthenticationToken
+          url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers/${identifier.id}"
+          _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
+        } yield identifier
+      }.sequence
     }
   }
 
