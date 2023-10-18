@@ -123,7 +123,8 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val requestMade = getRequestMade(preservicaServer)
 
     requestMade should be(
-      s"""<?xml version='1.0' encoding='UTF-8' standalone='yes'?><StartWorkflowRequest xmlns="http://workflow.preservica.com">
+      s"""<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+         |<StartWorkflowRequest xmlns="http://workflow.preservica.com">
          |  <WorkflowContextId>123</WorkflowContextId>
          |  <WorkflowContextName>workflowContextName</WorkflowContextName>
          |  <CorrelationId>correlationTestId</CorrelationId>
