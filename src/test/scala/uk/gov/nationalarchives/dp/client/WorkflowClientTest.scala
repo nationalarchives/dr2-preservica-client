@@ -22,7 +22,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   def createClient(url: String): F[WorkflowClient[F]]
 
-  def testClient(url: String): WorkflowClient[F] = valueFromF(createClient(url))
+  def testClient: WorkflowClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
@@ -94,7 +94,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       )
     }
 
-    val client = testClient(s"http://localhost:$preservicaPort")
+    val client = testClient
     val error = intercept[PreservicaClientException] {
       valueFromF(client.startWorkflow(startWorkflowRequest))
     }
@@ -115,7 +115,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       Some("correlationTestId")
     )
 
-    val client = testClient(s"http://localhost:$preservicaPort")
+    val client = testClient
     val startedWorkflowIdResponse: F[Int] = client.startWorkflow(startWorkflowRequest)
 
     val _ = valueFromF(startedWorkflowIdResponse)
@@ -146,7 +146,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
           preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
           preservicaServer.stubFor(post(urlEqualTo(s"/api/workflow/instances")).willReturn(ok(startWorkflowResponse)))
 
-          val client = testClient(s"http://localhost:$preservicaPort")
+          val client = testClient
           val startedWorkflowIdResponse: F[Int] = client.startWorkflow(startWorkflowRequest)
 
           val _ = valueFromF(startedWorkflowIdResponse)
@@ -169,7 +169,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       Some("testCorrelationId")
     )
 
-    val client = testClient(s"http://localhost:$preservicaPort")
+    val client = testClient
     val startedWorkflowIdResponse: F[Int] = client.startWorkflow(startWorkflowRequest)
 
     val id = valueFromF(startedWorkflowIdResponse)
@@ -188,7 +188,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       Some("correlationTestId")
     )
 
-    val client = testClient(s"http://localhost:$preservicaPort")
+    val client = testClient
 
     val error = intercept[PreservicaClientException] {
       valueFromF(client.startWorkflow(startWorkflowRequest))
