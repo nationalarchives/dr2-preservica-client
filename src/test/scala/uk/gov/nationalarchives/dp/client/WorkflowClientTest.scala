@@ -106,7 +106,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   "startWorkflow" should s"make a correct full request to start a workflow" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/workflow/instances")).willReturn(ok(startWorkflowResponse)))
+    preservicaServer.stubFor(post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(ok(startWorkflowResponse)))
 
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
@@ -123,7 +123,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val requestMade = getRequestMade(preservicaServer)
 
     requestMade should be(
-      s"""<?xml version='1.0' encoding='UTF-8'? standalone='yes'?><StartWorkflowRequest xmlns="http://workflow.preservica.com">
+      s"""<?xml version='1.0' encoding='UTF-8' standalone='yes'?><StartWorkflowRequest xmlns="http://workflow.preservica.com">
          |  <WorkflowContextId>123</WorkflowContextId>
          |  <WorkflowContextName>workflowContextName</WorkflowContextName>
          |  <CorrelationId>correlationTestId</CorrelationId>
@@ -144,7 +144,9 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       "startWorkflow" should s"make a request without the '$nodeMissingFromRequest' node but with these nodes: " +
         s"${nodesThatShouldBeInRequest.mkString(", ")} if the corresponding property was not passed in" in {
           preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-          preservicaServer.stubFor(post(urlEqualTo(s"/api/workflow/instances")).willReturn(ok(startWorkflowResponse)))
+          preservicaServer.stubFor(
+            post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(ok(startWorkflowResponse))
+          )
 
           val client = testClient
           val startedWorkflowIdResponse: F[Int] = client.startWorkflow(startWorkflowRequest)
@@ -160,7 +162,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   "startWorkflow" should s"return the 'Id' of the Workflow if the request was successful" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/workflow/instances")).willReturn(ok(startWorkflowResponse)))
+    preservicaServer.stubFor(post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(ok(startWorkflowResponse)))
 
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
@@ -179,7 +181,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   "startWorkflow" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/workflow/instances")).willReturn(badRequest))
+    preservicaServer.stubFor(post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(badRequest))
 
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
@@ -195,7 +197,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     }
 
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/workflow/instances with method POST "
+      s"Status code 400 calling http://localhost:$preservicaPort/sdb/rest/workflow/instances with method POST "
     )
   }
 
