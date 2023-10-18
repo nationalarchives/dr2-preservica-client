@@ -506,4 +506,41 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
     error.getMessage should equal(expectedMessage)
   }
+
+  "getIdentifiers" should "return an empty list if there are no identifiers" in {
+    val input = <IdentifiersResponse></IdentifiersResponse>
+    val identifiers = valueFromF(new DataProcessor[F]().getIdentifiers(input))
+    identifiers.size should equal(0)
+  }
+
+  "getIdentifiers" should "return the identifiers" in {
+    val input = <IdentifiersResponse>
+      <Identifiers>
+        <Identifier>
+          <ApiId>1</ApiId>
+          <Type>TestType1</Type>
+          <Value>TestValue1</Value>
+        </Identifier>
+        <Identifier>
+          <ApiId>2</ApiId>
+          <Type>TestType2</Type>
+          <Value>TestValue2</Value>
+        </Identifier>
+      </Identifiers>
+    </IdentifiersResponse>
+    val identifiers = valueFromF(new DataProcessor[F]().getIdentifiers(input)).sortBy(_.id)
+
+    identifiers.size should equal(2)
+    val firstIdentifier = identifiers.head
+    val secondIdentifier = identifiers.last
+
+    firstIdentifier.id should equal("1")
+    firstIdentifier.identifierName should equal("TestType1")
+    firstIdentifier.value should equal("TestValue1")
+
+    secondIdentifier.id should equal("2")
+    secondIdentifier.identifierName should equal("TestType2")
+    secondIdentifier.value should equal("TestValue2")
+  }
+
 }

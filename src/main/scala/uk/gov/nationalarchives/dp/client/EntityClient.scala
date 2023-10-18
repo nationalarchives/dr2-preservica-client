@@ -8,7 +8,7 @@ import sttp.client3._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityType, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
@@ -25,9 +25,13 @@ trait EntityClient[F[_], S] {
 
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
+  def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
+
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
+
+  def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
@@ -101,6 +105,17 @@ object EntityClient {
       }
     }
 
+    private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
+      val identifierAsXml: String = {
+        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+          <Type>{identifierName}</Type>
+          <Value>{identifierValue}</Value>
+        </Identifier>
+        new PrettyPrinter(80, 2).format(xml)
+      }
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
+    }
+
     override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
       val url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef"
       for {
@@ -108,6 +123,39 @@ object EntityClient {
         entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
       } yield entity
+    }
+
+    override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
+      for {
+        path <- me.fromOption(
+          entity.path,
+          PreservicaClientException(missingPathExceptionMessage(entity.ref))
+        )
+        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers"
+        token <- getAuthenticationToken
+        identifiers <- entityIdentifiers(url.toString.some, token, Nil)
+      } yield identifiers
+    }
+
+    private def entityIdentifiers(
+        url: Option[String],
+        token: String,
+        currentCollectionOfIdentifiers: Seq[IdentifierResponse]
+    ): F[Seq[IdentifierResponse]] = {
+      if (url.isEmpty) {
+        me.pure(currentCollectionOfIdentifiers)
+      } else {
+        for {
+          identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
+          identifiersBatch <- dataProcessor.getIdentifiers(identifiersResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(identifiersResponseXml)
+          allIdentifiers <- entityIdentifiers(
+            nextPageUrl,
+            token,
+            currentCollectionOfIdentifiers ++ identifiersBatch
+          )
+        } yield allIdentifiers
+      }
     }
 
     private def validateEntityUpdateInputs(
@@ -299,21 +347,11 @@ object EntityClient {
     ): F[String] =
       for {
         token <- getAuthenticationToken
-
-        identifierAsXml: String = {
-          val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
-            <Type>{identifier.identifierName}</Type>
-            <Value>{identifier.value}</Value>
-          </Identifier>
-          new PrettyPrinter(80, 2).format(xml)
-        }
-        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
-
         _ <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
           token,
           Method.POST,
-          Some(requestBody)
+          Some(requestBodyForIdentifier(identifier.identifierName, identifier.value))
         )
         response = s"The Identifier was added"
       } yield response
@@ -334,6 +372,24 @@ object EntityClient {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
         }
       } yield body
+    }
+
+    override def updateEntityIdentifiers(
+        entity: Entity,
+        identifiers: Seq[IdentifierResponse]
+    ): F[Seq[IdentifierResponse]] = {
+      identifiers.map { identifier =>
+        val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
+        for {
+          path <- me.fromOption(
+            entity.path,
+            PreservicaClientException(missingPathExceptionMessage(entity.ref))
+          )
+          token <- getAuthenticationToken
+          url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers/${identifier.id}"
+          _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
+        } yield identifier
+      }.sequence
     }
   }
 

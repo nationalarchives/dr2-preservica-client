@@ -128,6 +128,18 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       fromType[F](entityType, ref, title, description, deleted)
     }.sequence
 
+  def getIdentifiers(elem: Elem): F[Seq[IdentifierResponse]] = {
+    me.pure {
+      (elem \ "Identifiers" \ "Identifier")
+        .map { i =>
+          val id = (i \ "ApiId").text
+          val identifierName = (i \ "Type").text
+          val identifierValue = (i \ "Value").text
+          IdentifierResponse(id, identifierName, identifierValue)
+        }
+    }
+  }
+
   def getEventActions(elem: Elem): F[Seq[EventAction]] = {
     me.pure(
       (elem \ "EventActions" \ "EventAction")
