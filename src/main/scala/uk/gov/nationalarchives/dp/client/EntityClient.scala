@@ -105,6 +105,17 @@ object EntityClient {
       }
     }
 
+    private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
+      val identifierAsXml: String = {
+        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+          <Type>{identifierName}</Type>
+          <Value>{identifierValue}</Value>
+        </Identifier>
+        new PrettyPrinter(80, 2).format(xml)
+      }
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
+    }
+
     override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
       val url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef"
       for {
@@ -336,21 +347,11 @@ object EntityClient {
     ): F[String] =
       for {
         token <- getAuthenticationToken
-
-        identifierAsXml: String = {
-          val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
-            <Type>{identifier.identifierName}</Type>
-            <Value>{identifier.value}</Value>
-          </Identifier>
-          new PrettyPrinter(80, 2).format(xml)
-        }
-        requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
-
         _ <- sendXMLApiRequest(
           s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
           token,
           Method.POST,
-          Some(requestBody)
+          Some(requestBodyForIdentifier(identifier.identifierName, identifier.value))
         )
         response = s"The Identifier was added"
       } yield response
@@ -378,12 +379,7 @@ object EntityClient {
         identifiers: Seq[IdentifierResponse]
     ): F[Seq[IdentifierResponse]] = {
       identifiers.map { identifier =>
-        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.9">
-          <Type>{identifier.identifierName}</Type>
-          <Value>{identifier.value}</Value>
-        </Identifier>
-        val identifierAsXml = new PrettyPrinter(80, 2).format(xml)
-        val requestBody = s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml""".some
+        val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
         for {
           path <- me.fromOption(
             entity.path,
