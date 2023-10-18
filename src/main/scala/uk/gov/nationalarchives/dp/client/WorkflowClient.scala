@@ -64,7 +64,8 @@ object WorkflowClient {
         }
         </StartWorkflowRequest>
 
-      val requestBodyString = s"<?xml version='1.0' encoding='UTF-8'?>${new PrettyPrinter(100, 2).format(requestBody)}"
+      val requestBodyString =
+        s"<?xml version='1.0' encoding='UTF-8'? standalone='yes'?>${new PrettyPrinter(100, 2).format(requestBody)}"
       for {
         _ <-
           if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
