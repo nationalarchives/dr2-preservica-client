@@ -25,13 +25,13 @@ trait EntityClient[F[_], S] {
 
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
-  def getIdentifiersForEntity(entity: Entity): F[Seq[IdentifierResponse]]
+  def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
 
-  def updateIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
+  def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
 
   def streamBitstreamContent[T](
       stream: Streams[S]
@@ -114,7 +114,7 @@ object EntityClient {
       } yield entity
     }
 
-    override def getIdentifiersForEntity(entity: Entity): F[Seq[IdentifierResponse]] = {
+    override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
       for {
         path <- me.fromOption(
           entity.path,
@@ -373,7 +373,10 @@ object EntityClient {
       } yield body
     }
 
-    override def updateIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]] = {
+    override def updateEntityIdentifiers(
+        entity: Entity,
+        identifiers: Seq[IdentifierResponse]
+    ): F[Seq[IdentifierResponse]] = {
       identifiers.map { identifier =>
         val xml = <Identifier xmlns="http://preservica.com/XIP/v6.9">
           <Type>{identifier.identifierName}</Type>
