@@ -39,6 +39,5 @@ object Entities {
     }
   }
 
-  case class Identifier(identifierName: String, value: String)
   case class IdentifierResponse(id: String, identifierName: String, value: String)
 }
