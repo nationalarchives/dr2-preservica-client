@@ -13,7 +13,8 @@ import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, IdentifierResponse, fromType}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
+import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,

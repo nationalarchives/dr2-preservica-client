@@ -8,7 +8,8 @@ import sttp.client3._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, Identifier, IdentifierResponse}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
+import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityType, UpdateEntityRequest}
 
 import java.time.ZonedDateTime
