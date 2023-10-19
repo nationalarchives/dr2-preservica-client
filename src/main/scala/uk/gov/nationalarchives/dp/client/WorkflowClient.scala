@@ -26,7 +26,7 @@ object WorkflowClient {
     import client._
 
     override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
-      val startWorkflowUrl = uri"$apiBaseUrl/api/workflow/instances"
+      val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
 
       val workflowContextIdNode = startWorkflowRequest.workflowContextId
         .map { workflowId =>
@@ -65,7 +65,7 @@ object WorkflowClient {
         </StartWorkflowRequest>
 
       val requestBodyString =
-        s"<?xml version='1.0' encoding='UTF-8'? standalone='yes'?>${new PrettyPrinter(100, 2).format(requestBody)}"
+        s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n${new PrettyPrinter(100, 2).format(requestBody)}"
       for {
         _ <-
           if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
