@@ -55,8 +55,9 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     val searchMapping: MappingBuilder = get(urlPathMatching("/api/content/search"))
       .willReturn(okJson(searchResponse))
     preservicaServer.stubFor(searchMapping)
+    val queryString = """{"q":"","fields":[{"name":"xip.title","values":["test-title"]}]}"""
 
-    valueFromF(client.search(SearchQuery("test", SearchField("test1", List("value1")) :: Nil)))
+    valueFromF(client.searchEntities(SearchQuery(queryString, SearchField("test1", List("value1")) :: Nil)))
 
     val events =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(searchMapping.build())).getServeEvents.asScala
@@ -65,7 +66,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     implicit val searchQueryReader: default.Reader[SearchQuery] = macroR[SearchQuery]
     val query = read[SearchQuery](searchQParam)
     val searchField = query.fields.head
-    query.q should equal("test")
+    query.q should equal(queryString)
     searchField.name should equal("test1")
     searchField.values.head should equal("value1")
   }
@@ -88,7 +89,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.stubFor(firstSearchMapping)
     preservicaServer.stubFor(secondSearchMapping)
 
-    valueFromF(client.search(SearchQuery("", Nil)))
+    valueFromF(client.searchEntities(SearchQuery("", Nil)))
 
     val firstEvents =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(firstSearchMapping.build())).getServeEvents.asScala
@@ -108,7 +109,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.stubFor(searchMapping)
 
     val ex = intercept[Exception] {
-      valueFromF(client.search(SearchQuery("", Nil)))
+      valueFromF(client.searchEntities(SearchQuery("", Nil)))
     }
 
     ex.getMessage should equal("statusCode: 500, response: ")

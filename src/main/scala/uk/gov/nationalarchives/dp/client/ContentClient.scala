@@ -14,7 +14,7 @@ import upickle.default._
 import java.util.UUID
 
 trait ContentClient[F[_]] {
-  def search(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]]
+  def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]]
 }
 object ContentClient {
   case class SearchField(name: String, values: List[String])
@@ -73,12 +73,12 @@ object ContentClient {
         "q" -> queryString,
         "start" -> start.toString,
         "max" -> max.toString,
-        "metadata" -> "xip.title"
+        "metadata" -> searchQuery.fields.map(_.name).mkString(",")
       )
       uri"$apiBaseUrl/api/content/search?$queryParams"
     }
 
-    override def search(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]] = {
+    override def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]] = {
       for {
         token <- getAuthenticationToken
         res <- search(0, token, searchQuery, Nil)
