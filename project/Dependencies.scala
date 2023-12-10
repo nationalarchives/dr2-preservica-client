@@ -13,7 +13,7 @@ object Dependencies {
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
   lazy val sttpUpickle = "com.softwaremill.sttp.client3" %% "upickle" % sttpVersion
   lazy val sttpZio = "com.softwaremill.sttp.client3" %% "zio" % sttpVersion
-  lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.21.40"
+  lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.21.42"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.17.30"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "2.35.1"
   lazy val zioInteropCats = "dev.zio" %% "zio-interop-cats" % "23.1.0.0"
