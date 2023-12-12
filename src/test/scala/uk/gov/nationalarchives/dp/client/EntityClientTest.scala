@@ -30,7 +30,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
-import scala.xml.{PrettyPrinter, XML}
+import scala.xml.{PrettyPrinter, Utility, XML}
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
     cme: MonadError[F, Throwable]
@@ -79,8 +79,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
     ("title", "description"),
-    ("page1FileCorrection.txt", Some("A new description")),
-    ("page1FileCorrection.txt", None)
+    ("page1File&Correction.txt", Some("A new description")),
+    ("page1File&Correction.txt", None)
   )
 
   List((Some(ref), "with"), (None, "without")).foreach { case (reference, withOrWithout) =>
@@ -107,7 +107,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       val addEntityRequest = AddEntityRequest(
         reference,
-        "page1FileCorrection.txt",
+        "page1File&Correction.txt",
         Some("A new description"),
         StructuralObject,
         Open,
@@ -125,8 +125,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
-              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>"}
-              <Title>page1FileCorrection.txt</Title>
+              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
+              <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
@@ -158,7 +158,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       None,
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -176,8 +176,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <XIP xmlns="http://preservica.com/XIP/v6.5">
             <InformationObject xmlns="http://preservica.com/XIP/v6.5">
-              ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>"}
-              <Title>page1FileCorrection.txt</Title>
+              ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>" else ""}
+              <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
@@ -189,7 +189,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addEntity" should "return an error if a content-object entity path was passed in" in {
     val addEntityRequest = AddEntityRequest(
       None,
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       ContentObject,
       Open,
@@ -210,7 +210,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -251,7 +251,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val addEntityRequest = AddEntityRequest(
       Some(ref),
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -272,7 +272,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = AddEntityRequest(
       Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -337,9 +337,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
-              <Title>${updateEntityRequest.title}</Title>
+              <Title>${Utility.escape(updateEntityRequest.title)}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
-              s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"}
+              s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
+            else ""}
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
@@ -352,7 +353,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
       Open,
@@ -393,7 +394,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       ref,
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
       Open,
@@ -416,7 +417,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val updateEntityRequest = UpdateEntityRequest(
       UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
-      "page1FileCorrection.txt",
+      "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
       Open,

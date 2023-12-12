@@ -15,6 +15,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityT
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import scala.xml.Utility.escape
 import scala.xml.{Elem, PrettyPrinter, XML}
 
 trait EntityClient[F[_], S] {
@@ -187,11 +188,13 @@ object EntityClient {
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
             <$nodeName xmlns="http://preservica.com/XIP/v6.5">
-              ${if (ref.nonEmpty) s"<Ref>${ref.get}</Ref>"}
-              <Title>$title</Title>
-              ${if (descriptionToChange.nonEmpty) s"<Description>${descriptionToChange.get}</Description>"}
+              ${ref.map(r => s"<Ref>$r</Ref>").getOrElse("")}
+              <Title>${escape(title)}</Title>
+              ${descriptionToChange
+          .map(description => s"<Description>${escape(description)}</Description>")
+          .getOrElse("")}
               <SecurityTag>$securityTag</SecurityTag>
-              ${if (parentRef.nonEmpty) s"<Parent>${parentRef.get}</Parent>"}
+              ${parentRef.map(parent => s"<Parent>$parent</Parent>").getOrElse("")}
             </$nodeName>"""
     }
 
