@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+
+<head>
+<title>Entity Client · Preservica Client</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content='Documentation for the Scala Preservica client'/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:100normal,100italic,300normal,300italic,400normal,400italic,500normal,500italic,700normal,700italic,900normal,900italicc" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="../../lib/jquery/jquery.min.js"></script>
+<script type="text/javascript" src="../../js/page.js"></script>
+<script type="text/javascript" src="../../js/warnOldVersion.js"></script>
+<script type="text/javascript" src="../../js/groups.js"></script>
+<script type="text/javascript" src="../../js/snippets.js"></script>
+<link rel="stylesheet" type="text/css" href="../../lib/foundation/dist/foundation.min.css"/>
+<link rel="stylesheet" type="text/css" href="../../css/page.css"/>
+
+<!--
+<link rel="shortcut icon" href="../../images/favicon.ico" />
+-->
+</head>
+
+<body>
+<div class="off-canvas-wrapper">
+<div class="off-canvas-wrapper-inner" data-off-canvas-wrapper>
+
+<div class="off-canvas position-left" id="off-canvas-menu" data-off-canvas>
+<nav class="off-canvas-nav">
+<div class="nav-home">
+<a href="../../index.html" >
+<span class="home-icon">⌂</span>Preservica Client
+</a>
+<div class="version-number">
+0.0.33*
+</div>
+</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../../entity/usage/index.html" class="active page">Entity Client</a>
+  <ul>
+    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../content/usage/index.html" class="page">Content Client</a>
+  <ul>
+    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
+  <ul>
+    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
+  <ul>
+    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+</ul>
+</div>
+
+</nav>
+</div>
+
+<div class="off-canvas-content" data-off-canvas-content>
+
+<header class="site-header expanded row">
+<div class="small-12 column">
+<a href="#" class="off-canvas-toggle hide-for-medium" data-toggle="off-canvas-menu"><svg class="svg-icon svg-icon-menu" version="1.1" id="Menu" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"> <path class="svg-icon-menu-path" fill="#53CDEC" d="M16.4,9H3.6C3.048,9,3,9.447,3,10c0,0.553,0.048,1,0.6,1H16.4c0.552,0,0.6-0.447,0.6-1C17,9.447,16.952,9,16.4,9z M16.4,13
+H3.6C3.048,13,3,13.447,3,14c0,0.553,0.048,1,0.6,1H16.4c0.552,0,0.6-0.447,0.6-1C17,13.447,16.952,13,16.4,13z M3.6,7H16.4
+C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.048,7,3.6,7z"/></svg>
+</a>
+<div class="title"><a href="../../index.html">Preservica Client</a></div>
+
+<!--
+<a href="https://www.example.com" class="logo show-for-medium">logo</a>
+-->
+</div>
+</header>
+
+<div class="expanded row">
+
+<div class="medium-3 large-2 show-for-medium column">
+<nav class="site-nav">
+<div class="nav-home">
+<a href="../../index.html" >
+<span class="home-icon">⌂</span>Preservica Client
+</a>
+<div class="version-number">
+0.0.33*
+</div>
+</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../../entity/usage/index.html" class="active page">Entity Client</a>
+  <ul>
+    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../content/usage/index.html" class="page">Content Client</a>
+  <ul>
+    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
+  <ul>
+    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+  <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
+  <ul>
+    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
+    <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
+  </ul></li>
+</ul>
+</div>
+
+</nav>
+</div>
+
+<div class="small-12 medium-9 large-10 column">
+<section class="site-content">
+
+<span id="version-warning"></span>
+
+<div class="page-header row">
+<div class="medium-12 show-for-medium column">
+<div class="nav-breadcrumbs">
+<ul>
+  <li><a href="../../index.html">Preservica Client</a></li>
+  <li>Entity Client</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="page-content row">
+<div class="small-12 large-9 column" id="docs">
+<h1><a href="#entity-client" name="entity-client" class="anchor"><span class="anchor-link"></span></a>Entity Client</h1>
+<p>Methods to create, get and update entities in Preservica. The methods correspond to calls in the Preservica entity API.</p><h2><a href="#creating-a-client" name="creating-a-client" class="anchor"><span class="anchor-link"></span></a>Creating a client</h2>
+<p>The client takes mandatory arguments for the url of the Preservica service and the secret name of the secrets manager secret storing the API credentials.</p>
+<p>There is a caching layer which caches the secret value and the API token on disk. The duration of the cache defaults to 15 minutes but can be configured here.</p>
+<p>It is also possible to configure the secrets manager endpoint. This can be used for testing or if using private endpoints in a VPC.</p>
+<p>These examples use both the FS2 client and the ZIO client</p>
+<pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object EntityClients {
+  import cats.effect.IO
+  import sttp.capabilities.fs2.Fs2Streams
+  import sttp.capabilities.zio.ZioStreams
+  import uk.gov.nationalarchives.dp.client.EntityClient
+  import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
+  import uk.gov.nationalarchives.dp.client.zio.ZioClient
+  import zio.Task
+
+  import scala.concurrent.duration._
+
+  val preservicaUrl = &quot;https://test.preservica.com&quot;
+  val secretName = &quot;nameOfSecretsManagerSecretContainingAPICredentials&quot;
+
+  val fs2EntityClientWithDefaults: IO[EntityClient[IO, Fs2Streams[IO]]] = Fs2Client.entityClient(preservicaUrl, secretName)
+  val fs2EntityClientWithCustomCacheDuration: IO[EntityClient[IO, Fs2Streams[IO]]] = Fs2Client.entityClient(preservicaUrl, secretName, 30.minutes)
+  val fs2EntityClientWithCustomSecretsManagerEndpoint: IO[EntityClient[IO, Fs2Streams[IO]]] = Fs2Client.entityClient(preservicaUrl, secretName, ssmEndpointUri = &quot;https://private.ssm.endpoint&quot;)
+  val zioEntityClientWithDefaults: Task[EntityClient[Task, ZioStreams]] = ZioClient.entityClient(preservicaUrl, secretName)
+}</code></pre>
+<p>The client exposes 12 methods</p>
+<pre class="prettyprint"><code class="language-scala">  def metadataForEntity(entity: Entity): F[Seq[Elem]]
+
+  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+
+  def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
+
+  def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
+
+  def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
+
+  def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
+
+  def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
+
+  def streamBitstreamContent[T](
+      stream: Streams[S]
+  )(url: String, streamFn: stream.BinaryStream =&gt; F[T]): F[T]
+
+  def entitiesUpdatedSince(
+      dateTime: ZonedDateTime,
+      startEntry: Int,
+      maxEntries: Int = 1000
+  ): F[Seq[Entity]]
+
+  def entityEventActions(
+      entity: Entity,
+      startEntry: Int = 0,
+      maxEntries: Int = 1000
+  ): F[Seq[EventAction]]
+
+  def entitiesByIdentifier(
+      identifier: Identifier
+  ): F[Seq[Entity]]
+
+  def addIdentifierForEntity(
+      entityRef: UUID,
+      entityType: EntityType,
+      identifier: Identifier
+  ): F[String]
+</code></pre><h2><a href="#method-descriptions" name="method-descriptions" class="anchor"><span class="anchor-link"></span></a>Method descriptions</h2>
+<p>These are descriptions of the steps taken by each method. All methods get an authentication token first, either from the API or the cache.</p>
+<h3><a href="#metadataforentity" name="metadataforentity" class="anchor"><span class="anchor-link"></span></a>metadataForEntity</h3>
+<ul>
+  <li>Get the entity for the provided reference</li>
+  <li>Get the fragment urls from <code>&quot;AdditionalInformation&quot; \ &quot;Metadata&quot; \ &quot;Fragment&quot;</code></li>
+  <li>For each fragment url, get the response</li>
+  <li>Return a list of the XML elements found at <code>&quot;MetadataContainer&quot; \ &quot;Content&quot;</code> in each response</li>
+</ul>
+<h3><a href="#getbitstreaminfo" name="getbitstreaminfo" class="anchor"><span class="anchor-link"></span></a>getBitstreamInfo</h3>
+<ul>
+  <li>Get the entity for the provided reference</li>
+  <li>Get the first generation url from <code>&quot;AdditionalInformation&quot; \ &quot;Generations&quot;</code></li>
+  <li>Call the API with this url</li>
+  <li>Get all the generations from <code>&quot;Generations&quot; \ &quot;Generation&quot;</code></li>
+  <li>Send an API request for each of these urls</li>
+  <li>Get the bitstream url from <code>&quot;Bitstreams&quot; \ &quot;Bitstream&quot;</code> for each of the responses</li>
+  <li>Call the API with each of these bitstream urls.</li>
+  <li>Get the file name, file size and download url for the bitstream from each response.</li>
+</ul>
+<h3><a href="#getentity" name="getentity" class="anchor"><span class="anchor-link"></span></a>getEntity</h3>
+<ul>
+  <li>Get the entity from the provided reference</li>
+  <li>Parse the response into the <code>Entity</code> class</li>
+</ul>
+<h3><a href="#getentityidentifiers" name="getentityidentifiers" class="anchor"><span class="anchor-link"></span></a>getEntityIdentifiers</h3>
+<ul>
+  <li>Get the entity identifiers from the reference</li>
+  <li>Call the API for each url returned in the previous step.</li>
+  <li>Check for a next page. If there is one, return to step 2 until there is no next page, otherwise, return a <code>Seq[IdentifierResponse]</code></li>
+</ul>
+<h3><a href="#addentity" name="addentity" class="anchor"><span class="anchor-link"></span></a>addEntity</h3>
+<ul>
+  <li>Convert the <code>AddEntityRequest</code> case class into XML</li>
+  <li>Send the XML to the API to create an entity.</li>
+  <li>Parse the response and return the newly created reference UUID.</li>
+</ul>
+<h3><a href="#updateentity" name="updateentity" class="anchor"><span class="anchor-link"></span></a>updateEntity</h3>
+<ul>
+  <li>Convert the <code>UpdateEntityRequest</code> case class into XML</li>
+  <li>Send the XML to the API to update an entity.</li>
+  <li>Parse the response and return &ldquo;Entity was updated&rdquo;</li>
+</ul>
+<h3><a href="#updateentityidentifiers" name="updateentityidentifiers" class="anchor"><span class="anchor-link"></span></a>updateEntityIdentifiers</h3>
+<ul>
+  <li>Convert the <code>Seq[IdentifierResponse]</code> into XML</li>
+  <li>Send the XML to the API to update the entity identifiers.</li>
+  <li>Parse the response and return the original <code>identifiers</code> argument.</li>
+</ul>
+<h3><a href="#streambitstreamcontent" name="streambitstreamcontent" class="anchor"><span class="anchor-link"></span></a>streamBitstreamContent</h3>
+<ul>
+  <li>Calls the url from the first argument.</li>
+  <li>Passes a stream of the response to the function provided by the second argument.</li>
+</ul>
+<h3><a href="#entitiesupdatedsince" name="entitiesupdatedsince" class="anchor"><span class="anchor-link"></span></a>entitiesUpdatedSince</h3>
+<ul>
+  <li>Calls the <code>updated-since</code> endpoint using the parameters in the arguments.</li>
+  <li>Converts the response to <code>Seq[Entity]</code> and returns</li>
+</ul>
+<h3><a href="#entityeventactions" name="entityeventactions" class="anchor"><span class="anchor-link"></span></a>entityEventActions</h3>
+<ul>
+  <li>Calls the <code>event-actions</code> endpoint using the parameters in the arguments.</li>
+  <li>If there is a next page in the result, call the API until the last page is reached.</li>
+  <li>Converts the response to <code>Seq[EventAction]</code> and returns</li>
+</ul>
+<h3><a href="#entitiesbyidentifier" name="entitiesbyidentifier" class="anchor"><span class="anchor-link"></span></a>entitiesByIdentifier</h3>
+<ul>
+  <li>Calls the <code>by-identifier</code> endpoint using the parameters in the arguments.</li>
+  <li>The entities returned by this endpoint don&rsquo;t contain all the information we need. So for each entity returned, call the <code>/{ref}</code> endpoint</li>
+</ul>
+<h3><a href="#addidentifierforentity" name="addidentifierforentity" class="anchor"><span class="anchor-link"></span></a>addIdentifierForEntity</h3>
+<ul>
+  <li>Converts the arguments to the XML input</li>
+  <li>Calls the <code>identifiers</code> endpoint to create an identifier for an entity</li>
+</ul>
+<div class="nav-next">
+<p><strong>Next:</strong> <a href="../../entity/usage/zio.html">Use with ZIO</a></p>
+</div>
+</div>
+<div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../../entity/usage/index.html#entity-client" class="header">Entity Client</a>
+  <ul>
+    <li><a href="../../entity/usage/index.html#creating-a-client" class="header">Creating a client</a></li>
+    <li><a href="../../entity/usage/index.html#method-descriptions" class="header">Method descriptions</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
+</div>
+</div>
+
+</section>
+</div>
+
+</div>
+
+<footer class="site-footer">
+
+<section class="site-footer-nav">
+<div class="expanded row">
+<div class="small-12 large-offset-2 large-10 column">
+<div class="row site-footer-content">
+
+<div class="small-12 medium-4 large-3 text-center column">
+<div class="nav-links">
+<ul>
+<!-- <li><a href="https://www.example.com/products/">Products</a> -->
+</ul>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+</section>
+
+<section class="site-footer-base">
+<div class="expanded row">
+<div class="small-12 large-offset-2 large-10 column">
+<div class="row site-footer-content">
+
+<div class="small-12 text-center large-9 column">
+
+<!--
+<div class="copyright">
+<span class="text">&copy; 2023</span>
+<a href="https://www.example.com" class="logo">logo</a>
+</div>
+-->
+</div>
+
+</div>
+</div>
+</div>
+</section>
+</footer>
+
+</div>
+</div>
+</div>
+</body>
+
+<script type="text/javascript" src="../../lib/foundation/dist/foundation.min.js"></script>
+<script type="text/javascript">jQuery(document).foundation();</script>
+<script type="text/javascript" src="../../js/magellan.js"></script>
+
+<style type="text/css">@import "../../lib/prettify/prettify.css";</style>
+<script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
+<script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
+<script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.33-SNAPSHOT', '')});</script>
+
+
+</html>
