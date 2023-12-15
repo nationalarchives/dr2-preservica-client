@@ -18,43 +18,144 @@ import java.util.UUID
 import scala.xml.Utility.escape
 import scala.xml.{Elem, PrettyPrinter, XML}
 
+/** A client to create, get and update entities in Preservica
+  * @tparam F
+  *   Type of the effect
+  */
 trait EntityClient[F[_], S] {
+
+  /** Used to format dates.
+    */
   val dateFormatter: DateTimeFormatter
 
+  /** Returns metadata as an XML `Elem` for the provided entity
+    * @param entity
+    *   The entity to return metadata for
+    * @return
+    *   A `Seq` of `Elem` containing the metadata wrapped in the F effect
+    */
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
+  /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
+    * @param contentRef
+    *   The reference of the content object
+    * @return
+    *   A `Seq` of [[Client.BitStreamInfo]] containing the bitstream details
+    */
   def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
 
+  /** Returns an [[Entities.Entity]] for the given ref and type
+    * @param entityRef
+    *   The reference of the entity
+    * @param entityType
+    *   The [[EntityClient.EntityType]] of the entity.
+    * @return
+    *   An [[Entities.Entity]] wrapped in the F effect
+    */
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
+  /** Returns a list of [[Entities.IdentifierResponse]] for a given entity
+    * @param entity
+    *   The entity to find the identifiers for
+    * @return
+    *   A `Seq` of [[Entities.IdentifierResponse]] wrapped in the F effect
+    */
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
+  /** Adds an entity to Preservica
+    * @param addEntityRequest
+    *   An instance of [[EntityClient.AddEntityRequest]] with the details of the entity to add
+    * @return
+    *   The reference of the new entity wrapped in the F effect.
+    */
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
+  /** Updates an entity in Preservice
+    * @param updateEntityRequest
+    *   An instance of [[EntityClient.UpdateEntityRequest]] with the details of the entity to update
+    * @return
+    *   The string `"Entity was updated"`
+    */
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
 
+  /** Updates identifiers for an entity
+    * @param entity
+    *   The entity to update
+    * @param identifiers
+    *   A list of identifiers to update on the entity
+    * @return
+    *   The original identifiers argument.
+    */
   def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
 
+  /** Streams the bitstream from the provided url into `streamFn`
+    * @param stream
+    *   An instance of the sttp Stream type
+    * @param url
+    *   The url to stream the data from
+    * @param streamFn
+    *   The function to stream the data to
+    * @tparam T
+    *   The return type of the stream function, wrapped in the F effect
+    * @return
+    *   The return type of the stream function, wrapped in the F effect
+    */
   def streamBitstreamContent[T](
       stream: Streams[S]
   )(url: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
+  /** Returns any entity updated since the provided dateTime
+    * @param dateTime
+    *   The date and time to pass to the API
+    * @param startEntry
+    *   The entry to start from. Used for pagination
+    * @param maxEntries
+    *   The maximum number of entries to return. Defaults to 1000
+    * @return
+    *   A `Seq` of [[Entities.Entity]] wrapped in the F effect
+    */
   def entitiesUpdatedSince(
       dateTime: ZonedDateTime,
       startEntry: Int,
       maxEntries: Int = 1000
   ): F[Seq[Entity]]
 
+  /** Returns a list of event actions for an entity
+    * @param entity
+    *   The entity to return the actions for
+    * @param startEntry
+    *   The entry to start from. Used for pagination
+    * @param maxEntries
+    *   The maximum number of entries to return. Defaults to 1000
+    * @return
+    *   A `Seq` of [[DataProcessor.EventAction]]
+    */
   def entityEventActions(
       entity: Entity,
       startEntry: Int = 0,
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
 
+  /** Find entities for an identifier
+    * @param identifier
+    *   The identifier to use to find the entities
+    * @return
+    *   A `Seq` of [[Entities.Entity]]
+    */
   def entitiesByIdentifier(
       identifier: Identifier
   ): F[Seq[Entity]]
 
+  /** Adds an identifier for an entity
+    * @param entityRef
+    *   The reference of the entity
+    * @param entityType
+    *   The type of the entity
+    * @param identifier
+    *   The identifier to add to the entity
+    * @return
+    *   The string `"The Identifier was added"`
+    */
   def addIdentifierForEntity(
       entityRef: UUID,
       entityType: EntityType,
@@ -62,8 +163,23 @@ trait EntityClient[F[_], S] {
   ): F[String]
 }
 
+/** An object containing a method which returns an implementation of the EntityClient trait
+  */
 object EntityClient {
 
+  /** Creates a new `EntityClient` instance.
+    * @param clientConfig
+    *   Configuration parameters needed to create the client
+    * @param me
+    *   An implicit instance of cats.MonadError
+    * @param sync
+    *   An implicit instance of cats.Sync
+    * @tparam F
+    *   The type of the effect
+    * @tparam S
+    *   The type of the Stream to be used for the streaming methods.
+    * @return
+    */
   def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
@@ -397,6 +513,20 @@ object EntityClient {
     }
   }
 
+  /** Represents an entity to add to Preservica
+    * @param ref
+    *   An optional ref. If one is not provided, one will be generated
+    * @param title
+    *   The title of the new entity
+    * @param description
+    *   The optional description of the new entity
+    * @param entityType
+    *   The type of the new entity
+    * @param securityTag
+    *   The security tag of the new entity
+    * @param parentRef
+    *   An optional parent reference
+    */
   case class AddEntityRequest(
       ref: Option[UUID],
       title: String,
@@ -406,6 +536,20 @@ object EntityClient {
       parentRef: Option[UUID]
   )
 
+  /** Represents an entity to update in Preservica
+    * @param ref
+    *   The ref of the entity to be updated
+    * @param title
+    *   The title of the updated entity
+    * @param descriptionToChange
+    *   The optional description of the updated entity
+    * @param entityType
+    *   The type of the updated entity
+    * @param securityTag
+    *   The security tag of the updated entity
+    * @param parentRef
+    *   An optional parent reference
+    */
   case class UpdateEntityRequest(
       ref: UUID,
       title: String,
@@ -415,11 +559,23 @@ object EntityClient {
       parentRef: Option[UUID]
   )
 
+  /** Represents a Preservica security tag
+    */
   sealed trait SecurityTag {
     override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
 
   }
+
+  /** An object providing a method to return a SecurityTag instance from a string
+    */
   object SecurityTag {
+
+    /** Returns a security tag from a string
+      * @param securityTagString
+      *   The security tag as a string. Either 'open' or 'closed'
+      * @return
+      *   The SecurityTag instance
+      */
     def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
       case "open"   => Option(Open)
       case "closed" => Option(Closed)
@@ -427,26 +583,49 @@ object EntityClient {
     }
   }
 
+  /** Represents an Open security tag
+    */
   case object Open extends SecurityTag
 
+  /** Represents a closed security tag
+    */
   case object Closed extends SecurityTag
 
+  /** Represents an entity type
+    */
   sealed trait EntityType {
+
+    /** The path to be used in the url information-objects, structural-objects or content-objects
+      */
     val entityPath: String
+
+    /** Either IO, SO or CO
+      */
     val entityTypeShort: String
+
+    /** A string representing the implementing classes name
+      * @return
+      *   The class name
+      */
     override def toString: String = getClass.getSimpleName.dropRight(1)
   }
 
+  /** A structural object
+    */
   case object StructuralObject extends EntityType {
     override val entityPath = "structural-objects"
     override val entityTypeShort: String = "SO"
   }
 
+  /** An information object
+    */
   case object InformationObject extends EntityType {
     override val entityPath = "information-objects"
     override val entityTypeShort: String = "IO"
   }
 
+  /** A content object
+    */
   case object ContentObject extends EntityType {
     override val entityPath = "content-objects"
     override val entityTypeShort: String = "CO"

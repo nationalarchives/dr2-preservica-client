@@ -19,7 +19,19 @@ import java.net.URI
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
-class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+/** A utility class containing methods common to all clients
+  * @param clientConfig
+  *   The [[ClientConfig]] instance with the config details
+  * @param me
+  *   An implicit `MonadError` instance
+  * @param sync
+  *   An implicit `Sync` instance
+  * @tparam F
+  *   The type of Monad wrapper
+  * @tparam S
+  *   The type of the sttp Stream
+  */
+private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
@@ -29,14 +41,14 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
 
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
-  implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
+  private implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
 
   implicit val cache: Cache[F, String, F[String]] = new PreservicaClientCache()
 
-  val backend: SttpBackend[F, S] = clientConfig.backend
-  val duration: FiniteDuration = clientConfig.duration
-  val apiBaseUrl: String = clientConfig.apiBaseUrl
-  val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
+  private[client] val backend: SttpBackend[F, S] = clientConfig.backend
+  private val duration: FiniteDuration = clientConfig.duration
+  private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
+  private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
   private[client] def sendXMLApiRequest(
       url: String,
@@ -92,13 +104,40 @@ class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       } yield token
     }.flatten
 }
+
+/** Case classes common to several clients
+  */
 object Client {
-  case class Token(token: String)
+  private[client] case class Token(token: String)
 
-  case class AuthDetails(userName: String, password: String)
+  private[client] case class AuthDetails(userName: String, password: String)
 
+  /** Represents bitstream information from a content object
+    * @param name
+    *   The name of the bitstream
+    * @param fileSize
+    *   The size of the bitstream
+    * @param url
+    *   The url to download the bitstream
+    */
   case class BitStreamInfo(name: String, fileSize: Long, url: String)
 
+  /** Configuration for the clients
+    * @param apiBaseUrl
+    *   The Preservica service url
+    * @param secretName
+    *   The name of the AWS secret storing the API username and password
+    * @param backend
+    *   The STTP backend used to send the API requests
+    * @param duration
+    *   The timeout of the cache. Defaults to 15 minutes
+    * @param secretsManagerEndpointUri
+    *   The endpoint for communicating with secrets manager
+    * @tparam F
+    *   The effect type for the client
+    * @tparam S
+    *   The type of the Stream for the client.
+    */
   case class ClientConfig[F[_], S](
       apiBaseUrl: String,
       secretName: String,
@@ -107,6 +146,19 @@ object Client {
       secretsManagerEndpointUri: String
   )
 
+  /** Creates a new `Client` instance.
+    * @param clientConfig
+    *   Configuration parameters needed to create the client
+    * @param me
+    *   An implicit instance of cats.MonadError
+    * @param sync
+    *   An implicit instance of cats.Sync
+    * @tparam F
+    *   The type of the effect
+    * @tparam S
+    *   The type of the Stream to be used for the streaming methods.
+    * @return
+    */
   def apply[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]

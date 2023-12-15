@@ -13,3 +13,22 @@ jobs:
       SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
       GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update docs site
+        run: |
+          sbt 'docs / makeSite'
+          git config --global user.email digitalpreservation@nationalarchives.gov.uk
+          git config --global user.name tna-digital-archiving-jenkins
+          git checkout gh-pages
+          rm -rf docs
+          mkdir docs && cp -r site-docs/target/site/* docs
+          git add docs
+          git commit -m "Update site documentation"
+          git push -u origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}

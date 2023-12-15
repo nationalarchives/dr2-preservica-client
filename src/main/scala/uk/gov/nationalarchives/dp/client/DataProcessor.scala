@@ -2,23 +2,39 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits._
-import uk.gov.nationalarchives.dp.client.DataProcessor.{ClosureResultIndexNames, EventAction}
-import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
+import uk.gov.nationalarchives.dp.client.Entities._
 import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.time.ZonedDateTime
 import java.util.UUID
 import scala.xml.{Elem, NodeSeq}
 
+/** A class to process XML responses from Preservica
+  * @param me
+  *   An implicit MonadError instance
+  * @tparam F
+  *   The effect type
+  */
 class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
-  implicit class NodeSeqUtils(ns: NodeSeq) {
+  private implicit class NodeSeqUtils(ns: NodeSeq) {
     def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
       case None        => me.raiseError(PreservicaClientException("Generation not found"))
     }
   }
 
+  /** Converts an entity response to an [[Entities.Entity]] case class
+    * @param entityRef
+    *   The reference of the entity
+    * @param entityResponse
+    *   The XML response from Preservica
+    * @param entityType
+    *   The [[EntityClient.EntityType]] of the entity.
+    * @return
+    *   An [[Entities.Entity]] wrapped in the F effect
+    */
   def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] = {
     (entityResponse \ entityType.toString).headOption
       .map { entity =>
@@ -33,41 +49,53 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity not found for id $entityRef")))
   }
 
+  /** Fetches `nodeName` -> `childNodeName` text from `entityResponse`
+    * @param entityResponse
+    *   The response from the entity
+    * @param nodeName
+    *   The node name to search
+    * @param childNodeName
+    *   The child node name to return the text from
+    * @return
+    *   The text of the child node wrapped in the F effect
+    */
   def childNodeFromEntity(entityResponse: Elem, nodeName: String, childNodeName: String): F[String] =
     me.fromOption(
       (entityResponse \ nodeName \ childNodeName.capitalize).headOption.map(_.text),
       PreservicaClientException(s"Either $nodeName or $childNodeName does not exist on entity")
     )
 
+  /** Returns `elementName` -> `ApiId` from the XML response where the `Name` field matches `fileName`
+    * @param res
+    *   The XML response from Preservica
+    * @param elementName
+    *   The name of the element
+    * @param fileName
+    *   The name of the file
+    * @return
+    *   An optional string with the `ApiId` or `None` if not found.
+    */
   def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] = {
     (res \\ elementName).find(n => (n \ "Name").text == fileName).map(n => (n \ "ApiId").text)
   }
 
-  def closureResultIndexNames(res: Elem): F[ClosureResultIndexNames] = {
-    def findByType(indexType: String) = (res \\ "term")
-      .find(node => node.attribute("indexType").map(_.text).contains(indexType))
-      .flatMap(_.attribute("indexName").map(_.text))
-    for {
-      shortName <- me.fromOption(
-        (res \\ "shortName").headOption.map(_.text),
-        PreservicaClientException("No short name found")
-      )
-      reviewDate <- me.fromOption(
-        findByType("DATE"),
-        PreservicaClientException("No review date index found for closure result")
-      )
-      documentStatus <- me.fromOption(
-        findByType("STRING_DEFAULT"),
-        PreservicaClientException("No document status index found for closure result")
-      )
-    } yield ClosureResultIndexNames(s"$shortName.$reviewDate", s"$shortName.$documentStatus")
-  }
-
+  /** Returns the metadata fragment urls from the element
+    * @param elem
+    *   The element to search
+    * @return
+    *   A `Seq` of `String` wrapped in the F effect with the fragment URLS
+    */
   def fragmentUrls(elem: Elem): F[Seq[String]] = {
     val fragments = elem \ "AdditionalInformation" \ "Metadata" \ "Fragment"
     me.pure(fragments.map(_.text))
   }
 
+  /** Returns a list of metadata content
+    * @param elems
+    *   The element which contains the content
+    * @return
+    *   A `Seq` of String representing the metadata XML or an error if none are found
+    */
   def fragments(elems: Seq[Elem]): F[Seq[String]] = {
     val metadataObjects = elems.map { elem =>
       val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
@@ -84,9 +112,21 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
   }
 
+  /** Gets the text of the first generation element
+    * @param contentEntity
+    *   The element to search
+    * @return
+    *   The text of the first generation element wrapped in the F effect
+    */
   def generationUrlFromEntity(contentEntity: Elem): F[String] =
     (contentEntity \ "AdditionalInformation" \ "Generations").textOfFirstElement()
 
+  /** Returns all the text content of every `Generations` -> `Generation` element
+    * @param entity
+    *   The entity containing the generations
+    * @return
+    *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
+    */
   def allGenerationUrls(entity: Elem): F[Seq[String]] =
     (entity \ "Generations" \ "Generation").map(_.text) match {
       case Nil =>
@@ -94,12 +134,24 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       case generationUrls => me.pure(generationUrls)
     }
 
+  /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
+    * @param entity
+    *   The entity containing the bitstreams
+    * @return
+    *   A `Seq` of `String` with the text content of every `Bitstreams` -> `Bitstream` element
+    */
   def allBitstreamUrls(entity: Seq[Elem]): F[Seq[String]] = {
     me.pure(
       entity.flatMap(e => (e \ "Bitstreams" \ "Bitstream").map(_.text))
     )
   }
 
+  /** Returns a list of [[Client.BitStreamInfo]] objects
+    * @param entity
+    *   The entity containing the bitstreams
+    * @return
+    *   A `Seq` of `BitStreamInfo` objects parsed from the XML
+    */
   def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
     me.pure {
       entity.map(e => {
@@ -111,9 +163,21 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
   }
 
+  /** Returns the next page
+    * @param elem
+    *   The element containing the pagination element
+    * @return
+    *   The optional next page or None if there are none
+    */
   def nextPage(elem: Elem): F[Option[String]] =
     me.pure((elem \ "Paging" \ "Next").headOption.map(_.text))
 
+  /** Parses a list of [[Entities.Entity]] parsed from the XML
+    * @param elem
+    *   The element to parse
+    * @return
+    *   A `Seq` of [[Entities.Entity]]
+    */
   def getEntities(elem: Elem): F[Seq[Entity]] =
     (elem \ "Entities" \ "Entity").map { e =>
       val entityAttributes = e.attributes
@@ -128,6 +192,12 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       fromType[F](entityType, ref, title, description, deleted)
     }.sequence
 
+  /** Returns a list of [[Entities.IdentifierResponse]] objects
+    * @param elem
+    *   The element containing the identifiers
+    * @return
+    *   A `Seq` of `IdentifierResponse` objects parsed from the XML
+    */
   def getIdentifiers(elem: Elem): F[Seq[IdentifierResponse]] = {
     me.pure {
       (elem \ "Identifiers" \ "Identifier")
@@ -140,6 +210,12 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
   }
 
+  /** Returns a list of [[DataProcessor.EventAction]] objects
+    * @param elem
+    *   The element containing the event actions
+    * @return
+    *   A `Seq` of `EventAction` objects parsed from the XML
+    */
   def getEventActions(elem: Elem): F[Seq[EventAction]] = {
     me.pure(
       (elem \ "EventActions" \ "EventAction")
@@ -153,6 +229,14 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     )
   }
 
+  /** Gets the child node from a workflow instance response
+    * @param workflowInstanceResponse
+    *   The workflow instance response
+    * @param nodeName
+    *   The name of the node to search for
+    * @return
+    *   The text of the child node provided as an argument.
+    */
   def childNodeFromWorkflowInstance(workflowInstanceResponse: Elem, nodeName: String): F[String] =
     me.fromOption(
       (workflowInstanceResponse \ nodeName).headOption.map(_.text),
@@ -160,10 +244,17 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     )
 }
 
+/** An apply method for the `DataProcessor` class and the `EventAction` case class
+  */
 object DataProcessor {
   def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
 
+  /** @param eventRef
+    *   The reference of the event
+    * @param eventType
+    *   The type of the event
+    * @param dateOfEvent
+    *   The date of the event
+    */
   case class EventAction(eventRef: UUID, eventType: String, dateOfEvent: ZonedDateTime)
-
-  case class ClosureResultIndexNames(reviewDateName: String, documentStatusName: String)
 }

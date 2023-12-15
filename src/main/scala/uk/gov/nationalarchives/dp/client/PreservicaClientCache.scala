@@ -10,7 +10,7 @@ import java.nio.file._
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
-class PreservicaClientCache[F[_]: Sync] extends AbstractCache[F, String, F[String]] {
+private[client] class PreservicaClientCache[F[_]: Sync] extends AbstractCache[F, String, F[String]] {
   val getFileAttribute: (Path, String) => AnyRef = Files.getAttribute(_, _, LinkOption.NOFOLLOW_LINKS)
   val setAttribute: (Path, String, Array[Byte]) => Path = Files.setAttribute(_, _, _)
   val delete: Path => Unit = Files.delete

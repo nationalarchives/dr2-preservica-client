@@ -3,6 +3,8 @@ import Dependencies._
 
 lazy val scala2Version = "2.13.12"
 
+ThisBuild / scalaVersion := scala2Version
+
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
   publishTo := sonatypePublishToBundle.value,
@@ -63,6 +65,7 @@ lazy val commonSettings = Seq(
     scalaTest % Test,
     wireMock % Test
   ),
+  version := version.value,
   scalacOptions += "-deprecation",
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
@@ -74,6 +77,7 @@ lazy val zioRef = LocalProject("zio")
 lazy val root: Project = project
   .in(file("."))
   .settings(commonSettings)
+  .enablePlugins(ScalaUnidocPlugin)
   .settings(
     name := "preservica-client-root"
   )
@@ -96,5 +100,25 @@ lazy val zio = project
     libraryDependencies ++= Seq(zioInteropCats, sttpZio)
   )
   .dependsOn(root % "compile->compile;test->test")
+
+lazy val docs = (project in file("site-docs"))
+  .settings(
+    name := "dr2-preservica-client",
+    description := "Documentation for the Scala Preservica client",
+    publish / skip := true
+  )
+  .enablePlugins(ParadoxSitePlugin, ScalaUnidocPlugin, SitePreviewPlugin)
+  .settings(
+    paradoxProperties += (
+      "version" -> (ThisBuild / version).value.split("-").head,
+      ),
+    paradoxTheme := Some(builtinParadoxTheme("generic")),
+    ScalaUnidoc / siteSubdirName := "api",
+    addMappingsToSiteDir(ScalaUnidoc / packageDoc / mappings, ScalaUnidoc / siteSubdirName)
+  )
+  .dependsOn(root % "compile->compile")
+  .dependsOn(fs2 % "compile->compile")
+  .dependsOn(zio % "compile->compile")
+
 
 scalacOptions ++= Seq("-Wunused:imports", "-Werror")
