@@ -8,16 +8,62 @@ import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.FileInfo._
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 
+/** A client to update schemas, transfers, index definitions and metadata templates in Preservica
+  * @tparam F
+  *   Type of the effect
+  */
 trait AdminClient[F[_]] {
+
+  /** Add or update a schema document in Preservica
+    * @param fileInfo
+    *   A `List` of `SchemaFileInfo` containing the details of the schema updates
+    * @return
+    *   Unit wrapped in the F effect
+    */
   def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo]): F[Unit]
 
+  /** Add or update a transform document in Preservica
+    * @param fileInfo
+    *   A `List` of `TransformFileInfo` containing the details of the transform updates
+    * @return
+    *   Unit wrapped in the F effect
+    */
   def addOrUpdateTransforms(fileInfo: List[TransformFileInfo]): F[Unit]
 
+  /** Add or update an index definition document in Preservica
+    * @param fileInfo
+    *   A `List` of `IndexDefinitionInfo` containing the details of the index definition updates
+    * @return
+    *   Unit wrapped in the F effect
+    */
   def addOrUpdateIndexDefinitions(fileInfo: List[IndexDefinitionInfo]): F[Unit]
 
+  /** Add or update an metadata template document in Preservica
+    * @param fileInfo
+    *   A `List` of `MetadataTemplateInfo` containing the details of the metadata template updates
+    * @return
+    *   Unit wrapped in the F effect
+    */
   def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit]
 }
+
+/** An object containing a method which returns an implementation of the AdminClient trait
+  */
 object AdminClient {
+
+  /** Creates a new `AdminClient` instance.
+    * @param clientConfig
+    *   Configuration parameters needed to create the client
+    * @param me
+    *   An implicit instance of cats.MonadError
+    * @param sync
+    *   An implicit instance of cats.Sync
+    * @tparam F
+    *   The type of the effect
+    * @tparam S
+    *   The type of the Stream to be used for the streaming methods.
+    * @return
+    */
   def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]

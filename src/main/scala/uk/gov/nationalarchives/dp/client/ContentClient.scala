@@ -13,13 +13,55 @@ import upickle.default._
 
 import java.util.UUID
 
+/** A client to search for entities in Preservica
+  * @tparam F
+  *   Type of the effect
+  */
 trait ContentClient[F[_]] {
+
+  /** @param searchQuery
+    *   The search query to use
+    * @param max
+    *   The maximum number of results to return. Defaults to 100
+    * @return
+    *   A list of `Entity` objects wrapped in the F effect
+    */
   def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]]
 }
+
+/** An object containing a method which returns an implementation of the ContentClient trait
+  */
 object ContentClient {
+
+  /** Represents a field to be returned by the search query
+    * @param name
+    *   The name of the field
+    * @param values
+    *   The values to be returned. This is not used but is needed by Preservica
+    */
   case class SearchField(name: String, values: List[String])
+
+  /** Represents a complete search request
+    * @param q
+    *   A string containing the search query
+    * @param fields
+    *   A list of [[SearchField]]
+    */
   case class SearchQuery(q: String, fields: List[SearchField])
 
+  /** Creates a new `ContentClient` instance.
+    * @param clientConfig
+    *   Configuration parameters needed to create the client
+    * @param me
+    *   An implicit instance of cats.MonadError
+    * @param sync
+    *   An implicit instance of cats.Sync
+    * @tparam F
+    *   The type of the effect
+    * @tparam S
+    *   The type of the Stream to be used for the streaming methods.
+    * @return
+    */
   def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]

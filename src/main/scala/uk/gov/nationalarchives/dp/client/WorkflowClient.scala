@@ -10,12 +10,39 @@ import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
 import scala.xml.PrettyPrinter
 
+/** A client to start a Preservica workflow
+  * @tparam F
+  *   Type of the effect
+  */
 trait WorkflowClient[F[_]] {
+
+  /** Starts a preservica workflow
+    * @param startWorkflowRequest
+    *   An instance of [[WorkflowClient.StartWorkflowRequest]] It contains details used to start the workflow
+    * @return
+    *   The id of the new workflow wrapped in the F effect.
+    */
   def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int]
 }
 
+/** An object containing a method which returns an implementation of the WorkflowClient trait
+  */
 object WorkflowClient {
 
+  /** Creates a new `WorkflowClient` instance.
+    * @param clientConfig
+    *   Configuration parameters needed to create the client
+    * @param me
+    *   An implicit instance of cats.MonadError
+    * @param sync
+    *   An implicit instance of cats.Sync
+    * @tparam F
+    *   The type of the effect
+    * @tparam S
+    *   The type of the Stream to be used for the streaming methods.
+    * @return
+    *   A new `WorkflowClient`
+    */
   def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
@@ -87,8 +114,24 @@ object WorkflowClient {
     }
   }
 
+  /** A workflow request parameter
+    * @param key
+    *   The parameter key
+    * @param value
+    *   The parameter value
+    */
   case class Parameter(key: String, value: String)
 
+  /** A workflow request
+    * @param workflowContextName
+    *   An optional workflow context name. Either this or the context id must be provided
+    * @param workflowContextId
+    *   An optional workflow context id. Either this or the context name must be provided.
+    * @param parameters
+    *   An list of parameters. This can be empty
+    * @param correlationId
+    *   An optional correlation id. This can be empty.
+    */
   case class StartWorkflowRequest(
       workflowContextName: Option[String] = None,
       workflowContextId: Option[Int] = None,

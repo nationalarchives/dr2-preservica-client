@@ -6,7 +6,28 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.util.UUID
 
+/** The `Entity` case class with helper methods.
+  */
 object Entities {
+
+  /** A Preservica entity
+    * @param entityType
+    *   The type of the entity
+    * @param ref
+    *   The id of the entity
+    * @param title
+    *   The title of the entity
+    * @param description
+    *   The description of the entity
+    * @param deleted
+    *   Whether the entity is deleted
+    * @param path
+    *   The path to use in the API call url
+    * @param securityTag
+    *   The security tag of the entity
+    * @param parent
+    *   The ref of the parent entity
+    */
   case class Entity(
       entityType: Option[EntityType],
       ref: UUID,
@@ -18,6 +39,28 @@ object Entities {
       parent: Option[UUID] = None
   )
 
+  /** Creates an entity from the IO/SO/CO type returned by Preservica
+    * @param entityType
+    *   The type of the entity
+    * @param ref
+    *   The id of the entity
+    * @param title
+    *   The title of the entity
+    * @param description
+    *   The description of the entity
+    * @param deleted
+    *   Whether the entity is deleted
+    * @param securityTag
+    *   The security tag of the entity
+    * @param parent
+    *   The ref of the parent entity
+    * @param me
+    *   An implicit instance of MonadError
+    * @tparam F
+    *   The effect type
+    * @return
+    *   An entity wrapped in the F effect
+    */
   def fromType[F[_]](
       entityType: String,
       ref: UUID,
@@ -39,5 +82,13 @@ object Entities {
     }
   }
 
+  /** Represents an identifier on an Entity
+    * @param id
+    *   The identifier id
+    * @param identifierName
+    *   The identifier name
+    * @param value
+    *   The identifier value
+    */
   case class IdentifierResponse(id: String, identifierName: String, value: String)
 }

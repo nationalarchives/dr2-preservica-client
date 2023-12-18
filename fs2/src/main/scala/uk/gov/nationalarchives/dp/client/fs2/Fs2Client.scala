@@ -12,9 +12,23 @@ import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
 import scala.concurrent.duration._
 
+/** An object containing methods to create each of the four clients. This uses cats.effect.IO and fs2.Stream
+  */
 object Fs2Client {
   private val defaultSecretsManagerEndpoint = "https://secretsmanager.eu-west-2.amazonaws.com"
 
+  /** Creates an entity client
+    * @param url
+    *   The Preservica instance url
+    * @param secretName
+    *   The of the AWS secrets manager secret containing API credentials
+    * @param duration
+    *   The length of time to cache the credentials and token
+    * @param ssmEndpointUri
+    *   The endpoint of secrets manager to use
+    * @return
+    *   An entity client
+    */
   def entityClient(
       url: String,
       secretName: String,
@@ -25,6 +39,18 @@ object Fs2Client {
       IO(createEntityClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
+  /** Creates an admin client
+    * @param url
+    *   The Preservica instance url
+    * @param secretName
+    *   The of the AWS secrets manager secret containing API credentials
+    * @param duration
+    *   The length of time to cache the credentials and token
+    * @param ssmEndpointUri
+    *   The endpoint of secrets manager to use
+    * @return
+    *   An admin client
+    */
   def adminClient(
       url: String,
       secretName: String,
@@ -35,6 +61,18 @@ object Fs2Client {
       IO(createAdminClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
+  /** Creates a content client
+    * @param url
+    *   The Preservica instance url
+    * @param secretName
+    *   The of the AWS secrets manager secret containing API credentials
+    * @param duration
+    *   The length of time to cache the credentials and token
+    * @param ssmEndpointUri
+    *   The endpoint of secrets manager to use
+    * @return
+    *   A content client
+    */
   def contentClient(
       url: String,
       secretName: String,
@@ -45,6 +83,18 @@ object Fs2Client {
       IO(createContentClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
+  /** Creates a workflow client
+    * @param url
+    *   The Preservica instance url
+    * @param secretName
+    *   The of the AWS secrets manager secret containing API credentials
+    * @param duration
+    *   The length of time to cache the credentials and token
+    * @param ssmEndpointUri
+    *   The endpoint of secrets manager to use
+    * @return
+    *   A workflow client
+    */
   def workflowClient(
       url: String,
       secretName: String,
