@@ -38,17 +38,15 @@ object ProcessMonitorClient {
     *   An implicit instance of cats.Sync
     * @tparam F
     *   The type of the effect
-    * @tparam S
-    *   The type of the Stream to be used for the streaming methods.
     * @return
     *   A new `ProcessMonitorClient`
     */
-  def createProcessMonitorClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createProcessMonitorClient[F[_]](clientConfig: ClientConfig[F, _])(implicit
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): ProcessMonitorClient[F] = new ProcessMonitorClient[F] {
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
-    private val client: Client[F, S] = Client(clientConfig)
+    private val client: Client[F, _] = Client(clientConfig)
 
     implicit val monitorsPayloadRW: ReadWriter[Monitors] = macroRW[Monitors]
 

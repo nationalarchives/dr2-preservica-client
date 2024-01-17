@@ -123,6 +123,6 @@ object ZioClient {
       ssmEndpointUri: String = defaultSecretsManagerEndpoint
   ): Task[ProcessMonitorClient[Task]] =
     HttpClientZioBackend().map { backend =>
-      createProcessMonitorClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
+      createProcessMonitorClient[Task](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 }
