@@ -81,4 +81,24 @@ object Clients {
     val zioWorkflowClientWithDefaults: Task[WorkflowClient[Task]] = ZioClient.workflowClient(preservicaUrl, secretName)
   }
   // #workflow_client
+
+  // #process_monitor_client
+  object ProcessMonitorClients {
+    import cats.effect.IO
+    import uk.gov.nationalarchives.dp.client.ProcessMonitorClient
+    import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
+    import uk.gov.nationalarchives.dp.client.zio.ZioClient
+    import zio.Task
+
+    import scala.concurrent.duration._
+
+    val preservicaUrl = "https://test.preservica.com"
+    val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
+
+    val fs2ProcessMonitorClientWithDefaults: IO[ProcessMonitorClient[IO]] = Fs2Client.processMonitorClient(preservicaUrl, secretName)
+    val fs2ProcessMonitorClientWithCustomCacheDuration: IO[ProcessMonitorClient[IO]] = Fs2Client.processMonitorClient(preservicaUrl, secretName, 30.minutes)
+    val fs2ProcessMonitorClientWithCustomSecretsManagerEndpoint: IO[ProcessMonitorClient[IO]] = Fs2Client.processMonitorClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
+    val zioProcessMonitorClientWithDefaults: Task[ProcessMonitorClient[Task]] = ZioClient.processMonitorClient(preservicaUrl, secretName)
+  }
+  // #process_monitor_client
 }

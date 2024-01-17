@@ -69,6 +69,26 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     }
   }
 
+  private[client] def sendJsonApiRequest[R](
+      url: String,
+      token: String,
+      method: Method,
+      requestBody: Option[String] = None
+  )(implicit reader: Reader[R]): F[R] = {
+    val apiUri = uri"$url"
+    val request = basicRequest
+      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
+      .method(method, apiUri)
+      .response(asJson[R])
+    val requestWithBody: RequestT[Identity, Either[ResponseException[String, Exception], R], Any] =
+      requestBody.map(request.body(_)).getOrElse(request)
+    me.flatMap(backend.send(requestWithBody)) { res =>
+      me.fromEither(
+        res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
+      )
+    }
+  }
+
   private def getAuthDetails: F[AuthDetails] = {
     val valueRequest = GetSecretValueRequest
       .builder()

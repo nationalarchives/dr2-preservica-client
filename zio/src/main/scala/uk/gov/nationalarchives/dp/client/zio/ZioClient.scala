@@ -6,8 +6,16 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient._
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.createProcessMonitorClient
 import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
-import uk.gov.nationalarchives.dp.client.{AdminClient, ContentClient, EntityClient, LoggingWrapper, WorkflowClient}
+import uk.gov.nationalarchives.dp.client.{
+  AdminClient,
+  ContentClient,
+  EntityClient,
+  LoggingWrapper,
+  ProcessMonitorClient,
+  WorkflowClient
+}
 import zio.Task
 import zio.interop.catz._
 
@@ -106,5 +114,15 @@ object ZioClient {
   ): Task[WorkflowClient[Task]] =
     HttpClientZioBackend().map { backend =>
       createWorkflowClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
+    }
+
+  def processMonitorClient(
+      url: String,
+      secretName: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+  ): Task[ProcessMonitorClient[Task]] =
+    HttpClientZioBackend().map { backend =>
+      createProcessMonitorClient[Task](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 }
