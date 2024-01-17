@@ -12,7 +12,7 @@ The process monitor client doesn't take a `Stream` type parameter as the `getMon
 
 ### getMonitors
 * Generates the monitors input query from the arguments.
-* Sends this query in order to the `monitors` endpoint of the API.
+* Sends this query in order to call the `monitors` endpoint of the API and get information on a particular monitor.
 
 @@@ index
 
