@@ -12,7 +12,7 @@ An @ref:[admin client](admin/usage/index.md) which provides methods to update sc
 
 A @ref:[workflow client](workflow/usage/index.md) which provides a method to start a workflow in Preservica.
 
-A @ref:[process monitor client](processmonitors/usage/index.md) which provides a method to get monitors in Preservica.
+A @ref:[process monitor client](processmonitor/usage/index.md) which provides a method to get monitors in Preservica.
 
 
 View the [Scaladoc](api/uk/gov/nationalarchives/dp/client/index.html)
