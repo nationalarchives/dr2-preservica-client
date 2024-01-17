@@ -121,8 +121,6 @@ object ProcessMonitorClient {
     val subcategory: List[String] = Nil
   }
 
-  case class MonitorsError(code: String, description: String, status: String, file: String)
-
   case class MonitorsResponse(success: Boolean, version: Int, value: Value)
 
   case class Value(paging: Paging, monitors: Seq[Monitors])
