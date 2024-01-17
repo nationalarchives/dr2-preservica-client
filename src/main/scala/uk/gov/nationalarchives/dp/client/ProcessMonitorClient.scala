@@ -75,13 +75,9 @@ object ProcessMonitorClient {
 
       for {
         _ <-
-          if (!relevantQueryParamsAsString("name").startsWith("opex"))
-            me.raiseError(
-              PreservicaClientException(
-                "The monitor name must start with 'opex'"
-              )
-            )
-          else me.unit
+          me.raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
+            PreservicaClientException("The monitor name must start with 'opex'")
+          )
         token <- getAuthenticationToken
         getMonitorsResponse <- sendJsonApiRequest[MonitorsResponse](
           getMonitorsUrl.toString,
