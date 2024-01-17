@@ -73,14 +73,13 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       url: String,
       token: String,
       method: Method,
-      requestBody: Option[String] = None,
-      responseSchema: ResponseAs[Either[ResponseException[String, Exception], R], Any]
-  ): F[R] = {
+      requestBody: Option[String] = None
+  )(implicit reader: Reader[R]): F[R] = {
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
       .method(method, apiUri)
-      .response(responseSchema)
+      .response(asJson[R])
     val requestWithBody: RequestT[Identity, Either[ResponseException[String, Exception], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
     me.flatMap(backend.send(requestWithBody)) { res =>

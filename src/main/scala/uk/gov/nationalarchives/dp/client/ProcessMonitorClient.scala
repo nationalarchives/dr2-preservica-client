@@ -4,7 +4,6 @@ import cats.MonadError
 import cats.effect.Sync
 import cats.implicits._
 import sttp.client3._
-import sttp.client3.upicklejson.asJson
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.{GetMonitorsRequest, Monitors}
@@ -80,8 +79,7 @@ object ProcessMonitorClient {
         getMonitorsResponse <- sendJsonApiRequest[MonitorsResponse](
           getMonitorsUrl.toString,
           token,
-          Method.GET,
-          responseSchema = asJson[MonitorsResponse]
+          Method.GET
         )
       } yield getMonitorsResponse.value.monitors
     }
