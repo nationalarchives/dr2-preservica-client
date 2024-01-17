@@ -120,7 +120,7 @@ object Client {
     * @param url
     *   The url to download the bitstream
     */
-  case class BitStreamInfo(name: String, fileSize: Long, url: String)
+  case class BitStreamInfo(name: String, fileSize: Long, url: String, checksum: String)
 
   /** Configuration for the clients
     * @param apiBaseUrl
