@@ -4,6 +4,10 @@ This is a client which will call the Preservica API and return a result.
 
 There are two packages published, an FS2 Client and a ZIO client. The client in the root package is written generically so if we want to use another Sttp backend which supports streaming, this can be added easily.
 
+## Documentation
+
+The main documentation can be [found here](https://nationalarchives.github.io/dr2-preservica-client/)
+
 ## Usage
 This example uses the ZIO client but something similar will work with the FS2 client.
 
