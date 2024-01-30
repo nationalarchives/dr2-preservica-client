@@ -16,6 +16,7 @@ import uk.gov.nationalarchives.dp.client.Client._
 import upickle.default._
 
 import java.net.URI
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
@@ -121,6 +122,8 @@ object Client {
     *   The url to download the bitstream
     */
   case class BitStreamInfo(name: String, fileSize: Long, url: String, checksum: String)
+
+  case class InformationObjectBitStreams(ioId: UUID, bitStreamInfo: Seq[BitStreamInfo])
 
   /** Configuration for the clients
     * @param apiBaseUrl

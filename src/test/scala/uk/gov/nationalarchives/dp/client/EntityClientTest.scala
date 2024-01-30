@@ -16,14 +16,7 @@ import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.EntityClient.{
-  AddEntityRequest,
-  ContentObject,
-  InformationObject,
-  Open,
-  StructuralObject,
-  UpdateEntityRequest
-}
+import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, ContentObject, InformationObject, Open, StructuralObject, UpdateEntityRequest}
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -476,9 +469,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(bitstreamUrl)).willReturn(ok(bitstreamResponse)))
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
+    val response: F[InformationObjectBitStreams] = client.getBitstreamInfo(ref, ContentObject)
 
-    val bitStreamInfo = valueFromF(response).head
+    val bitStreamInfo = valueFromF(response).bitStreamInfo.head
     bitStreamInfo.url should equal(s"http://test")
     bitStreamInfo.name should equal(fileName)
 
@@ -554,9 +547,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(bitstreamTwoUrl)).willReturn(ok(bitstreamTwoResponse)))
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
+    val response: F[InformationObjectBitStreams] = client.getBitstreamInfo(ref, ContentObject)
 
-    val bitStreamInfo = valueFromF(response)
+    val bitStreamInfo = valueFromF(response).bitStreamInfo
     bitStreamInfo.size should equal(2)
     bitStreamInfo.head.url should equal(s"http://test")
     bitStreamInfo.head.name should equal("test1.txt")
@@ -581,7 +574,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
+    val response: F[InformationObjectBitStreams] = client.getBitstreamInfo(ref,ContentObject)
 
     val expectedError = valueFromF(cme.attempt(response))
 
@@ -596,7 +589,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
 
     val client = testClient
-    val response = client.getBitstreamInfo(UUID.randomUUID())
+    val response = client.getBitstreamInfo(UUID.randomUUID(), ContentObject)
 
     val expectedError = valueFromF(cme.attempt(response))
 

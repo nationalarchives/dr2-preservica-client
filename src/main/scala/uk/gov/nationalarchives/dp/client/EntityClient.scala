@@ -37,12 +37,12 @@ trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
-    * @param contentRef
+    * @param reference
     *   The reference of the content object
     * @return
     *   A `Seq` of [[Client.BitStreamInfo]] containing the bitstream details
     */
-  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(reference: UUID, entityType: EntityType): F[InformationObjectBitStreams]
 
   /** Returns an [[Entities.Entity]] for the given ref and type
     * @param entityRef
@@ -192,6 +192,36 @@ object EntityClient {
     private val client: Client[F, S] = Client(clientConfig)
 
     import client._
+
+    private def contentReferencesForInformationObject(reference: UUID, token: String): F[Seq[UUID]] = {
+      for {
+        representations <- sendXMLApiRequest(
+          s"$apiBaseUrl/api/entity/${InformationObject.entityPath}/$reference/representations/Preservation",
+          token,
+          Method.GET
+        )
+        contentIds <- dataProcessor.contentObjectIdsFromRepresentations(representations)
+      } yield contentIds
+    }
+
+    private def bitstreamForContentObject(reference: UUID, token: String) = {
+      for {
+        contentEntity <- sendXMLApiRequest(
+          s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$reference",
+          token,
+          Method.GET
+        )
+        generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
+        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
+        allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
+        allGenerationElements <- allGenerationUrls
+          .map(url => sendXMLApiRequest(url, token, Method.GET))
+          .sequence
+        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
+        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
+      } yield allBitstreamInfo
+    }
 
     private def getEntities(
         url: String,
@@ -370,26 +400,28 @@ object EntityClient {
       } yield response
     }
 
+    def getContentRefBitStreamInfo(contentRef: UUID): F[InformationObjectBitStreams] = for {
+      token <- getAuthenticationToken
+      bitStreamInfo <- bitstreamForContentObject(contentRef, token)
+      coEntity <- getEntity(contentRef, ContentObject)
+      assetRef <- me.fromOption(coEntity.parent, PreservicaClientException(s"No parent IO found for CO $contentRef"))
+    } yield InformationObjectBitStreams(assetRef, bitStreamInfo)
+
+    def getInformationRefBitStreamInfo(informationRef: UUID): F[InformationObjectBitStreams] = for {
+      token <- getAuthenticationToken
+      contentReferences <- contentReferencesForInformationObject(informationRef, token)
+      allBitstreams <- contentReferences.map(id => bitstreamForContentObject(id, token)).sequence
+    } yield InformationObjectBitStreams(informationRef, allBitstreams.flatten)
+
     override def getBitstreamInfo(
-        contentRef: UUID
-    ): F[Seq[BitStreamInfo]] =
-      for {
-        token <- getAuthenticationToken
-        contentEntity <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$contentRef",
-          token,
-          Method.GET
-        )
-        generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
-        allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
-        allGenerationElements <- allGenerationUrls
-          .map(url => sendXMLApiRequest(url, token, Method.GET))
-          .sequence
-        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
-      } yield allBitstreamInfo
+        reference: UUID,
+        entityType: EntityType
+    ): F[InformationObjectBitStreams] =
+      entityType match {
+        case StructuralObject => me.raiseError(PreservicaClientException("Cannot get bitstreams for an SO"))
+        case InformationObject => getInformationRefBitStreamInfo(reference)
+        case ContentObject => getContentRefBitStreamInfo(reference)
+      }
 
     override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
       for {

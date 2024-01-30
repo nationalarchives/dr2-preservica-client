@@ -1,5 +1,7 @@
 package examples
 
+import uk.gov.nationalarchives.dp.client.EntityClient.ContentObject
+
 object Entity {
   // #fs2
   object PreservicaFs2 {
@@ -17,8 +19,8 @@ object Entity {
     def getAndProcessStream(): IO[Unit] = {
       for {
         client <- Fs2Client.entityClient(url, "secretName")
-        bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID())
-        _ <- bitStreamInfo.map(eachBitStream => {
+        bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID(), ContentObject)
+        _ <- bitStreamInfo.bitStreamInfo.map(eachBitStream => {
           client.streamBitstreamContent[Unit](Fs2Streams.apply)(eachBitStream.url,
             stream => processStream(eachBitStream.name, stream) //Pass a function in to handle the stream
           )
@@ -44,9 +46,9 @@ object Entity {
     def getAndProcessStream(): Task[Unit] = {
       for {
         client <- ZioClient.entityClient(url, "secretName")
-        bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID())
+        bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID(), ContentObject)
         _ <- ZIO.collectAll {
-          bitStreamInfo.map(eachBitStream => {
+          bitStreamInfo.bitStreamInfo.map(eachBitStream => {
             client.streamBitstreamContent[Unit](ZioStreams)(eachBitStream.url,
               stream => processStream(eachBitStream.name, stream) //Pass a function in to handle the stream
             )

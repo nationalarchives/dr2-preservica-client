@@ -112,6 +112,10 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
   }
 
+  def contentObjectIdsFromRepresentations(representationsEntity: Elem): F[Seq[UUID]] = me.pure {
+    (representationsEntity \ "Representation" \ "ContentObjects" \ "ContentObject").map(_.text).map(UUID.fromString)
+  }
+
   /** Gets the text of the first generation element
     * @param contentEntity
     *   The element to search
@@ -153,20 +157,22 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
   def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
-    entity.map(e => {
-      val filename = (e \\ "Bitstream" \\ "Filename").text
+    entity
+      .map(e => {
+        val filename = (e \\ "Bitstream" \\ "Filename").text
 
-      val potentialChecksum = (e \\ "Bitstream" \\ "Fixities")
-        .find(fixity => (fixity \\ "FixityAlgorithmRef").text == "SHA256")
-        .map(fixity => (fixity \\ "FixityValue").text)
+        val potentialChecksum = (e \\ "Bitstream" \\ "Fixities")
+          .find(fixity => (fixity \\ "FixityAlgorithmRef").text == "SHA256")
+          .map(fixity => (fixity \\ "FixityValue").text)
 
-      me.fromOption(potentialChecksum, PreservicaClientException(s"Checksum not found for file name $filename"))
-        .map { checksum =>
-          val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
-          val url = (e \\ "AdditionalInformation" \\ "Content").text
-          BitStreamInfo(filename, fileSize, url, checksum)
-        }
-    }).sequence
+        me.fromOption(potentialChecksum, PreservicaClientException(s"Checksum not found for file name $filename"))
+          .map { checksum =>
+            val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
+            val url = (e \\ "AdditionalInformation" \\ "Content").text
+            BitStreamInfo(filename, fileSize, url, checksum)
+          }
+      })
+      .sequence
   }
 
   /** Returns the next page
