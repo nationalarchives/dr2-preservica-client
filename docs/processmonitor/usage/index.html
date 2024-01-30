@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.43*
+0.0.44*
 </div>
 </div>
 <div class="nav-toc">
@@ -92,7 +92,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.43*
+0.0.44*
 </div>
 </div>
 <div class="nav-toc">
@@ -147,7 +147,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
 <h1><a href="#process-monitor-client" name="process-monitor-client" class="anchor"><span class="anchor-link"></span></a>Process Monitor Client</h1>
-<p>The process monitor client provides a method to get monitors in Preservica</p><h2><a href="#creating-a-client" name="creating-a-client" class="anchor"><span class="anchor-link"></span></a>Creating a client</h2>
+<p>The process monitor client provides a method to get monitors and a method to get messages in Preservica</p><h2><a href="#creating-a-client" name="creating-a-client" class="anchor"><span class="anchor-link"></span></a>Creating a client</h2>
 <p>The client takes mandatory arguments for the url of the Preservica service and the secret name of the secrets manager secret storing the API credentials.</p>
 <p>There is a caching layer which caches the secret value and the API token on disk. The duration of the cache defaults to 15 minutes but can be configured here.</p>
 <p>It is also possible to configure the secrets manager endpoint. This can be used for testing or if using private endpoints in a VPC.</p>
@@ -175,6 +175,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li>Generates the monitors input query from the arguments.</li>
   <li>Sends this query in order to call the <code>monitors</code> endpoint of the API and get information on a particular monitor.</li>
+</ul>
+<h3><a href="#getmessages" name="getmessages" class="anchor"><span class="anchor-link"></span></a>getMessages</h3>
+<ul>
+  <li>Generates the generate input query from the arguments.</li>
+  <li>Sends this query in order to call the <code>messages</code> endpoint of the API and get information on a particular message/messages.</li>
 </ul>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../../processmonitor/usage/zio.html">Use with ZIO</a></p>
@@ -257,7 +262,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.43-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.44-SNAPSHOT', '')});</script>
 
 
 </html>
