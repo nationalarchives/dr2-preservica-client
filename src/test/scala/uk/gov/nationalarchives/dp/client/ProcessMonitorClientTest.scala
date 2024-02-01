@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{Assertion, BeforeAndAfterEach}
@@ -49,6 +50,63 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
     }
   }"""
 
+  private def getMessagesResponse(nextPage: String = "") = raw"""{
+    "success": true,
+    "version": 1,
+    "value": {
+      "paging": {
+        $nextPage
+        "totalResults": 1500
+      },
+      "messages": [
+      {
+        "workflowInstanceId": 1,
+        "monitorName": "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+        "path": "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+        "date": "2023-10-23T10:52:54.000Z",
+        "status": "Info",
+        "displayMessage": "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO f66589d2-1040-407e-baf8-1bdeffbecd8b via Source ID TEST",
+        "workflowName": "Ingest OPEX (Incremental)",
+        "mappedMonitorId": "aacb79d7c91db789ce0f7c5abe02bf7a",
+        "message": "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+        "mappedId": "d6676f9cbf9697fb6df629039c3311c8",
+        "securityDescriptor": "open",
+        "entityTitle": "entity title",
+        "entityRef": "f66589d2-1040-407e-baf8-1bdeffbecd8b",
+        "sourceId": "TEST"
+      }
+      ]
+    }
+  }"""
+
+  private val getMessagesResponsePage2 = raw"""{
+    "success": true,
+    "version": 1,
+    "value": {
+      "paging": {
+      "previous": "http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
+      "totalResults": 1500
+      },
+      "messages": [
+      {
+        "mappedId": "d6676f9cbf9697fb6df629039c3311c8",
+        "mappedMonitorId": "aacb79d7c91db789ce0f7c5abe02bf7a",
+        "monitorName": "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+        "path": "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+        "status": "Info",
+        "date": "2023-10-23T10:52:59.000Z",
+        "message": "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+        "displayMessage": "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO 59fe27b2-e5ce-4b9c-b79d-d81c3647b190 via Source ID TEST",
+        "sourceId": "TEST",
+        "entityRef": "59fe27b2-e5ce-4b9c-b79d-d81c3647b190",
+        "entityTitle": "entity title2",
+        "workflowInstanceId": 1,
+        "workflowName": "Ingest OPEX (Incremental)"
+      }
+      ]
+    }
+  }"""
+
   def valueFromF[T](value: F[T]): T
 
   def createClient(url: String): F[ProcessMonitorClient[F]]
@@ -70,7 +128,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
   def checkServerCall(url: String): Assertion =
     preservicaServer.getAllServeEvents.asScala.count(_.getRequest.getUrl == url) should equal(1)
 
-  private def stubPreservicaResponse = {
+  private def stubPreservicaMonitorsResponse = {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(
@@ -81,6 +139,21 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
             "&category=Ingest"
         )
       ).willReturn(ok(getMonitorsResponse))
+    )
+  }
+
+  private def stubPreservicaMessagesResponse(start: Int = 0, messagesResponse: String = getMessagesResponse()) = {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(
+        urlEqualTo(
+          "/api/processmonitor/messages" +
+            "?monitor=1a84d902d9d993c348e06fbce21ac37f" +
+            "&status=Info" +
+            s"&start=$start" +
+            "&max=1000"
+        )
+      ).willReturn(ok(messagesResponse))
     )
   }
 
@@ -102,7 +175,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
   }
 
   "getMonitors" should s"make an empty body request" in {
-    stubPreservicaResponse
+    stubPreservicaMonitorsResponse
 
     val getMonitorsRequest = GetMonitorsRequest(
       List(Pending),
@@ -146,7 +219,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
   }
 
   "getMonitors" should s"return the monitor if the request was successful" in {
-    stubPreservicaResponse
+    stubPreservicaMonitorsResponse
 
     val getMonitorsRequest = GetMonitorsRequest(
       List(Pending),
@@ -215,6 +288,210 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
     )
   }
 
+  "getMessages" should s"make an empty body request" in {
+    stubPreservicaMessagesResponse()
+
+    val getMessagesRequest = GetMessagesRequest(
+      List("1a84d902d9d993c348e06fbce21ac37f"),
+      List(Info)
+    )
+
+    val client = testClient
+    val messagesResponse: F[Seq[Message]] = client.getMessages(getMessagesRequest)
+
+    val _ = valueFromF(messagesResponse)
+
+    val requestMade = getRequestMade(preservicaServer)
+
+    requestMade should be("")
+  }
+
+  "getMessages" should s"make an request for multiple mappedMonitorId and statuses if multiple are provided" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(
+        urlEqualTo(
+          s"/api/processmonitor/messages" +
+            "?monitor=1a84d902d9d993c348e06fbce21ac37f,7abc1bb88b7f02806bf6a1f073bf80a3" +
+            "&status=Info,Error" +
+            "&start=0" +
+            "&max=1000"
+        )
+      ).willReturn(ok(getMessagesResponse()))
+    )
+
+    val getMessagesRequest = GetMessagesRequest(
+      List("1a84d902d9d993c348e06fbce21ac37f", "7abc1bb88b7f02806bf6a1f073bf80a3"),
+      List(Info, Error)
+    )
+
+    val client = testClient
+    val messagesResponse: F[Seq[Message]] = client.getMessages(getMessagesRequest)
+
+    val _ = valueFromF(messagesResponse)
+  }
+
+  "getMessages" should s"return only one page of messages if the request was successful and the first page's response" +
+    "did not include a url to the next page" in {
+      stubPreservicaMessagesResponse()
+
+      val getMessagesRequest = GetMessagesRequest(
+        List("1a84d902d9d993c348e06fbce21ac37f"),
+        List(Info)
+      )
+
+      val client = testClient
+      val messagesResponse: F[Seq[Message]] = client.getMessages(getMessagesRequest)
+
+      val messages = valueFromF(messagesResponse)
+
+      val allRequests = getAllRequests(preservicaServer)
+
+      val requestUrls = allRequests.map(_.getRequest.getAbsoluteUrl)
+
+      allRequests.length should equal(3)
+      requestUrls should equal(
+        List(
+          s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
+          s"http://localhost:$preservicaPort/api/accesstoken/login",
+          s"http://localhost:$preservicaPort/api/accesstoken/login"
+        )
+      )
+
+      messages should equal(
+        List(
+          Message(
+            1,
+            "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+            "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+            "2023-10-23T10:52:54.000Z",
+            "Info",
+            "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO f66589d2-1040-407e-baf8-1bdeffbecd8b via Source ID TEST",
+            "Ingest OPEX (Incremental)",
+            "aacb79d7c91db789ce0f7c5abe02bf7a",
+            "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+            "d6676f9cbf9697fb6df629039c3311c8",
+            "open",
+            "entity title",
+            "f66589d2-1040-407e-baf8-1bdeffbecd8b",
+            "TEST"
+          )
+        )
+      )
+    }
+
+  "getMessages" should s"return 2 pages of messages if the request was successful and the first page's response" +
+    "includes a url to the next page" in {
+
+      stubPreservicaMessagesResponse(
+        0,
+        getMessagesResponse(
+          s""""next": "http://localhost:$preservicaPort/api/processmonitor/messages?"""
+            + """monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=1000&max=1000","""
+        )
+      )
+      stubPreservicaMessagesResponse(1000, getMessagesResponsePage2)
+
+      val getMessagesRequest = GetMessagesRequest(
+        List("1a84d902d9d993c348e06fbce21ac37f"),
+        List(Info)
+      )
+
+      val client = testClient
+      val messagesResponse: F[Seq[Message]] = client.getMessages(getMessagesRequest)
+
+      val messages = valueFromF(messagesResponse)
+
+      val allRequests = getAllRequests(preservicaServer)
+      val requestUrls = allRequests.map(_.getRequest.getAbsoluteUrl)
+
+      allRequests.length should equal(4)
+      requestUrls should equal(
+        List(
+          s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=1000&max=1000",
+          s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
+          s"http://localhost:$preservicaPort/api/accesstoken/login",
+          s"http://localhost:$preservicaPort/api/accesstoken/login"
+        )
+      )
+
+      messages should equal(
+        List(
+          Message(
+            1,
+            "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+            "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+            "2023-10-23T10:52:54.000Z",
+            "Info",
+            "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO f66589d2-1040-407e-baf8-1bdeffbecd8b via Source ID TEST",
+            "Ingest OPEX (Incremental)",
+            "aacb79d7c91db789ce0f7c5abe02bf7a",
+            "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+            "d6676f9cbf9697fb6df629039c3311c8",
+            "open",
+            "entity title",
+            "f66589d2-1040-407e-baf8-1bdeffbecd8b",
+            "TEST"
+          ),
+          Message(
+            1,
+            "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+            "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+            "2023-10-23T10:52:59.000Z",
+            "Info",
+            "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO 59fe27b2-e5ce-4b9c-b79d-d81c3647b190 via Source ID TEST",
+            "Ingest OPEX (Incremental)",
+            "aacb79d7c91db789ce0f7c5abe02bf7a",
+            "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+            "d6676f9cbf9697fb6df629039c3311c8",
+            "",
+            "entity title2",
+            "59fe27b2-e5ce-4b9c-b79d-d81c3647b190",
+            "TEST"
+          )
+        )
+      )
+    }
+
+  "getMessages" should s"return an exception if the API call does" in {
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(
+        urlEqualTo(
+          s"/api/processmonitor/messages" +
+            "?monitor=1a84d902d9d993c348e06fbce21ac37f" +
+            "&status=Info" +
+            "&start=0" +
+            "&max=1000"
+        )
+      ).willReturn(badRequest)
+    )
+
+    val getMessagesRequest = GetMessagesRequest(
+      List("1a84d902d9d993c348e06fbce21ac37f"),
+      List(Info)
+    )
+
+    val client = testClient
+
+    val error = intercept[PreservicaClientException] {
+      valueFromF(client.getMessages(getMessagesRequest))
+    }
+
+    error.getMessage should equal(
+      s"Status code 400 calling http://localhost:$preservicaPort/api/processmonitor/messages" +
+        "?monitor=1a84d902d9d993c348e06fbce21ac37f" +
+        "&status=Info" +
+        "&start=0" +
+        "&max=1000 with method GET statusCode: 400, response: "
+    )
+  }
+
+  private def getAllRequests(preservicaServer: WireMockServer): List[ServeEvent] = {
+    println(preservicaServer.getAllServeEvents)
+    preservicaServer.getServeEvents.getServeEvents.asScala.iterator.toList
+  }
+
   private def getRequestMade(preservicaServer: WireMockServer) =
-    preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
+    getAllRequests(preservicaServer).head.getRequest.getBodyAsString
 }

@@ -82,6 +82,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .response(asJson[R])
     val requestWithBody: RequestT[Identity, Either[ResponseException[String, Exception], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
+
     me.flatMap(backend.send(requestWithBody)) { res =>
       me.fromEither(
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
