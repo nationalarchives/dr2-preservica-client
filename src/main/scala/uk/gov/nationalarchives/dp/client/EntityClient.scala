@@ -10,7 +10,12 @@ import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
 import uk.gov.nationalarchives.DynamoFormatters.Identifier
-import uk.gov.nationalarchives.dp.client.EntityClient.{AddEntityRequest, EntityType, UpdateEntityRequest}
+import uk.gov.nationalarchives.dp.client.EntityClient.{
+  AddEntityRequest,
+  EntityType,
+  RepresentationType,
+  UpdateEntityRequest
+}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -61,6 +66,22 @@ trait EntityClient[F[_], S] {
     *   A `Seq` of [[Entities.IdentifierResponse]] wrapped in the F effect
     */
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
+
+  /** Returns a [[String]] for the given ref, type and representationType
+    * @param entityRef
+    *   The reference of the entity
+    * @param entityType
+    *   The [[EntityClient.EntityType]] of the entity.
+    * @param representationType
+    *   The [[EntityClient.RepresentationType]] of the entity.
+    * @return
+    *   A [[String]] wrapped in the F effect
+    */
+  def getUrlsToEntityRepresentations(
+      entityRef: UUID,
+      entityType: EntityType,
+      representationType: Option[RepresentationType]
+  ): F[Seq[String]]
 
   /** Adds an entity to Preservica
     * @param addEntityRequest
@@ -242,6 +263,21 @@ object EntityClient {
         entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
       } yield entity
     }
+
+    override def getUrlsToEntityRepresentations(
+        entityRef: UUID,
+        entityType: EntityType,
+        representationType: Option[RepresentationType]
+    ): F[Seq[String]] =
+      for {
+        token <- getAuthenticationToken
+        url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/representations"
+        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
+          representationsResponse,
+          representationType
+        )
+      } yield urlsOfRepresentations
 
     override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
       for {
@@ -513,6 +549,36 @@ object EntityClient {
     }
   }
 
+  /** Represents a Preservica security tag
+    */
+  sealed trait SecurityTag {
+    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+
+  }
+
+  /** Represents an entity type
+    */
+  sealed trait EntityType {
+
+    /** The path to be used in the url information-objects, structural-objects or content-objects
+      */
+    val entityPath: String
+
+    /** Either IO, SO or CO
+      */
+    val entityTypeShort: String
+
+    /** A string representing the implementing classes name
+      * @return
+      *   The class name
+      */
+    override def toString: String = getClass.getSimpleName.dropRight(1)
+  }
+
+  sealed trait RepresentationType {
+    override def toString: String = getClass.getSimpleName.dropRight(1)
+  }
+
   /** Represents an entity to add to Preservica
     * @param ref
     *   An optional ref. If one is not provided, one will be generated
@@ -559,13 +625,6 @@ object EntityClient {
       parentRef: Option[UUID]
   )
 
-  /** Represents a Preservica security tag
-    */
-  sealed trait SecurityTag {
-    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
-
-  }
-
   /** An object providing a method to return a SecurityTag instance from a string
     */
   object SecurityTag {
@@ -591,25 +650,6 @@ object EntityClient {
     */
   case object Closed extends SecurityTag
 
-  /** Represents an entity type
-    */
-  sealed trait EntityType {
-
-    /** The path to be used in the url information-objects, structural-objects or content-objects
-      */
-    val entityPath: String
-
-    /** Either IO, SO or CO
-      */
-    val entityTypeShort: String
-
-    /** A string representing the implementing classes name
-      * @return
-      *   The class name
-      */
-    override def toString: String = getClass.getSimpleName.dropRight(1)
-  }
-
   /** A structural object
     */
   case object StructuralObject extends EntityType {
@@ -630,4 +670,8 @@ object EntityClient {
     override val entityPath = "content-objects"
     override val entityTypeShort: String = "CO"
   }
+
+  case object Access extends RepresentationType
+
+  case object Preservation extends RepresentationType
 }

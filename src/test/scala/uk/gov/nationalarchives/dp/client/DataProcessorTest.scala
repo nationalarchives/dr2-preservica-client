@@ -4,7 +4,7 @@ import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{Open, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.{Open, Preservation, StructuralObject}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -498,6 +498,66 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     secondIdentifier.id should equal("2")
     secondIdentifier.identifierName should equal("TestType2")
     secondIdentifier.value should equal("TestValue2")
+  }
+
+  "getUrlsToEntityRepresentations" should "return an empty list if there are no representations" in {
+    val input = <RepresentationsResponse></RepresentationsResponse>
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, Some(Preservation)))
+
+    urls.size should equal(0)
+  }
+
+  "getUrlsToEntityRepresentations" should "return the url of a Preservation representation" in {
+    val input =
+      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <Representations>
+        <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
+        <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
+        <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2</Representation>
+      </Representations>
+      <Paging>
+        <TotalResults>3</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations</Self>
+      </AdditionalInformation>
+    </RepresentationsResponse>
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, Some(Preservation)))
+
+    urls.size should equal(1)
+    val preservationUrl = urls.head
+
+    preservationUrl should equal(
+      "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1"
+    )
+  }
+
+  "getUrlsToEntityRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
+    val input =
+      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <Representations>
+        <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
+        <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
+        <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2</Representation>
+      </Representations>
+      <Paging>
+        <TotalResults>3</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations</Self>
+      </AdditionalInformation>
+    </RepresentationsResponse>
+
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, None))
+
+    urls.size should equal(3)
+    urls should equal(
+      Seq(
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1",
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1",
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2"
+      )
+    )
   }
 
 }
