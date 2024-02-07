@@ -17,6 +17,8 @@ The client exposes 12 methods
 
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
+  def getUrlsToIoRepresentations(ioEntityRef: UUID, representationType: Option[RepresentationType]): F[Seq[String]]
+
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
@@ -42,6 +44,11 @@ The client exposes 12 methods
   def entitiesByIdentifier(
       identifier: Identifier
   ): F[Seq[Entity]]
+
+  def getUrlsToIoRepresentations(
+      ioEntityRef: UUID,
+      representationType: Option[RepresentationType]
+  ): F[Seq[String]]
 
   def addIdentifierForEntity(
       entityRef: UUID,
@@ -75,6 +82,14 @@ The client exposes 12 methods
 * Get the entity identifiers from the reference
 * Call the API for each url returned in the previous step.
 * Check for a next page. If there is one, return to step 2 until there is no next page, otherwise, return a `Seq[IdentifierResponse]`
+
+### getUrlsToIoRepresentations
+
+* Use the IO's ref in the endpoint's url
+* Call the API to receive a RepresentationsResponse.
+* Get all the representations from `"Representations" \ "Representation"`
+* Filter the representations on the optional `RepresentationType`
+* Retrieve url(s) from remaining representations
 
 ### addEntity
 * Convert the `AddEntityRequest` case class into XML

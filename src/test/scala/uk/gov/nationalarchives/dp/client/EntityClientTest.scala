@@ -1449,7 +1449,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
   }
 
-  "getUrlsToEntityRepresentations" should "return an empty list if there are no representations" in {
+  "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
     val client = testClient
     val entity = createEntity(InformationObject)
     val response = <IdentifiersResponse></IdentifiersResponse>
@@ -1458,11 +1458,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
-    val urls = valueFromF(client.getUrlsToEntityRepresentations(entity.ref, entity.entityType.get, Some(Preservation)))
+    val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
     urls.size should equal(0)
   }
 
-  "getUrlsToEntityRepresentations" should "return the url of a Preservation representation" in {
+  "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
     val client = testClient
     val entity = createEntity(InformationObject)
 
@@ -1491,7 +1491,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
-    val urls = valueFromF(client.getUrlsToEntityRepresentations(entity.ref, entity.entityType.get, Some(Preservation)))
+    val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
 
     urls.size should equal(1)
     urls should equal(
@@ -1501,7 +1501,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  "getUrlsToEntityRepresentations" should "return a url for each representation if 'representationType' filter passed in, was 'None'" in {
+  "getUrlsToIoRepresentations" should "return a url for each representation if 'representationType' filter passed in, was 'None'" in {
     val client = testClient
     val entity = createEntity(InformationObject)
 
@@ -1530,7 +1530,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
-    val urls = valueFromF(client.getUrlsToEntityRepresentations(entity.ref, entity.entityType.get, None))
+    val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, None))
 
     urls.size should equal(3)
     urls should equal(
@@ -1542,7 +1542,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
   }
 
-  "getUrlsToEntityRepresentations" should "return an error if the get request returns an error" in {
+  "getUrlsToIoRepresentations" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity(InformationObject)
     val url = s"/api/entity/information-objects/${entity.ref}/representations"
@@ -1552,7 +1552,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         .willReturn(serverError())
     )
     val ex = intercept[PreservicaClientException] {
-      valueFromF(client.getUrlsToEntityRepresentations(entity.ref, entity.entityType.get, None))
+      valueFromF(client.getUrlsToIoRepresentations(entity.ref, None))
     }
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
   }

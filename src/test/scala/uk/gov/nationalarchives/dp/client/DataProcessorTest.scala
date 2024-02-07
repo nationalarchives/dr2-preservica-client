@@ -500,14 +500,14 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     secondIdentifier.value should equal("TestValue2")
   }
 
-  "getUrlsToEntityRepresentations" should "return an empty list if there are no representations" in {
+  "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
     val input = <RepresentationsResponse></RepresentationsResponse>
     val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, Some(Preservation)))
 
     urls.size should equal(0)
   }
 
-  "getUrlsToEntityRepresentations" should "return the url of a Preservation representation" in {
+  "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
     val input =
       <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
       <Representations>
@@ -532,7 +532,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     )
   }
 
-  "getUrlsToEntityRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
+  "getUrlsToIoRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
     val input =
       <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
       <Representations>

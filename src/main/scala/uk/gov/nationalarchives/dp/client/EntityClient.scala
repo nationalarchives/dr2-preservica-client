@@ -67,19 +67,16 @@ trait EntityClient[F[_], S] {
     */
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
-  /** Returns a [[String]] for the given ref, type and representationType
-    * @param entityRef
-    *   The reference of the entity
-    * @param entityType
-    *   The [[EntityClient.EntityType]] of the entity.
+  /** Returns a [[String]] for the given ref and representationType
+    * @param ioEntityRef
+    *   The reference of the Information Object
     * @param representationType
     *   The [[EntityClient.RepresentationType]] of the entity.
     * @return
     *   A [[String]] wrapped in the F effect
     */
-  def getUrlsToEntityRepresentations(
-      entityRef: UUID,
-      entityType: EntityType,
+  def getUrlsToIoRepresentations(
+      ioEntityRef: UUID,
       representationType: Option[RepresentationType]
   ): F[Seq[String]]
 
@@ -264,14 +261,13 @@ object EntityClient {
       } yield entity
     }
 
-    override def getUrlsToEntityRepresentations(
+    override def getUrlsToIoRepresentations(
         entityRef: UUID,
-        entityType: EntityType,
         representationType: Option[RepresentationType]
     ): F[Seq[String]] =
       for {
         token <- getAuthenticationToken
-        url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/representations"
+        url = uri"$apiBaseUrl/api/entity/information-objects/$entityRef/representations"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
           representationsResponse,
