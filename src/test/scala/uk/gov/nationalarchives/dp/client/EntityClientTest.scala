@@ -1452,7 +1452,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val response = <IdentifiersResponse></IdentifiersResponse>
+    val response = <RepresentationResponse></RepresentationResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
