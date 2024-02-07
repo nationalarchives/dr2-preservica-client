@@ -1557,6 +1557,104 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
   }
 
+  "getContentObjectsFromRepresentations" should "return an empty list if there are no representations" in {
+    val client = testClient
+    val entity = createEntity(InformationObject)
+    val response =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+        <xip:Representation>
+          <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects/>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>
+        <ContentObjects/>
+        <AdditionalInformation>
+          <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+        </AdditionalInformation>
+      </RepresentationResponse>
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"))
+        .willReturn(ok(response.toString))
+    )
+    val contentObjects = valueFromF(client.getRepresentation(entity.ref, Preservation, 1))
+    contentObjects.size should equal(0)
+  }
+
+  "getContentObjectsFromRepresentations" should "return the Content Objects of a Preservation Representation" in {
+    val client = testClient
+    val entity = createEntity(InformationObject)
+
+    val response =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+        <xip:Representation>
+          <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects>
+            <xip:ContentObject>ad30d41e-b75c-4195-b569-91e820f430ac</xip:ContentObject>
+            <xip:ContentObject>354f47cf-3ca2-4a4e-8181-81b714334f00</xip:ContentObject>
+          </xip:ContentObjects>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>
+        <ContentObjects/>
+        <AdditionalInformation>
+          <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+        </AdditionalInformation>
+      </RepresentationResponse>
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"))
+        .willReturn(ok(response.toString))
+    )
+    val contentObjects = valueFromF(client.getRepresentation(entity.ref, Preservation, 1))
+
+    contentObjects.size should equal(2)
+    contentObjects should equal(
+      List(
+        Entity(
+          Some(ContentObject),
+          UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"),
+          None,
+          None,
+          false,
+          Some("content-objects"),
+          None,
+          Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
+        ),
+        Entity(
+          Some(ContentObject),
+          UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"),
+          None,
+          None,
+          false,
+          Some("content-objects"),
+          None,
+          Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
+        )
+      )
+    )
+  }
+
+  "getContentObjectsFromRepresentations" should "return an error if the get request returns an error" in {
+    val client = testClient
+    val entity = createEntity(InformationObject)
+    val url = s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(url))
+        .willReturn(serverError())
+    )
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.getRepresentation(entity.ref, Preservation, 1))
+    }
+    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
+  }
+
   private def getRequestMade(preservicaServer: WireMockServer) =
     preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
 }

@@ -4,7 +4,7 @@ import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{Open, Preservation, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Preservation, StructuralObject}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -560,4 +560,84 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     )
   }
 
+  "getContentObjectsFromRepresentations" should "return an empty list if there are no content objects" in {
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <xip:Representation>
+        <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+        <xip:Name>Preservation</xip:Name>
+        <xip:Type>Preservation</xip:Type>
+        <xip:ContentObjects/>
+        <xip:RepresentationFormats/>
+        <xip:RepresentationProperties/>
+      </xip:Representation>
+      <ContentObjects/>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+      </AdditionalInformation>
+    </RepresentationResponse>
+    val contentObjects = valueFromF(
+      new DataProcessor[F]().getContentObjectsFromRepresentations(
+        input,
+        Preservation,
+        UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
+      )
+    )
+
+    contentObjects.size should equal(0)
+  }
+
+  "getContentObjectsFromRepresentations" should "return a list of Content Objects belonging to the representation" in {
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <xip:Representation>
+        <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+        <xip:Name>Preservation</xip:Name>
+        <xip:Type>Preservation</xip:Type>
+        <xip:ContentObjects>
+          <xip:ContentObject>ad30d41e-b75c-4195-b569-91e820f430ac</xip:ContentObject>
+          <xip:ContentObject>354f47cf-3ca2-4a4e-8181-81b714334f00</xip:ContentObject>
+        </xip:ContentObjects>
+        <xip:RepresentationFormats/>
+        <xip:RepresentationProperties/>
+      </xip:Representation>
+      <ContentObjects/>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+      </AdditionalInformation>
+    </RepresentationResponse>
+    val contentObjects = valueFromF(
+      new DataProcessor[F]().getContentObjectsFromRepresentations(
+        input,
+        Preservation,
+        UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
+      )
+    )
+
+    contentObjects.size should equal(2)
+    contentObjects should equal(
+      List(
+        Entity(
+          Some(ContentObject),
+          UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"),
+          None,
+          None,
+          false,
+          Some("content-objects"),
+          None,
+          Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
+        ),
+        Entity(
+          Some(ContentObject),
+          UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"),
+          None,
+          None,
+          false,
+          Some("content-objects"),
+          None,
+          Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
+        )
+      )
+    )
+  }
 }

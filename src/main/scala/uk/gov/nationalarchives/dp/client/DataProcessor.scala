@@ -258,6 +258,34 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     }
 
   private def attrToString(node: Node, key: String) = node.attributes.get(key).map(_.toString()).getOrElse("")
+
+  /** Returns a list of [[String]] objects
+    * @param elem
+    *   The element containing the representations
+    * @param representationType
+    *   The (Optional) representation type that you want returned
+    * @return
+    *   A `Seq` of `String` objects parsed from the XML
+    */
+  def getContentObjectsFromRepresentations(
+      elem: Elem,
+      representationType: RepresentationType,
+      ioEntityRef: UUID
+  ): F[Seq[Entity]] =
+    me.pure {
+      (elem \ "Representation" \ "ContentObjects" \ "ContentObject").map { rep =>
+        Entity(
+          Some(ContentObject),
+          UUID.fromString(rep.text),
+          None,
+          None,
+          deleted = false,
+          ContentObject.entityPath.some,
+          None,
+          Some(ioEntityRef)
+        )
+      }
+    }
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class

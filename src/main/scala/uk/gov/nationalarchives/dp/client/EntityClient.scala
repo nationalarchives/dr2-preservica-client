@@ -80,6 +80,18 @@ trait EntityClient[F[_], S] {
       representationType: Option[RepresentationType]
   ): F[Seq[String]]
 
+  /** Returns a List [[Entity]] for the given ref and representationType
+    * @param ioEntityRef
+    *   The reference of the Information Object
+    * @param representationType
+    *   The [[EntityClient.RepresentationType]] of the entity.
+    * @param version
+    *   The version of the Representation.
+    * @return
+    *   A List of [[Entity]] wrapped in the F effect
+    */
+  def getRepresentation(ioEntityRef: UUID, representationType: RepresentationType, version: Int): F[Seq[Entity]]
+
   /** Adds an entity to Preservica
     * @param addEntityRequest
     *   An instance of [[EntityClient.AddEntityRequest]] with the details of the entity to add
@@ -274,6 +286,22 @@ object EntityClient {
           representationType
         )
       } yield urlsOfRepresentations
+
+    override def getRepresentation(
+        ioEntityRef: UUID,
+        representationType: RepresentationType,
+        version: Int
+    ): F[Seq[Entity]] =
+      for {
+        token <- getAuthenticationToken
+        url = uri"$apiBaseUrl/api/entity/information-objects/$ioEntityRef/representations/$representationType/$version"
+        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        contentObjects <- dataProcessor.getContentObjectsFromRepresentations(
+          representationsResponse,
+          representationType,
+          ioEntityRef
+        )
+      } yield contentObjects
 
     override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
       for {
