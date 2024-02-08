@@ -560,7 +560,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     )
   }
 
-  "getContentObjectsFromRepresentations" should "return an empty list if there are no content objects" in {
+  "getContentObjectsFromRepresentation" should "return an empty list if there are no content objects" in {
     val input =
       <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
       <xip:Representation>
@@ -577,7 +577,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </AdditionalInformation>
     </RepresentationResponse>
     val contentObjects = valueFromF(
-      new DataProcessor[F]().getContentObjectsFromRepresentations(
+      new DataProcessor[F]().getContentObjectsFromRepresentation(
         input,
         Preservation,
         UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
@@ -587,7 +587,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     contentObjects.size should equal(0)
   }
 
-  "getContentObjectsFromRepresentations" should "return a list of Content Objects belonging to the representation" in {
+  "getContentObjectsFromRepresentation" should "return a list of Content Objects belonging to the representation" in {
     val input =
       <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
       <xip:Representation>
@@ -607,7 +607,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </AdditionalInformation>
     </RepresentationResponse>
     val contentObjects = valueFromF(
-      new DataProcessor[F]().getContentObjectsFromRepresentations(
+      new DataProcessor[F]().getContentObjectsFromRepresentation(
         input,
         Preservation,
         UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")

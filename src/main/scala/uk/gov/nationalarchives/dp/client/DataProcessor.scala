@@ -267,7 +267,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `String` objects parsed from the XML
     */
-  def getContentObjectsFromRepresentations(
+  def getContentObjectsFromRepresentation(
       elem: Elem,
       representationType: RepresentationType,
       ioEntityRef: UUID

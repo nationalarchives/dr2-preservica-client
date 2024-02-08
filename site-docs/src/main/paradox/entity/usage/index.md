@@ -91,7 +91,7 @@ The client exposes 12 methods
 * Filter the representations on the optional `RepresentationType`
 * Retrieve url(s) from remaining representations
 
-### getRepresentation
+### getContentObjectsFromRepresentation
 
 * Use the IO's ref, representationType and version in the endpoint's url
 * Call the API to receive a RepresentationsResponse.
