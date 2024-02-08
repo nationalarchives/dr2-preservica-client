@@ -141,7 +141,7 @@ object Client {
     * @param url
     *   The url to download the bitstream
     */
-  case class BitStreamInfo(name: String, fileSize: Long, url: String)
+  case class BitStreamInfo(name: String, fileSize: Long, url: String, fixity: Fixity)
 
   /** Configuration for the clients
     * @param apiBaseUrl
@@ -166,6 +166,8 @@ object Client {
       duration: FiniteDuration,
       secretsManagerEndpointUri: String
   )
+
+  case class Fixity(algorithm: String, value: String)
 
   /** Creates a new `Client` instance.
     * @param clientConfig

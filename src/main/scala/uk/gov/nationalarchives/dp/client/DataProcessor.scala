@@ -158,7 +158,9 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         val filename = (e \\ "Bitstream" \\ "Filename").text
         val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
         val url = (e \\ "AdditionalInformation" \\ "Content").text
-        BitStreamInfo(filename, fileSize, url)
+        val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
+        val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
+        BitStreamInfo(filename, fileSize, url, Fixity(fixityAlgorithm, fixityValue))
       })
     }
   }
