@@ -67,20 +67,20 @@ trait EntityClient[F[_], S] {
     */
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
-  /** Returns a [[String]] for the given ref and representationType
+  /** Returns a String for the given ref and representationType
     * @param ioEntityRef
     *   The reference of the Information Object
     * @param representationType
     *   The [[EntityClient.RepresentationType]] of the entity.
     * @return
-    *   A [[String]] wrapped in the F effect
+    *   A String wrapped in the F effect
     */
   def getUrlsToIoRepresentations(
       ioEntityRef: UUID,
       representationType: Option[RepresentationType]
   ): F[Seq[String]]
 
-  /** Returns a List [[Entity]] for the given ref and representationType
+  /** Returns a `Seq` of [[Entities.Entity]] for the given ref and representationType
     * @param ioEntityRef
     *   The reference of the Information Object
     * @param representationType
@@ -88,7 +88,7 @@ trait EntityClient[F[_], S] {
     * @param version
     *   The version of the Representation.
     * @return
-    *   A List of [[Entity]] wrapped in the F effect
+    *   A `Seq` of [[Entities.Entity]] wrapped in the F effect
     */
   def getRepresentation(ioEntityRef: UUID, representationType: RepresentationType, version: Int): F[Seq[Entity]]
 

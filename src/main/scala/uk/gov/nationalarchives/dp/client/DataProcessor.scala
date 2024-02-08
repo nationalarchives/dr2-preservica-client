@@ -241,7 +241,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       PreservicaClientException(s"'$nodeName' does not exist on the workflowInstance response.")
     )
 
-  /** Returns a list of [[String]] objects
+  /** Returns a `Seq` of String objects
     * @param elem
     *   The element containing the representations
     * @param representationType
@@ -259,7 +259,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 
   private def attrToString(node: Node, key: String) = node.attributes.get(key).map(_.toString()).getOrElse("")
 
-  /** Returns a list of [[String]] objects
+  /** Returns a `Seq` of String objects
     * @param elem
     *   The element containing the representations
     * @param representationType
