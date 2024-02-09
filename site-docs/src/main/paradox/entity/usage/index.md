@@ -45,10 +45,11 @@ The client exposes 12 methods
       identifier: Identifier
   ): F[Seq[Entity]]
 
-  def getUrlsToIoRepresentations(
+  def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
-      representationType: Option[RepresentationType]
-  ): F[Seq[String]]
+      representationType: RepresentationType,
+      version: Int
+  ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
       entityRef: UUID,
