@@ -216,6 +216,12 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         <xip:Bitstream>
           <xip:Filename>test.text</xip:Filename>
           <xip:FileSize>1234</xip:FileSize>
+          <xip:Fixities>
+            <xip:Fixity>
+              <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+              <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
+            </xip:Fixity>
+          </xip:Fixities>
         </xip:Bitstream>
         <AdditionalInformation>
           <Content>http://test</Content>
@@ -230,6 +236,8 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     response.head.name should equal("test.text")
     response.head.fileSize should equal(1234)
     response.head.url should equal("http://test")
+    response.head.fixity.algorithm should equal("SHA1")
+    response.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
   }
 
   "getNextPage" should "return the next page" in {

@@ -463,6 +463,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <xip:Bitstream>
         <xip:Filename>{fileName}</xip:Filename>
         <xip:FileSize>1234</xip:FileSize>
+        <xip:Fixities>
+          <xip:Fixity>
+            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+            <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
+          </xip:Fixity>
+        </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
         <Content>http://test</Content>
@@ -481,6 +487,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val bitStreamInfo = valueFromF(response).head
     bitStreamInfo.url should equal(s"http://test")
     bitStreamInfo.name should equal(fileName)
+    bitStreamInfo.fileSize should equal(1234)
+    bitStreamInfo.fixity.algorithm should equal("SHA1")
+    bitStreamInfo.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
 
     checkServerCall(entityUrl)
     checkServerCall(generationsUrl)
@@ -525,6 +534,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <xip:Bitstream>
         <xip:Filename>test1.txt</xip:Filename>
         <xip:FileSize>1234</xip:FileSize>
+        <xip:Fixities>
+          <xip:Fixity>
+            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+            <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
+          </xip:Fixity>
+        </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
         <Content>http://test</Content>
@@ -535,6 +550,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <xip:Bitstream>
         <xip:Filename>test2.txt</xip:Filename>
         <xip:FileSize>1234</xip:FileSize>
+        <xip:Fixities>
+          <xip:Fixity>
+            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+            <xip:FixityValue>5e0a0af2f597bf6b06c5295fea11be74cf89e1c1</xip:FixityValue>
+          </xip:Fixity>
+        </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
         <Content>http://test</Content>
@@ -560,9 +581,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.size should equal(2)
     bitStreamInfo.head.url should equal(s"http://test")
     bitStreamInfo.head.name should equal("test1.txt")
+    bitStreamInfo.head.fileSize should equal(1234)
+    bitStreamInfo.head.fixity.algorithm should equal("SHA1")
+    bitStreamInfo.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
 
     bitStreamInfo.last.url should equal(s"http://test")
     bitStreamInfo.last.name should equal("test2.txt")
+    bitStreamInfo.last.fileSize should equal(1234)
+    bitStreamInfo.last.fixity.algorithm should equal("SHA1")
+    bitStreamInfo.last.fixity.value should equal("5e0a0af2f597bf6b06c5295fea11be74cf89e1c1")
 
     checkServerCall(entityUrl)
     checkServerCall(generationsUrl)
