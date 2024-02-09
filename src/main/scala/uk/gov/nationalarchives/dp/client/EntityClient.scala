@@ -581,7 +581,6 @@ object EntityClient {
     */
   sealed trait SecurityTag {
     override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
-
   }
 
   /** Represents an entity type
@@ -603,6 +602,8 @@ object EntityClient {
     override def toString: String = getClass.getSimpleName.dropRight(1)
   }
 
+  /** Represents a Preservica representation tag
+    */
   sealed trait RepresentationType {
     override def toString: String = getClass.getSimpleName.dropRight(1)
   }
