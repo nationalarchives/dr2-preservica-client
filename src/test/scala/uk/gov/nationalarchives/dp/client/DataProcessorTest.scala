@@ -12,6 +12,17 @@ import java.util.UUID
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
 
+  private def generateContentObject(ref: String) = Entity(
+    Some(ContentObject),
+    UUID.fromString(ref),
+    None,
+    None,
+    false,
+    Some("content-objects"),
+    None,
+    Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
+  )
+
   "childNodeFromEntity" should "return the node requested even if it is lowercase" in {
     val input =
       <MetadataResponse>
@@ -625,26 +636,8 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     contentObjects.size should equal(2)
     contentObjects should equal(
       List(
-        Entity(
-          Some(ContentObject),
-          UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"),
-          None,
-          None,
-          false,
-          Some("content-objects"),
-          None,
-          Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
-        ),
-        Entity(
-          Some(ContentObject),
-          UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"),
-          None,
-          None,
-          false,
-          Some("content-objects"),
-          None,
-          Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
-        )
+        generateContentObject("ad30d41e-b75c-4195-b569-91e820f430ac"),
+        generateContentObject("354f47cf-3ca2-4a4e-8181-81b714334f00")
       )
     )
   }
