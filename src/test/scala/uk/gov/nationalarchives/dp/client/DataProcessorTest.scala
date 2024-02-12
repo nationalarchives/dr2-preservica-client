@@ -18,7 +18,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     None,
     None,
     false,
-    Some("content-objects"),
+    Some(ContentObject.entityPath),
     None,
     Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
   )

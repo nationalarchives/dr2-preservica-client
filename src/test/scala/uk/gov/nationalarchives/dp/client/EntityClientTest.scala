@@ -1649,7 +1649,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           None,
           None,
           false,
-          Some("content-objects"),
+          Some(ContentObject.entityPath),
           None,
           Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
         ),
@@ -1659,7 +1659,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           None,
           None,
           false,
-          Some("content-objects"),
+          Some(ContentObject.entityPath),
           None,
           Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
         )
