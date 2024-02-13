@@ -4,13 +4,24 @@ import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{Open, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Preservation, StructuralObject}
 
 import java.time.ZonedDateTime
 import java.util.UUID
 
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   def valueFromF[T](value: F[T]): T
+
+  private def generateContentObject(ref: String) = Entity(
+    Some(ContentObject),
+    UUID.fromString(ref),
+    None,
+    None,
+    false,
+    Some(ContentObject.entityPath),
+    None,
+    Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828"))
+  )
 
   "childNodeFromEntity" should "return the node requested even if it is lowercase" in {
     val input =
@@ -508,4 +519,126 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     secondIdentifier.value should equal("TestValue2")
   }
 
+  "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
+    val input = <RepresentationsResponse></RepresentationsResponse>
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, Some(Preservation)))
+
+    urls.size should equal(0)
+  }
+
+  "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
+    val input =
+      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <Representations>
+        <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
+        <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
+        <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2</Representation>
+      </Representations>
+      <Paging>
+        <TotalResults>3</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations</Self>
+      </AdditionalInformation>
+    </RepresentationsResponse>
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, Some(Preservation)))
+
+    urls.size should equal(1)
+    val preservationUrl = urls.head
+
+    preservationUrl should equal(
+      "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1"
+    )
+  }
+
+  "getUrlsToIoRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
+    val input =
+      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <Representations>
+        <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
+        <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
+        <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2</Representation>
+      </Representations>
+      <Paging>
+        <TotalResults>3</TotalResults>
+      </Paging>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations</Self>
+      </AdditionalInformation>
+    </RepresentationsResponse>
+
+    val urls = valueFromF(new DataProcessor[F]().getUrlsToEntityRepresentations(input, None))
+
+    urls.size should equal(3)
+    urls should equal(
+      Seq(
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1",
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1",
+        "http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/2"
+      )
+    )
+  }
+
+  "getContentObjectsFromRepresentation" should "return an empty list if there are no content objects" in {
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <xip:Representation>
+        <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+        <xip:Name>Preservation</xip:Name>
+        <xip:Type>Preservation</xip:Type>
+        <xip:ContentObjects/>
+        <xip:RepresentationFormats/>
+        <xip:RepresentationProperties/>
+      </xip:Representation>
+      <ContentObjects/>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+      </AdditionalInformation>
+    </RepresentationResponse>
+    val contentObjects = valueFromF(
+      new DataProcessor[F]().getContentObjectsFromRepresentation(
+        input,
+        Preservation,
+        UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
+      )
+    )
+
+    contentObjects.size should equal(0)
+  }
+
+  "getContentObjectsFromRepresentation" should "return a list of Content Objects belonging to the representation" in {
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <xip:Representation>
+        <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
+        <xip:Name>Preservation</xip:Name>
+        <xip:Type>Preservation</xip:Type>
+        <xip:ContentObjects>
+          <xip:ContentObject>ad30d41e-b75c-4195-b569-91e820f430ac</xip:ContentObject>
+          <xip:ContentObject>354f47cf-3ca2-4a4e-8181-81b714334f00</xip:ContentObject>
+        </xip:ContentObjects>
+        <xip:RepresentationFormats/>
+        <xip:RepresentationProperties/>
+      </xip:Representation>
+      <ContentObjects/>
+      <AdditionalInformation>
+        <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+      </AdditionalInformation>
+    </RepresentationResponse>
+    val contentObjects = valueFromF(
+      new DataProcessor[F]().getContentObjectsFromRepresentation(
+        input,
+        Preservation,
+        UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
+      )
+    )
+
+    contentObjects.size should equal(2)
+    contentObjects should equal(
+      List(
+        generateContentObject("ad30d41e-b75c-4195-b569-91e820f430ac"),
+        generateContentObject("354f47cf-3ca2-4a4e-8181-81b714334f00")
+      )
+    )
+  }
 }

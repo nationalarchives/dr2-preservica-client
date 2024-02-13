@@ -9,7 +9,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import scala.xml.{Elem, NodeSeq}
+import scala.xml.{Elem, Node, NodeSeq}
 
 /** A class to process XML responses from Preservica
   * @param me
@@ -184,13 +184,11 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     (elem \ "Entities" \ "Entity").map { e =>
       val entityAttributes = e.attributes
 
-      def attrToString(key: String) = entityAttributes.get(key).map(_.toString()).getOrElse("")
-
-      val ref = UUID.fromString(attrToString("ref"))
+      val ref = UUID.fromString(attrToString(e, "ref"))
       val title = entityAttributes.get("title").map(_.toString)
       val description = entityAttributes.get("description").map(_.toString)
-      val entityType = attrToString("type")
-      val deleted = attrToString("deleted").nonEmpty
+      val entityType = attrToString(e, "type")
+      val deleted = attrToString(e, "deleted").nonEmpty
       fromType[F](entityType, ref, title, description, deleted)
     }.sequence
 
@@ -244,6 +242,52 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       (workflowInstanceResponse \ nodeName).headOption.map(_.text),
       PreservicaClientException(s"'$nodeName' does not exist on the workflowInstance response.")
     )
+
+  /** Returns a `Seq` of String objects
+    * @param elem
+    *   The element containing the representations
+    * @param representationType
+    *   The (Optional) representation type that you want returned
+    * @return
+    *   A `Seq` of `String` objects parsed from the XML
+    */
+  def getUrlsToEntityRepresentations(elem: Elem, representationType: Option[RepresentationType]): F[Seq[String]] =
+    me.pure {
+      (elem \ "Representations" \ "Representation").collect {
+        case rep if representationType.isEmpty || attrToString(rep, "type") == representationType.get.toString =>
+          rep.text
+      }
+    }
+
+  private def attrToString(node: Node, key: String) = node.attributes.get(key).map(_.toString()).getOrElse("")
+
+  /** Returns a `Seq` of String objects
+    * @param elem
+    *   The element containing the representations
+    * @param representationType
+    *   The (Optional) representation type that you want returned
+    * @return
+    *   A `Seq` of `String` objects parsed from the XML
+    */
+  def getContentObjectsFromRepresentation(
+      elem: Elem,
+      representationType: RepresentationType,
+      ioEntityRef: UUID
+  ): F[Seq[Entity]] =
+    me.pure {
+      (elem \ "Representation" \ "ContentObjects" \ "ContentObject").map { rep =>
+        Entity(
+          Some(ContentObject),
+          UUID.fromString(rep.text),
+          None,
+          None,
+          deleted = false,
+          ContentObject.entityPath.some,
+          None,
+          Some(ioEntityRef)
+        )
+      }
+    }
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class
