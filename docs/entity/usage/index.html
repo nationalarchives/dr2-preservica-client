@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.47*
+0.0.48*
 </div>
 </div>
 <div class="nav-toc">
@@ -92,7 +92,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.47*
+0.0.48*
 </div>
 </div>
 <div class="nav-toc">
@@ -180,6 +180,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
+  def getUrlsToIoRepresentations(ioEntityRef: UUID, representationType: Option[RepresentationType]): F[Seq[String]]
+
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
@@ -204,6 +206,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
   def entitiesByIdentifier(
       identifier: Identifier
+  ): F[Seq[Entity]]
+
+  def getContentObjectsFromRepresentation(
+      ioEntityRef: UUID,
+      representationType: RepresentationType,
+      version: Int
   ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
@@ -241,6 +249,21 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Get the entity identifiers from the reference</li>
   <li>Call the API for each url returned in the previous step.</li>
   <li>Check for a next page. If there is one, return to step 2 until there is no next page, otherwise, return a <code>Seq[IdentifierResponse]</code></li>
+</ul>
+<h3><a href="#geturlstoiorepresentations" name="geturlstoiorepresentations" class="anchor"><span class="anchor-link"></span></a>getUrlsToIoRepresentations</h3>
+<ul>
+  <li>Use the IO&rsquo;s ref in the endpoint&rsquo;s url</li>
+  <li>Call the API to receive a RepresentationsResponse.</li>
+  <li>Get all the representations from <code>&quot;Representations&quot; \ &quot;Representation&quot;</code></li>
+  <li>Filter the representations on the optional <code>RepresentationType</code></li>
+  <li>Retrieve url(s) from remaining representations</li>
+</ul>
+<h3><a href="#getcontentobjectsfromrepresentation" name="getcontentobjectsfromrepresentation" class="anchor"><span class="anchor-link"></span></a>getContentObjectsFromRepresentation</h3>
+<ul>
+  <li>Use the IO&rsquo;s ref, representationType and version in the endpoint&rsquo;s url</li>
+  <li>Call the API to receive a RepresentationsResponse.</li>
+  <li>Get all the Representation&rsquo;s Content Objects from <code>&quot;Representation&quot; \ &quot;ContentObjects&quot; \ &quot;ContentObject&quot;</code></li>
+  <li>Wrap Content Objects in an <code>Entity</code></li>
 </ul>
 <h3><a href="#addentity" name="addentity" class="anchor"><span class="anchor-link"></span></a>addEntity</h3>
 <ul>
@@ -367,7 +390,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.47-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.48-SNAPSHOT', '')});</script>
 
 
 </html>
