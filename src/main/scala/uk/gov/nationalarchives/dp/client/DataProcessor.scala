@@ -152,7 +152,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(entity: Seq[Elem]): F[Seq[BitStreamInfo]] = {
+  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] = {
     me.pure {
       entity.map(e => {
         val filename = (e \\ "Bitstream" \\ "Filename").text
@@ -160,7 +160,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         val url = (e \\ "AdditionalInformation" \\ "Content").text
         val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
         val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
-        BitStreamInfo(filename, fileSize, url, Fixity(fixityAlgorithm, fixityValue))
+        BitStreamInfo(filename, fileSize, url, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
       })
     }
   }

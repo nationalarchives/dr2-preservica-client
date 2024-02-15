@@ -141,7 +141,7 @@ object Client {
     * @param url
     *   The url to download the bitstream
     */
-  case class BitStreamInfo(name: String, fileSize: Long, url: String, fixity: Fixity)
+  case class BitStreamInfo(name: String, fileSize: Long, url: String, fixity: Fixity, potentialCoTitle: Option[String])
 
   /** Configuration for the clients
     * @param apiBaseUrl
