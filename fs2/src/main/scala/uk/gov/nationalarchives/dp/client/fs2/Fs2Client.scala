@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client.fs2
 
 import cats.effect._
 import sttp.capabilities.fs2.Fs2Streams
+import sttp.client3.SttpBackendOptions
 import sttp.client3.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
@@ -18,6 +19,7 @@ import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.createProcessMonitorClient
 import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
+import java.net.URI
 import scala.concurrent.duration._
 
 /** An object containing methods to create each of the four clients. This uses cats.effect.IO and fs2.Stream
@@ -41,9 +43,10 @@ object Fs2Client {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
-    HttpClientFs2Backend.resource[IO]().use { backend =>
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createEntityClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
@@ -63,13 +66,15 @@ object Fs2Client {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): IO[AdminClient[IO]] =
-    HttpClientFs2Backend.resource[IO]().use { backend =>
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createAdminClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
   /** Creates a content client
+    *
     * @param url
     *   The Preservica instance url
     * @param secretName
@@ -85,9 +90,10 @@ object Fs2Client {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): IO[ContentClient[IO]] =
-    HttpClientFs2Backend.resource[IO]().use { backend =>
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createContentClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
@@ -107,9 +113,10 @@ object Fs2Client {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): IO[WorkflowClient[IO]] =
-    HttpClientFs2Backend.resource[IO]().use { backend =>
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createWorkflowClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
@@ -117,9 +124,18 @@ object Fs2Client {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): IO[ProcessMonitorClient[IO]] =
-    HttpClientFs2Backend.resource[IO]().use { backend =>
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
+
+  private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions = {
+    potentialProxyUrl
+      .map { proxyUrl =>
+        SttpBackendOptions.Default.httpProxy(proxyUrl.getHost, proxyUrl.getPort)
+      }
+      .getOrElse(SttpBackendOptions.Default)
+  }
 }

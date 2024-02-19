@@ -1,6 +1,7 @@
 package uk.gov.nationalarchives.dp.client.zio
 
 import sttp.capabilities.zio.ZioStreams
+import sttp.client3.SttpBackendOptions
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 import uk.gov.nationalarchives.dp.client.EntityClient._
 import uk.gov.nationalarchives.dp.client.AdminClient._
@@ -19,6 +20,7 @@ import uk.gov.nationalarchives.dp.client.{
 import zio.Task
 import zio.interop.catz._
 
+import java.net.URI
 import scala.concurrent.duration._
 
 /** An object containing methods to create each of the four clients. This uses zio.Task and zio.ZioStream
@@ -42,9 +44,10 @@ object ZioClient {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): Task[EntityClient[Task, ZioStreams]] =
-    HttpClientZioBackend().map { backend =>
+    HttpClientZioBackend(httpClientOptions(potentialProxyUrl)).map { backend =>
       createEntityClient[Task, ZioStreams](
         ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
       )
@@ -66,9 +69,10 @@ object ZioClient {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): Task[AdminClient[Task]] =
-    HttpClientZioBackend().map { backend =>
+    HttpClientZioBackend(httpClientOptions(potentialProxyUrl)).map { backend =>
       createAdminClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 
@@ -88,9 +92,10 @@ object ZioClient {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): Task[ContentClient[Task]] =
-    HttpClientZioBackend().map { backend =>
+    HttpClientZioBackend(httpClientOptions(potentialProxyUrl)).map { backend =>
       createContentClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 
@@ -110,9 +115,10 @@ object ZioClient {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): Task[WorkflowClient[Task]] =
-    HttpClientZioBackend().map { backend =>
+    HttpClientZioBackend(httpClientOptions(potentialProxyUrl)).map { backend =>
       createWorkflowClient[Task, ZioStreams](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
 
@@ -120,9 +126,18 @@ object ZioClient {
       url: String,
       secretName: String,
       duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
   ): Task[ProcessMonitorClient[Task]] =
-    HttpClientZioBackend().map { backend =>
+    HttpClientZioBackend(httpClientOptions(potentialProxyUrl)).map { backend =>
       createProcessMonitorClient[Task](ClientConfig(url, secretName, backend, duration, ssmEndpointUri))
     }
+
+  private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions = {
+    potentialProxyUrl
+      .map { proxyUrl =>
+        SttpBackendOptions.Default.httpProxy(proxyUrl.getHost, proxyUrl.getPort)
+      }
+      .getOrElse(SttpBackendOptions.Default)
+  }
 }
