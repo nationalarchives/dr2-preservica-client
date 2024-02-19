@@ -16,7 +16,6 @@ The workflow client doesn't take a `Stream` type parameter as the search method 
 
 @@@ index
 
-* [Zio](zio.md)
 * [Fs2](fs2.md)
 
 @@@

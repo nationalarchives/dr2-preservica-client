@@ -1,9 +1,9 @@
-import sbtrelease.ReleaseStateTransformations._
-import Dependencies._
+import sbtrelease.ReleaseStateTransformations.*
+import Dependencies.*
 
-lazy val scala2Version = "2.13.12"
+lazy val scala3Version = "3.3.1"
 
-ThisBuild / scalaVersion := scala2Version
+ThisBuild / scalaVersion := scala3Version
 
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
@@ -48,31 +48,30 @@ lazy val releaseSettings = Seq(
 )
 
 lazy val commonSettings = Seq(
-  scalaVersion := scala2Version,
+  scalaVersion := scala3Version,
   libraryDependencies ++= Seq(
     awsSecretsManager,
     catsCore,
+    circeGeneric,
     dynamoFormatters,
     scalaCacheCore,
     log4Cats,
     scalaXml,
     sttpCore,
     sttpFs2,
-    sttpUpickle,
-    sttpZio,
-    zioInteropCats,
+    sttpCirce,
     mockito % Test,
     scalaTest % Test,
     wireMock % Test
   ),
   version := version.value,
-  scalacOptions += "-deprecation",
+  scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation"),
+//  scalacOptions ++= Seq("-unchecked", "-source:3.0-migration"),
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
 ) ++ releaseSettings
 
 lazy val fs2Ref = LocalProject("fs2")
-lazy val zioRef = LocalProject("zio")
 
 lazy val root: Project = project
   .in(file("."))
@@ -81,7 +80,7 @@ lazy val root: Project = project
   .settings(
     name := "preservica-client-root"
   )
-  .aggregate(fs2Ref, zioRef)
+  .aggregate(fs2Ref)
 
 lazy val fs2 = project
   .in(file("fs2"))
@@ -89,15 +88,6 @@ lazy val fs2 = project
   .settings(
     name := "preservica-client-fs2",
     libraryDependencies += sttpFs2
-  )
-  .dependsOn(root % "compile->compile;test->test")
-
-lazy val zio = project
-  .in(file("zio"))
-  .settings(commonSettings)
-  .settings(
-    name := "preservica-client-zio",
-    libraryDependencies ++= Seq(zioInteropCats, sttpZio)
   )
   .dependsOn(root % "compile->compile;test->test")
 
@@ -118,7 +108,4 @@ lazy val docs = (project in file("site-docs"))
   )
   .dependsOn(root % "compile->compile")
   .dependsOn(fs2 % "compile->compile")
-  .dependsOn(zio % "compile->compile")
 
-
-scalacOptions ++= Seq("-Wunused:imports", "-Werror")

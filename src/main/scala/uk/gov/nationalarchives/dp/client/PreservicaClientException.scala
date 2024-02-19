@@ -12,7 +12,7 @@ class PreservicaClientException(message: String, err: Throwable) extends Excepti
 
 /** Custom apply methods for the exception class
   */
-object PreservicaClientException {
+object PreservicaClientException:
 
   /** Generate an exception from HTTP request parameters
     * @param method
@@ -26,10 +26,9 @@ object PreservicaClientException {
     * @return
     *   A `PreservicaClientException`
     */
-  def apply(method: Method, url: Uri, statusCode: StatusCode, msg: String): PreservicaClientException = {
+  def apply(method: Method, url: Uri, statusCode: StatusCode, msg: String): PreservicaClientException =
     val message = s"Status code $statusCode calling $url with method $method $msg"
     new PreservicaClientException(message, new RuntimeException(msg))
-  }
 
   /** Creates an exception from an existing message
     * @param msg
@@ -38,4 +37,3 @@ object PreservicaClientException {
     *   A `PreservicaClientException`
     */
   def apply(msg: String) = new PreservicaClientException(msg, new RuntimeException(msg))
-}

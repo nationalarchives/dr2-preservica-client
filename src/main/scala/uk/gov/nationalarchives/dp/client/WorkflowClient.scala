@@ -2,10 +2,10 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import sttp.client3._
+import cats.implicits.*
+import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
 import scala.xml.PrettyPrinter
@@ -14,7 +14,7 @@ import scala.xml.PrettyPrinter
   * @tparam F
   *   Type of the effect
   */
-trait WorkflowClient[F[_]] {
+trait WorkflowClient[F[_]]:
 
   /** Starts a preservica workflow
     * @param startWorkflowRequest
@@ -23,11 +23,10 @@ trait WorkflowClient[F[_]] {
     *   The id of the new workflow wrapped in the F effect.
     */
   def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int]
-}
 
 /** An object containing a method which returns an implementation of the WorkflowClient trait
   */
-object WorkflowClient {
+object WorkflowClient:
 
   /** Creates a new `WorkflowClient` instance.
     * @param clientConfig
@@ -43,16 +42,16 @@ object WorkflowClient {
     * @return
     *   A new `WorkflowClient`
     */
-  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): WorkflowClient[F] = new WorkflowClient[F] {
+  ): WorkflowClient[F] = new WorkflowClient[F]:
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, S] = Client(clientConfig)
 
-    import client._
+    import client.*
 
-    override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
+    override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] =
       val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
 
       val workflowContextIdNode = startWorkflowRequest.workflowContextId
@@ -93,15 +92,15 @@ object WorkflowClient {
 
       val requestBodyString =
         s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n${new PrettyPrinter(100, 2).format(requestBody)}"
-      for {
+      for
         _ <-
-          if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
+          if startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty then
             me.raiseError(
               PreservicaClientException(
                 "You must pass in either a workflowContextName or a workflowContextId!"
               )
             )
-          } else me.unit
+          else me.unit
         token <- getAuthenticationToken
         startWorkflowResponse <- sendXMLApiRequest(
           startWorkflowUrl.toString,
@@ -110,9 +109,7 @@ object WorkflowClient {
           Some(requestBodyString)
         )
         id <- dataProcessor.childNodeFromWorkflowInstance(startWorkflowResponse, "Id")
-      } yield id.toInt
-    }
-  }
+      yield id.toInt
 
   /** A workflow request parameter
     * @param key
@@ -138,4 +135,3 @@ object WorkflowClient {
       parameters: List[Parameter] = Nil,
       correlationId: Option[String] = None
   )
-}

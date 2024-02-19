@@ -2,50 +2,45 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.Applicative
 import cats.effect.kernel.Sync
-import org.mockito.ArgumentMatchers.{any, eq => mockEq}
-import org.mockito.{Mockito, MockitoSugar}
+import org.mockito.ArgumentMatchers.{any, eq as mockEq}
+import org.mockito.Mockito
+import org.mockito.Mockito.{verify, when}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
+import org.scalatestplus.mockito.MockitoSugar.*
 
 import java.nio.file.Path
 import scala.concurrent.duration.{Duration, DurationInt}
 
-abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
-    extends AnyFlatSpec
-    with MockitoSugar
-    with BeforeAndAfterEach {
-  def defaultReadStringMock: Path => String = {
+abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]() extends AnyFlatSpec with BeforeAndAfterEach:
+  def defaultReadStringMock: Path => String =
     val readStringMock = mock[Path => String]
     when(readStringMock.apply(any[Path])).thenReturn("cachedValue")
     readStringMock
-  }
-  def defaultGetAttributeMock: (Path, String) => Array[Byte] = {
+  def defaultGetAttributeMock: (Path, String) => Array[Byte] =
     val getAttributeMock = mock[(Path, String) => Array[Byte]]
     when(getAttributeMock.apply(any[Path], mockEq("user:ttl"))).thenReturn("10".getBytes)
     when(getAttributeMock.apply(any[Path], mockEq("user:entry"))).thenReturn("10".getBytes)
     getAttributeMock
-  }
 
-  def defaultSetAttributeMock: (Path, String, Array[Byte]) => Path = {
+  def defaultSetAttributeMock: (Path, String, Array[Byte]) => Path =
     val setAttributeMock = mock[(Path, String, Array[Byte]) => Path]
     when(setAttributeMock.apply(any[Path], mockEq("user:ttl"), any[Array[Byte]])).thenReturn(Path.of("/tmp"))
     when(setAttributeMock.apply(any[Path], mockEq("user:entry"), any[Array[Byte]])).thenReturn(Path.of("/tmp"))
     setAttributeMock
-  }
 
-  def defaultWriteMock: (Path, Array[Byte]) => Path = {
+  def defaultWriteMock: (Path, Array[Byte]) => Path =
     val writeMock = mock[(Path, Array[Byte]) => Path]
     when(writeMock.apply(any[Path], any[Array[Byte]])).thenReturn(Path.of("/tmp"))
     writeMock
-  }
 
-  def defaultDeleteMock: Path => Unit = {
+  def defaultDeleteMock: Path => Unit =
     val deleteMock = mock[Path => Unit]
     when(deleteMock.apply(any[Path])).thenReturn(())
-  }
+    deleteMock
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     Mockito.reset(
       defaultWriteMock,
       defaultSetAttributeMock,
@@ -53,7 +48,6 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
       defaultReadStringMock,
       defaultDeleteMock
     )
-  }
 
   val mockFiles: List[Path] = List(Path.of("path1"), Path.of("path2"))
 
@@ -65,7 +59,7 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
       deleteMock: Path => Unit = defaultDeleteMock,
       listFilesMock: List[Path] = mockFiles,
       mockCurrentTime: Long = 10
-  ) extends PreservicaClientCache[F]() {
+  ) extends PreservicaClientCache[F]():
 
     override val readString: Path => String = readStringMock
     override val getFileAttribute: (Path, String) => AnyRef = getAttributeMock
@@ -85,7 +79,6 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
       super.doPut(key, value, ttl)
 
     override def doRemoveAll: F[Unit] = super.doRemoveAll
-  }
 
   def valueFromF[T](value: F[T]): T
 
@@ -189,4 +182,3 @@ abstract class PreservicaClientCacheTest[F[_]: Sync: Applicative]()
     }
     ex.getMessage should equal("Error deleting file")
   }
-}

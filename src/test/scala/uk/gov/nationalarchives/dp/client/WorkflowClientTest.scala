@@ -1,9 +1,9 @@
 package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor3
 import org.scalatest.prop.Tables.Table
@@ -12,11 +12,11 @@ import uk.gov.nationalarchives.dp.client.WorkflowClient.{Parameter, StartWorkflo
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)
     extends AnyFlatSpec
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach:
 
   def valueFromF[T](value: F[T]): T
 
@@ -30,17 +30,15 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     preservicaServer.start()
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-  }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     preservicaServer.stop()
     secretsManagerServer.stop()
-  }
 
   val preservicaServer = new WireMockServer(preservicaPort)
 
@@ -85,14 +83,13 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     </WorkflowInstance>.toString()
 
   "startWorkflow" should s"return an exception if a request has both workflowContextName and workflowContextId set to None" in {
-    val startWorkflowRequest = {
+    val startWorkflowRequest =
       StartWorkflowRequest(
         None,
         None,
         List(Parameter("key", "value"), Parameter("key2", "value2")),
         Some("correlationTestId")
       )
-    }
 
     val client = testClient
     val error = intercept[PreservicaClientException] {
@@ -204,4 +201,3 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   private def getRequestMade(preservicaServer: WireMockServer) =
     preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
-}

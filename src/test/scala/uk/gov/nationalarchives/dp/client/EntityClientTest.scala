@@ -3,11 +3,11 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.RequestMethod
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
@@ -15,20 +15,23 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.DynamoFormatters.Identifier
-import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.EntityClient._
+import uk.gov.nationalarchives.dp.client.Client.*
+import uk.gov.nationalarchives.dp.client.EntityClient.*
+import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.xml.{PrettyPrinter, Utility, XML}
 
-abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
+abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(using
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach:
 
   def valueFromF[T](value: F[T]): T
 
@@ -42,17 +45,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     preservicaServer.start()
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-  }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     preservicaServer.stop()
     secretsManagerServer.stop()
-  }
 
   val preservicaServer = new WireMockServer(preservicaPort)
 
@@ -103,7 +104,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         "page1File&Correction.txt",
         Some("A new description"),
         StructuralObject,
-        Open,
+        open,
         Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
       )
 
@@ -118,7 +119,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
-              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
+              ${if addEntityRequest.ref.nonEmpty then s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
               <SecurityTag>open</SecurityTag>
@@ -154,7 +155,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -169,7 +170,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <XIP xmlns="http://preservica.com/XIP/v6.5">
             <InformationObject xmlns="http://preservica.com/XIP/v6.5">
-              ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>" else ""}
+              ${if addEntityRequest.ref.nonEmpty then "<Ref>${addEntityRequest.ref}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
               <SecurityTag>open</SecurityTag>
@@ -185,7 +186,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       ContentObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -206,7 +207,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
-      Open,
+      open,
       None
     )
 
@@ -247,7 +248,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -268,7 +269,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -284,13 +285,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   }
 
   forAll(updateRequestPermutations) { (title, potentialDescription) =>
-    {
-      val indexesOfChanges = List(Some(0), potentialDescription.map(_ => 1)).flatten
-      val nodesToUpdate = indexesOfChanges.map(index => updateRequestPermutations.heading.productElement(index))
+    val indexesOfChanges = List(Some(0), potentialDescription.map(_ => 1)).flatten
+    val nodesToUpdate = indexesOfChanges.map(index => updateRequestPermutations.heading.productElement(index))
 
-      "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
-        val entityResponse =
-          <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+    "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
+      val entityResponse =
+        <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
           <xip:StructuralObject>
             <xip:Ref>
               {ref}
@@ -306,39 +306,40 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           </AdditionalInformation>
         </EntityResponse>.toString()
 
-        preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-        preservicaServer.stubFor(put(urlEqualTo(s"/api/entity/structural-objects/$ref")).willReturn(ok(entityResponse)))
+      preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+      preservicaServer.stubFor(put(urlEqualTo(s"/api/entity/structural-objects/$ref")).willReturn(ok(entityResponse)))
 
-        val updateEntityRequest = UpdateEntityRequest(
-          ref,
-          title,
-          potentialDescription,
-          StructuralObject,
-          Open,
-          Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-        )
+      val updateEntityRequest = UpdateEntityRequest(
+        ref,
+        title,
+        potentialDescription,
+        StructuralObject,
+        open,
+        Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
+      )
 
-        val client = testClient
-        val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
+      val client = testClient
+      val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
 
-        val _ = valueFromF(updateEntityResponse)
+      val _ = valueFromF(updateEntityResponse)
 
-        val requestMade = getRequestMade(preservicaServer)
+      val requestMade = getRequestMade(preservicaServer)
 
-        requestMade should be(
-          s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      requestMade should be(
+        s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
               <Ref>${updateEntityRequest.ref}</Ref>
               <Title>${Utility.escape(updateEntityRequest.title)}</Title>
-              ${if (updateEntityRequest.descriptionToChange.nonEmpty)
+              ${
+            if updateEntityRequest.descriptionToChange.nonEmpty then
               s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
-            else ""}
+            else ""
+          }
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
-        )
-      }
+      )
     }
   }
 
@@ -349,7 +350,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       InformationObject,
-      Open,
+      open,
       None
     )
 
@@ -390,7 +391,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -413,7 +414,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       "page1File&Correction.txt",
       Some("A new description"),
       StructuralObject,
-      Open,
+      open,
       Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
     )
 
@@ -623,9 +624,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
-      err.getMessage should equal("Generation not found")
-    })
+    expectedError.left.map(err => err.getMessage should equal("Generation not found"))
   }
 
   "getBitstreamInfo" should "return an error if the server is unavailable" in {
@@ -638,11 +637,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map(err =>
       err.getMessage should equal(
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
-    })
+    )
   }
 
   "streamBitstreamContent" should "stream content to the provided function" in {
@@ -671,11 +670,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map(err =>
       err.getMessage should equal(
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
-    })
+    )
   }
 
   "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
@@ -824,11 +823,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map(err =>
       err.getMessage should equal(
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
-    })
+    )
   }
 
   "metadataForEntityUrl" should "return an error if the entity path is empty" in {
@@ -927,9 +926,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
     val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, 0)))
 
-    response.left.map(err => {
-      err.getClass.getSimpleName should equal("PreservicaClientException")
-    })
+    response.left.map(err => err.getClass.getSimpleName should equal("PreservicaClientException"))
   }
 
   "entityEventActions" should "return all paginated values in reverse chronological order (most recent EventAction first)" in {
@@ -1119,7 +1116,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     expectedEntity.path.get should equal("structural-objects")
     expectedEntity.title.get should be("page1File.txt")
     expectedEntity.description.get should be("A description")
-    expectedEntity.securityTag.get should be(Open)
+    expectedEntity.securityTag.get should be(open)
     expectedEntity.deleted should be(false)
   }
 
@@ -1293,7 +1290,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     entity.ref should be(id)
     entity.title.get should be("title.txt")
     entity.description.get should be("A description")
-    entity.securityTag.get should be(Open)
+    entity.securityTag.get should be(open)
   }
 
   "getEntity" should "return an error if the returned entity has a different entity type" in {
@@ -1371,13 +1368,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       }
     putEvents.size should equal(2)
 
-    def checkEvent(serveEvent: ServeEvent, id: String) = {
+    def checkEvent(serveEvent: ServeEvent, id: String) =
       val xml = XML.loadString(serveEvent.getRequest.getBodyAsString)
 
       (xml \ "Type").text should equal(s"Name$id")
       (xml \ "Value").text should equal(s"Value$id")
       serveEvent.getRequest.getUrl.endsWith(s"/$id") should be(true)
-    }
     checkEvent(putEvents.head, "2")
     checkEvent(putEvents.last, "1")
   }
@@ -1449,16 +1445,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val identifiers = valueFromF(client.getEntityIdentifiers(entity)).sortBy(_.id)
     identifiers.size should equal(2)
 
-    def checkIdentifier(identifier: IdentifierResponse, id: String) = {
+    def checkIdentifier(identifier: IdentifierResponse, id: String) =
       identifier.identifierName should equal(s"Test Type $id")
       identifier.value should equal(s"Test Value $id")
       identifier.id should equal(id)
-    }
     checkIdentifier(identifiers.head, "1")
     checkIdentifier(identifiers.last, "2")
   }
 
-  private def createEntity(entityType: EntityType = StructuralObject): Entity = {
+  private def createEntity(entityType: EntityType = StructuralObject): Entity =
     Entities.Entity(
       entityType.some,
       UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
@@ -1467,7 +1462,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       deleted = false,
       entityType.entityPath.some
     )
-  }
 
   "getEntityIdentifiers" should "return an error if the entity path is missing" in {
     val client = testClient
@@ -1701,4 +1695,3 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   private def getRequestMade(preservicaServer: WireMockServer) =
     preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
-}
