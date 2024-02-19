@@ -240,7 +240,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </BitstreamResponse>
     )
 
-    val generationsF = new DataProcessor[F]().allBitstreamInfo(input)
+    val generationsF = new DataProcessor[F]().allBitstreamInfo(input, Some("testCoTitle"))
     val response = valueFromF(generationsF)
 
     response.size should equal(1)
@@ -249,6 +249,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     response.head.url should equal("http://test")
     response.head.fixity.algorithm should equal("SHA1")
     response.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    response.head.potentialCoTitle should equal(Some("testCoTitle"))
   }
 
   "getNextPage" should "return the next page" in {
