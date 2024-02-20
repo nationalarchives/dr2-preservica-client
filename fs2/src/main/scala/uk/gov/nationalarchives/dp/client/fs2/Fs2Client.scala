@@ -1,11 +1,11 @@
 package uk.gov.nationalarchives.dp.client.fs2
 
-import cats.effect._
+import cats.effect.*
 import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.SttpBackendOptions
 import sttp.client3.httpclient.fs2.HttpClientFs2Backend
-import uk.gov.nationalarchives.dp.client.EntityClient._
-import uk.gov.nationalarchives.dp.client.AdminClient._
+import uk.gov.nationalarchives.dp.client.EntityClient.*
+import uk.gov.nationalarchives.dp.client.AdminClient.*
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{
   AdminClient,
@@ -20,11 +20,11 @@ import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.createProcessMonit
 import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
 import java.net.URI
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 /** An object containing methods to create each of the four clients. This uses cats.effect.IO and fs2.Stream
   */
-object Fs2Client {
+object Fs2Client:
   private val defaultSecretsManagerEndpoint = "https://secretsmanager.eu-west-2.amazonaws.com"
 
   /** Creates an entity client
@@ -131,11 +131,9 @@ object Fs2Client {
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
-  private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions = {
+  private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions =
     potentialProxyUrl
       .map { proxyUrl =>
         SttpBackendOptions.Default.httpProxy(proxyUrl.getHost, proxyUrl.getPort)
       }
       .getOrElse(SttpBackendOptions.Default)
-  }
-}

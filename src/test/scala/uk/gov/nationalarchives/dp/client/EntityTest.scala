@@ -3,15 +3,13 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
 import uk.gov.nationalarchives.dp.client.Entities.fromType
 
 import java.util.UUID
 
-abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
-    extends AnyFlatSpec
-    with TableDrivenPropertyChecks {
+abstract class EntityTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec with TableDrivenPropertyChecks:
   def valueFromF[T](value: F[T]): T
 
   val entityTypes: TableFor2[String, Option[String]] = Table(
@@ -28,4 +26,3 @@ abstract class EntityTest[F[_]](implicit cme: MonadError[F, Throwable])
       )
     }
   }
-}

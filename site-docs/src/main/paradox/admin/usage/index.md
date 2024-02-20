@@ -33,7 +33,6 @@ The admin client doesn't take a `Stream` type parameter as the methods don't nee
 
 @@@ index
 
-* [Zio](zio.md)
 * [Fs2](fs2.md)
 
 @@@

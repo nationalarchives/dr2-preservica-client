@@ -1,18 +1,18 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect._
-import cats.implicits._
-import sttp.client3._
+import cats.effect.*
+import cats.implicits.*
+import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.FileInfo._
+import uk.gov.nationalarchives.dp.client.FileInfo.*
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 
 /** A client to update schemas, transfers, index definitions and metadata templates in Preservica
   * @tparam F
   *   Type of the effect
   */
-trait AdminClient[F[_]] {
+trait AdminClient[F[_]]:
 
   /** Add or update a schema document in Preservica
     * @param fileInfo
@@ -45,11 +45,10 @@ trait AdminClient[F[_]] {
     *   Unit wrapped in the F effect
     */
   def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit]
-}
 
 /** An object containing a method which returns an implementation of the AdminClient trait
   */
-object AdminClient {
+object AdminClient:
 
   /** Creates a new `AdminClient` instance.
     * @param clientConfig
@@ -64,14 +63,14 @@ object AdminClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): AdminClient[F] = new AdminClient[F] {
+  ): AdminClient[F] = new AdminClient[F]:
     private val client: Client[F, S] = Client(clientConfig)
-    import client._
+    import client.*
 
-    private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
+    private def deleteDocument(path: String, apiId: String, token: String): F[Unit] =
       val url = uri"$apiBaseUrl/api/admin/$path/$apiId"
       backend
         .send {
@@ -84,14 +83,13 @@ object AdminClient {
               .map(_ => ())
           }
         )
-    }
 
     private def createSchema(
         path: String,
         queryParams: Map[String, String],
         body: String,
         token: String
-    ): F[Unit] = {
+    ): F[Unit] =
       val url = uri"$apiBaseUrl/api/admin/$path?$queryParams"
       backend
         .send(
@@ -108,23 +106,21 @@ object AdminClient {
               .map(_ => ())
           }
         )
-    }
 
     private def updateFiles(
         fileInfo: List[FileInfo],
         path: String,
         elementName: String
-    ) = for {
+    ) = for
       token <- getAuthenticationToken
       res <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/$path", token, Method.GET)
       _ <- fileInfo.map { info =>
-        val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
+        val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match
           case Some(id) => deleteDocument(path, id, token)
           case None     => me.unit
-        }
         me.flatMap(deleteIfPresent)(_ => createSchema(path, info.toQueryParams, info.xmlData, token))
       }.sequence
-    } yield ()
+    yield ()
 
     override def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo]): F[Unit] =
       updateFiles(fileInfo, "schemas", "Schema")
@@ -137,5 +133,3 @@ object AdminClient {
 
     override def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit] =
       updateFiles(fileInfo, "documents", "Document")
-  }
-}

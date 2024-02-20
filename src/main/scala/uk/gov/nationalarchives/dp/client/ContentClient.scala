@@ -2,14 +2,16 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import sttp.client3._
-import sttp.client3.upicklejson.asJson
+import cats.implicits.*
+import io.circe.{Decoder, Printer}
+import io.circe.generic.auto.*
+import io.circe.syntax.*
+import sttp.client3.*
+import sttp.client3.circe.asJson
 import sttp.model.Uri
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient.SearchQuery
-import uk.gov.nationalarchives.dp.client.Entities._
-import upickle.default._
+import uk.gov.nationalarchives.dp.client.Entities.*
 
 import java.util.UUID
 
@@ -17,7 +19,7 @@ import java.util.UUID
   * @tparam F
   *   Type of the effect
   */
-trait ContentClient[F[_]] {
+trait ContentClient[F[_]]:
 
   /** @param searchQuery
     *   The search query to use
@@ -27,11 +29,10 @@ trait ContentClient[F[_]] {
     *   A list of `Entity` objects wrapped in the F effect
     */
   def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]]
-}
 
 /** An object containing a method which returns an implementation of the ContentClient trait
   */
-object ContentClient {
+object ContentClient:
 
   /** Represents a field to be returned by the search query
     * @param name
@@ -62,29 +63,24 @@ object ContentClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): ContentClient[F] = new ContentClient[F] {
+  ): ContentClient[F] = new ContentClient[F]:
     case class SearchResponseValue(objectIds: List[String], totalHits: Int)
 
     case class SearchResponse(success: Boolean, value: SearchResponseValue)
 
     private val client: Client[F, S] = Client(clientConfig)
-    implicit val fieldWriter: Writer[SearchField] = macroW[SearchField]
-    implicit val queryWriter: Writer[SearchQuery] = macroW[SearchQuery]
-    implicit val searchResponseValueWriter: Reader[SearchResponseValue] = macroR[SearchResponseValue]
-    implicit val searchResponseWriter: Reader[SearchResponse] = macroR[SearchResponse]
-
-    import client._
+    import client.*
 
     def toEntities(entityInfo: List[String]): F[List[Entity]] = entityInfo
-      .map(info => {
+      .map(info =>
         val entityTypeAndRefSplit = info.split("\\|")
         val entityType = entityTypeAndRefSplit.head.split(":").last
         val entityRef = UUID.fromString(entityTypeAndRefSplit.last)
         fromType[F](entityType, entityRef, None, None, deleted = false)
-      })
+      )
       .sequence
 
     private def search(
@@ -92,7 +88,7 @@ object ContentClient {
         token: String,
         searchQuery: SearchQuery,
         ids: List[String]
-    ): F[List[Entity]] = {
+    ): F[List[Entity]] =
       val max = 100
       basicRequest
         .get(searchUri(start, max, searchQuery))
@@ -101,16 +97,12 @@ object ContentClient {
         .send(backend)
         .flatMap(res => me.fromEither(res.body))
         .flatMap(searchResponse =>
-          if (searchResponse.value.objectIds.isEmpty) {
-            toEntities(ids)
-          } else {
-            search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)
-          }
+          if searchResponse.value.objectIds.isEmpty then toEntities(ids)
+          else search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)
         )
-    }
 
-    private def searchUri(start: Int, max: Int, searchQuery: SearchQuery): Uri = {
-      val queryString = write(searchQuery)
+    private def searchUri(start: Int, max: Int, searchQuery: SearchQuery): Uri =
+      val queryString = searchQuery.asJson.printWith(Printer.noSpaces)
       val queryParams = Map(
         "q" -> queryString,
         "start" -> start.toString,
@@ -118,13 +110,9 @@ object ContentClient {
         "metadata" -> searchQuery.fields.map(_.name).mkString(",")
       )
       uri"$apiBaseUrl/api/content/search?$queryParams"
-    }
 
-    override def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]] = {
-      for {
+    override def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]] =
+      for
         token <- getAuthenticationToken
         res <- search(0, token, searchQuery, Nil)
-      } yield res
-    }
-  }
-}
+      yield res

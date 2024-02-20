@@ -20,7 +20,6 @@ The process monitor client doesn't take a `Stream` type parameter as the `getMon
 
 @@@ index
 
-* [Zio](zio.md)
 * [Fs2](fs2.md)
 
 @@@

@@ -3,23 +3,23 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.admin.model.ServeEventQuery
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
-import uk.gov.nationalarchives.dp.client.FileInfo._
+import uk.gov.nationalarchives.dp.client.FileInfo.*
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.xml.{Elem, Node}
 
-abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(implicit
+abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(using
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
     with BeforeAndAfterEach
-    with TableDrivenPropertyChecks {
+    with TableDrivenPropertyChecks:
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
@@ -32,18 +32,16 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
 
   val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     preservicaServer.resetAll()
     secretsManagerServer.resetAll()
     preservicaServer.start()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-  }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     preservicaServer.stop()
     secretsManagerServer.stop()
-  }
 
   val client: AdminClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
@@ -86,13 +84,12 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
     ("addOrUpdateIndexDefinitions", "documents", documentResponse, indexDefinitionInfo)
   )
 
-  forAll(t)((methodName, path, response, input) => {
-    val result = input match {
+  forAll(t)((methodName, path, response, input) =>
+    val result = input match
       case i: IndexDefinitionInfo   => client.addOrUpdateIndexDefinitions(i :: Nil)
       case mt: MetadataTemplateInfo => client.addOrUpdateMetadataTemplates(mt :: Nil)
       case s: SchemaFileInfo        => client.addOrUpdateSchemas(s :: Nil)
       case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil)
-    }
 
     val url = s"/api/admin/$path"
 
@@ -189,6 +186,4 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
         s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path?$paramsString with method POST "
       )
     }
-  })
-
-}
+  )

@@ -2,18 +2,18 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import sttp.client3._
+import cats.implicits.*
+import io.circe.generic.auto.*
+import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Client._
-import uk.gov.nationalarchives.dp.client.ProcessMonitorClient._
-import upickle.default._
+import uk.gov.nationalarchives.dp.client.Client.*
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.*
 
 /** A client to retrieve Preservica Monitors
   * @tparam F
   *   Type of the effect
   */
-trait ProcessMonitorClient[F[_]] {
+trait ProcessMonitorClient[F[_]]:
 
   /** Gets Preservica monitors
     * @param getMonitorsRequest
@@ -34,11 +34,10 @@ trait ProcessMonitorClient[F[_]] {
     *   The Messages requested, wrapped in the F effect.
     */
   def getMessages(getMessagesRequest: GetMessagesRequest, start: Int = 0, max: Int = 1000): F[Seq[Message]]
-}
 
 /** An object containing a method which returns an implementation of the ProcessMonitorClient trait
   */
-object ProcessMonitorClient {
+object ProcessMonitorClient:
 
   /** Creates a new `ProcessMonitorClient` instance.
     * @param clientConfig
@@ -52,35 +51,21 @@ object ProcessMonitorClient {
     * @return
     *   A new `ProcessMonitorClient`
     */
-  def createProcessMonitorClient[F[_]](clientConfig: ClientConfig[F, _])(implicit
+  def createProcessMonitorClient[F[_]](clientConfig: ClientConfig[F, ?])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): ProcessMonitorClient[F] = new ProcessMonitorClient[F] {
+  ): ProcessMonitorClient[F] = new ProcessMonitorClient[F]:
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
-    private val client: Client[F, _] = Client(clientConfig)
+    private val client: Client[F, ?] = Client(clientConfig)
 
-    implicit val messagesValuePayloadRW: ReadWriter[MessagesValue] = macroRW[MessagesValue]
+    import client.*
 
-    implicit val messagesPayloadRW: ReadWriter[Message] = macroRW[Message]
-
-    implicit val messagesResponsePayloadRW: ReadWriter[MessagesResponse] = macroRW[MessagesResponse]
-
-    implicit val monitorsPayloadRW: ReadWriter[Monitors] = macroRW[Monitors]
-
-    implicit val pagingPayloadRW: ReadWriter[Paging] = macroRW[Paging]
-
-    implicit val monitorsValuePayloadRW: ReadWriter[MonitorsValue] = macroRW[MonitorsValue]
-
-    implicit val monitorsResponsePayloadRW: ReadWriter[MonitorsResponse] = macroRW[MonitorsResponse]
-
-    import client._
-
-    override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] = {
+    override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] =
       val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMonitorsRequest)
 
       val getMonitorsUrl = uri"$apiBaseUrl/api/processmonitor/monitors?$relevantQueryParamsAsString"
 
-      for {
+      for
         _ <-
           me.raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
             PreservicaClientException("The monitor name must start with 'opex'")
@@ -91,39 +76,37 @@ object ProcessMonitorClient {
           token,
           Method.GET
         )
-      } yield getMonitorsResponse.value.monitors
-    }
+      yield getMonitorsResponse.value.monitors
 
     override def getMessages(
         getMessagesRequest: GetMessagesRequest,
         start: Int = 0,
         max: Int = 1000
-    ): F[Seq[Message]] = {
+    ): F[Seq[Message]] =
       val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMessagesRequest)
       val getMessagesUrl =
         uri"$apiBaseUrl/api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
 
-      for {
+      for
         token <- getAuthenticationToken
         messages <- monitorMessages(getMessagesUrl.toString, token, Nil)
-      } yield messages
-    }
+      yield messages
 
     private def monitorMessages(url: String, token: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
-      if (url.isEmpty) me.pure(amassedMessages)
+      if url.isEmpty then me.pure(amassedMessages)
       else
-        for {
+        for
           getMessagesResponse <- sendJsonApiRequest[MessagesResponse](
             url,
             token,
             Method.GET
           )
           messagesResponse = getMessagesResponse.value.messages
-          potentialNextPageUrl = getMessagesResponse.value.paging.next
+          potentialNextPageUrl = getMessagesResponse.value.paging.next.getOrElse("")
           allMessages <- monitorMessages(potentialNextPageUrl, token, amassedMessages ++ messagesResponse)
-        } yield allMessages
+        yield allMessages
 
-    private def getQueryParamsAsMap(request: Product): Map[String, String] = {
+    private def getQueryParamsAsMap(request: Product): Map[String, String] =
       val getMonitorsRequestAsMap: Map[String, IterableOnce[String]] =
         request.productElementNames
           .zip(request.productIterator.map(_.asInstanceOf[IterableOnce[String]]))
@@ -132,23 +115,6 @@ object ProcessMonitorClient {
       getMonitorsRequestAsMap.collect {
         case (name, value) if value.iterator.nonEmpty => (name, value.iterator.mkString(","))
       }
-    }
-  }
-
-  private def convertClassNameToString(scalaClass: Any) =
-    scalaClass.getClass.getSimpleName.dropRight(1)
-
-  sealed trait MonitorsStatus {
-    override def toString: String = convertClassNameToString(this)
-  }
-
-  sealed trait MonitorCategory {
-    override def toString: String = convertClassNameToString(this)
-  }
-
-  sealed trait MessageStatus {
-    override def toString: String = convertClassNameToString(this)
-  }
 
   /** A Monitors request parameter
     * @param key
@@ -170,15 +136,14 @@ object ProcessMonitorClient {
       status: List[MonitorsStatus] = Nil,
       name: Option[String] = None,
       category: List[MonitorCategory] = Nil
-  ) {
+  ):
     val subcategory: List[String] = Nil
-  }
 
   case class MonitorsResponse(success: Boolean, version: Int, value: MonitorsValue)
 
   case class MonitorsValue(paging: Paging, monitors: Seq[Monitors])
 
-  case class Paging(next: String = "", totalResults: Int)
+  case class Paging(next: Option[String] = None, totalResults: Int)
 
   case class Monitors(
       mappedId: String,
@@ -198,22 +163,11 @@ object ProcessMonitorClient {
       canRetry: Boolean
   )
 
-  case object Running extends MonitorsStatus
+  enum MonitorsStatus:
+    case Running, Pending, Succeeded, Failed, Suspended, Recoverable
 
-  case object Pending extends MonitorsStatus
-
-  case object Succeeded extends MonitorsStatus
-
-  case object Failed extends MonitorsStatus
-
-  case object Suspended extends MonitorsStatus
-
-  case object Recoverable extends MonitorsStatus
-
-  case object Ingest extends MonitorCategory
-  case object Export extends MonitorCategory
-  case object DataManagement extends MonitorCategory
-  case object Automated extends MonitorCategory
+  enum MonitorCategory:
+    case Ingest, Export, DataManagement, Automated
 
   case class GetMessagesRequest(monitor: List[String] = Nil, status: List[MessageStatus] = Nil)
 
@@ -232,14 +186,11 @@ object ProcessMonitorClient {
       mappedMonitorId: String,
       message: String,
       mappedId: String,
-      securityDescriptor: String = "",
-      entityTitle: String = "",
-      entityRef: String = "",
-      sourceId: String = ""
+      securityDescriptor: Option[String] = None,
+      entityTitle: Option[String] = None,
+      entityRef: Option[String] = None,
+      sourceId: Option[String] = None
   )
 
-  case object Error extends MessageStatus
-  case object Info extends MessageStatus
-  case object Debug extends MessageStatus
-  case object Warning extends MessageStatus
-}
+  enum MessageStatus:
+    case Error, Info, Debug, Warning

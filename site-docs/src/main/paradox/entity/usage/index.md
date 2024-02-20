@@ -137,7 +137,6 @@ The client exposes 12 methods
 
 @@@ index
 
-* [Zio](zio.md)
 * [Fs2](fs2.md)
 
 @@@

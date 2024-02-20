@@ -4,23 +4,23 @@ import cats.MonadError
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.admin.model.ServeEventQuery
 import com.github.tomakehurst.wiremock.client.MappingBuilder
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterEach, EitherValues}
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
-import upickle.default
-import upickle.default.{macroR, read}
-
+import io.circe.parser.decode
+import io.circe.generic.auto.*
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
-abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(implicit
+abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)(using
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with EitherValues:
   def valueFromF[T](value: F[T]): T
 
   def createClient(url: String): F[ContentClient[F]]
@@ -31,18 +31,16 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
 
   val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     secretsManagerServer.resetAll()
     preservicaServer.resetAll()
     preservicaServer.start()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-  }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     preservicaServer.stop()
     secretsManagerServer.stop()
-  }
 
   val client: ContentClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
@@ -62,9 +60,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     val events =
       preservicaServer.getServeEvents(ServeEventQuery.forStubMapping(searchMapping.build())).getServeEvents.asScala
     val searchQParam = events.head.getRequest.getQueryParams.get("q").values().get(0)
-    implicit val searchFieldReader: default.Reader[SearchField] = macroR[SearchField]
-    implicit val searchQueryReader: default.Reader[SearchQuery] = macroR[SearchQuery]
-    val query = read[SearchQuery](searchQParam)
+    val query = decode[SearchQuery](searchQParam).value
     val searchField = query.fields.head
     query.q should equal(queryString)
     searchField.name should equal("test1")
@@ -114,4 +110,3 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
 
     ex.getMessage should equal("statusCode: 500, response: ")
   }
-}

@@ -2,21 +2,24 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import scalacache._
-import scalacache.memoization._
+import cats.implicits.*
+import io.circe
+import io.circe.Decoder
+import io.circe.parser.decode
+import scalacache.*
+import scalacache.memoization.*
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
-import sttp.client3._
-import sttp.client3.upicklejson._
+import sttp.client3.*
+import sttp.client3.circe.*
+import io.circe.generic.auto.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Client._
-import upickle.default._
+import uk.gov.nationalarchives.dp.client.Client.*
 
 import java.net.URI
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.xml.{Elem, XML}
 
 /** A utility class containing methods common to all clients
@@ -31,19 +34,17 @@ import scala.xml.{Elem, XML}
   * @tparam S
   *   The type of the sttp Stream
   */
-private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
     sync: Sync[F]
-) {
+):
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
-  private implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
-
-  implicit val cache: Cache[F, String, F[String]] = new PreservicaClientCache()
+  given cache: Cache[F, String, F[String]] = new PreservicaClientCache()
 
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
@@ -55,7 +56,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       token: String,
       method: Method,
       requestBody: Option[String] = None
-  ) = {
+  ) =
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
@@ -67,20 +68,19 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
       )
     }
-  }
 
   private[client] def sendJsonApiRequest[R](
       url: String,
       token: String,
       method: Method,
       requestBody: Option[String] = None
-  )(implicit reader: Reader[R]): F[R] = {
+  )(using decoder: Decoder[R]): F[R] =
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
       .method(method, apiUri)
       .response(asJson[R])
-    val requestWithBody: RequestT[Identity, Either[ResponseException[String, Exception], R], Any] =
+    val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
 
     me.flatMap(backend.send(requestWithBody)) { res =>
@@ -88,9 +88,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
       )
     }
-  }
 
-  private def getAuthDetails: F[AuthDetails] = {
+  private def getAuthDetails: F[AuthDetails] =
     val valueRequest = GetSecretValueRequest
       .builder()
       .secretId(secretName)
@@ -102,33 +101,33 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .build()
 
     val response = secretsManager.getSecretValue(valueRequest)
-    val (username, password) = upickle.default.read[Map[String, String]](response.secretString).head
-    me.pure(AuthDetails(username, password))
-  }
+    me.fromEither(decode[Map[String, String]](response.secretString))
+      .map { secretMap =>
+        val (username, password) = secretMap.head
+        AuthDetails(username, password)
+      }
 
   private[client] def getAuthenticationToken: F[String] =
     memoize[F, F[String]](Some(duration)) {
       val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
-      for {
+      for
         authDetails <- getAuthDetails
         res <- basicRequest
           .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
           .post(apiUri)
           .response(asJson[Token])
           .send(backend)
-        token <- {
+        token <-
           val responseOrError = res.body.left
             .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
             .map(_.token)
           me.fromEither(responseOrError)
-        }
-      } yield token
+      yield token
     }.flatten
-}
 
 /** Case classes common to several clients
   */
-object Client {
+object Client:
   private[client] case class Token(token: String)
 
   private[client] case class AuthDetails(userName: String, password: String)
@@ -182,8 +181,7 @@ object Client {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def apply[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def apply[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ) = new Client[F, S](clientConfig)
-}

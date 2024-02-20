@@ -2,14 +2,16 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Preservation, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 
 import java.time.ZonedDateTime
 import java.util.UUID
 
-abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
+abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec:
   def valueFromF[T](value: F[T]): T
 
   private def generateContentObject(ref: String) = Entity(
@@ -294,13 +296,12 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         fileName: String,
         description: String,
         deleted: Boolean = false
-    ) = {
+    ) =
       entity.path.getOrElse("") should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.getOrElse("") should equal(fileName)
       entity.description.getOrElse("") should equal(description)
-    }
 
     checkResponse(
       entities.head,
@@ -398,7 +399,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     response.title.get should equal("Title")
     response.description.get should equal("A description")
-    response.securityTag.get should equal(Open)
+    response.securityTag.get should equal(open)
     response.deleted should equal(true)
     response.parent.get should equal(UUID.fromString("f567352f-0874-49da-85aa-ac0fbfa3b335"))
   }
@@ -642,4 +643,3 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       )
     )
   }
-}

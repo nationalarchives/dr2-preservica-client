@@ -19,7 +19,6 @@ The content client doesn't take a `Stream` type parameter as the search method d
 
 @@@ index
 
-* [Zio](zio.md)
 * [Fs2](fs2.md)
 
 @@@
