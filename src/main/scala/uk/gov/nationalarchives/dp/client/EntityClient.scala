@@ -452,7 +452,8 @@ object EntityClient {
           .sequence
         allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
         bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls)
+        contentObjectTitle <- dataProcessor.getEntity(contentRef, contentEntity, ContentObject)
+        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls, contentObjectTitle.title)
       } yield allBitstreamInfo
 
     override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
