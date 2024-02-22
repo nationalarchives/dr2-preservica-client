@@ -4,7 +4,12 @@ object Admin {
   // #fs2
   object AdminFs2 {
     import cats.effect.IO
-    import uk.gov.nationalarchives.dp.client.FileInfo.{IndexDefinitionInfo, MetadataTemplateInfo, SchemaFileInfo, TransformFileInfo}
+    import uk.gov.nationalarchives.dp.client.FileInfo.{
+      IndexDefinitionInfo,
+      MetadataTemplateInfo,
+      SchemaFileInfo,
+      TransformFileInfo
+    }
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
 
     val url = "https://test.preservica.com"
@@ -17,7 +22,9 @@ object Admin {
         updateIndexDefinitions <- client.addOrUpdateIndexDefinitions(IndexDefinitionInfo(name, xmlData) :: Nil)
         updateMetadataTemplates <- client.addOrUpdateMetadataTemplates(MetadataTemplateInfo(name, xmlData) :: Nil)
         updateSchemas <- client.addOrUpdateSchemas(SchemaFileInfo(name, "description", "originalName", xmlData) :: Nil)
-        updateTransforms <- client.addOrUpdateTransforms(TransformFileInfo(name, "from", "to", "purpose", "originalName", xmlData) :: Nil)
+        updateTransforms <- client.addOrUpdateTransforms(
+          TransformFileInfo(name, "from", "to", "purpose", "originalName", xmlData) :: Nil
+        )
       } yield ()
     }
   }
@@ -25,7 +32,12 @@ object Admin {
 
   // #zio
   object AdminZio {
-    import uk.gov.nationalarchives.dp.client.FileInfo.{IndexDefinitionInfo, MetadataTemplateInfo, SchemaFileInfo, TransformFileInfo}
+    import uk.gov.nationalarchives.dp.client.FileInfo.{
+      IndexDefinitionInfo,
+      MetadataTemplateInfo,
+      SchemaFileInfo,
+      TransformFileInfo
+    }
     import uk.gov.nationalarchives.dp.client.zio.ZioClient
     import zio._
 
@@ -38,7 +50,9 @@ object Admin {
         updateIndexDefinitions <- client.addOrUpdateIndexDefinitions(IndexDefinitionInfo(name, xmlData) :: Nil)
         updateMetadataTemplates <- client.addOrUpdateMetadataTemplates(MetadataTemplateInfo(name, xmlData) :: Nil)
         updateSchemas <- client.addOrUpdateSchemas(SchemaFileInfo(name, "description", "originalName", xmlData) :: Nil)
-        updateTransforms <- client.addOrUpdateTransforms(TransformFileInfo(name, "from", "to", "purpose", "originalName", xmlData) :: Nil)
+        updateTransforms <- client.addOrUpdateTransforms(
+          TransformFileInfo(name, "from", "to", "purpose", "originalName", xmlData) :: Nil
+        )
       } yield ()
     }
   }
