@@ -110,8 +110,8 @@ lazy val docs = (project in file("site-docs"))
   .enablePlugins(ParadoxSitePlugin, ScalaUnidocPlugin, SitePreviewPlugin)
   .settings(
     paradoxProperties += (
-      "version" -> (ThisBuild / version).value.split("-").head,
-      ),
+      "version" -> (ThisBuild / version).value.split("-").head
+    ),
     paradoxTheme := Some(builtinParadoxTheme("generic")),
     ScalaUnidoc / siteSubdirName := "api",
     addMappingsToSiteDir(ScalaUnidoc / packageDoc / mappings, ScalaUnidoc / siteSubdirName)
@@ -119,6 +119,5 @@ lazy val docs = (project in file("site-docs"))
   .dependsOn(root % "compile->compile")
   .dependsOn(fs2 % "compile->compile")
   .dependsOn(zio % "compile->compile")
-
 
 scalacOptions ++= Seq("-Wunused:imports", "-Werror")
