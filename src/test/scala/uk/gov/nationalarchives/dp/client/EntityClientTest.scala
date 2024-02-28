@@ -1699,6 +1699,19 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
   }
 
+  "getPreservicaNamespaceVersion" should "extract and return the version, as a float, from a namespace" in {
+    val client = testClient
+    val endpoint = "retention-policies"
+    val response =
+      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
+      </RetentionPoliciesResponse>
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(s"/api/entity/retention-policies")).willReturn(ok(response.toString)))
+
+    val version = valueFromF(client.getPreservicaNamespaceVersion(endpoint))
+    version should equal(7.0)
+  }
+
   private def getRequestMade(preservicaServer: WireMockServer) =
     preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
 }

@@ -56,6 +56,10 @@ The client exposes 12 methods
       entityType: EntityType,
       identifier: Identifier
   ): F[String]
+
+  def getPreservicaNamespaceVersion(
+      endpoint: String
+  ): F[Float]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
@@ -134,6 +138,10 @@ The client exposes 12 methods
 ### addIdentifierForEntity
 * Converts the arguments to the XML input
 * Calls the `identifiers` endpoint to create an identifier for an entity
+
+### getPreservicaNamespaceVersion
+* Calls any Entity Preservica endpoint that returns XML
+* Returns version number found in namespace
 
 @@@ index
 
