@@ -36,6 +36,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   def testClient: EntityClient[F, S] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
+  private val apiVersion = 7.0f
+
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
@@ -63,7 +65,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   val tokenUrl = "/api/accesstoken/login"
 
   val ref: UUID = UUID.randomUUID()
-  val entityUrl = s"/api/entity/content-objects/$ref"
+  val entityUrl = s"/api/entity/v$apiVersion/content-objects/$ref"
 
   private val identifier = Identifier(
     "TestIdentifierName",
@@ -96,7 +98,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </EntityResponse>.toString()
 
       preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-      preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/structural-objects")).willReturn(ok(entityResponse)))
+      preservicaServer.stubFor(
+        post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(ok(entityResponse))
+      )
 
       val addEntityRequest = AddEntityRequest(
         reference,
@@ -147,7 +151,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </EntityResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/information-objects")).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/v$apiVersion/information-objects")).willReturn(ok(entityResponse))
+    )
 
     val addEntityRequest = AddEntityRequest(
       None,
@@ -240,7 +246,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </EntityResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/structural-objects")).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(ok(entityResponse))
+    )
 
     val addEntityRequest = AddEntityRequest(
       Some(ref),
@@ -261,7 +269,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "addEntity" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/structural-objects")).willReturn(badRequest()))
+    preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(badRequest()))
 
     val updateEntityRequest = AddEntityRequest(
       Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
@@ -279,7 +287,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
 
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/structural-objects with method POST "
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects with method POST "
     )
   }
 
@@ -307,7 +315,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </EntityResponse>.toString()
 
         preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-        preservicaServer.stubFor(put(urlEqualTo(s"/api/entity/structural-objects/$ref")).willReturn(ok(entityResponse)))
+        preservicaServer.stubFor(
+          put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref")).willReturn(ok(entityResponse))
+        )
 
         val updateEntityRequest = UpdateEntityRequest(
           ref,
@@ -383,7 +393,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </EntityResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(put(urlEqualTo(s"/api/entity/structural-objects/$ref")).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(
+      put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref")).willReturn(ok(entityResponse))
+    )
 
     val updateEntityRequest = UpdateEntityRequest(
       ref,
@@ -405,7 +417,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "updateEntity" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      put(urlEqualTo(s"/api/entity/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f")).willReturn(badRequest())
+      put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f"))
+        .willReturn(badRequest())
     )
 
     val updateEntityRequest = UpdateEntityRequest(
@@ -424,13 +437,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
 
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f with method PUT "
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f with method PUT "
     )
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
     val fileName = "test.txt"
-    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+    val generationsUrl = s"/api/entity/v$apiVersion/content-objects/$ref/generations"
     val generationUrl = s"$generationsUrl/1"
     val bitstreamUrl = s"$generationUrl/bitstreams/1"
 
@@ -498,7 +511,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info for multiple generations" in {
-    val generationsUrl = s"/api/entity/content-objects/$ref/generations"
+    val generationsUrl = s"/api/entity/v$apiVersion/content-objects/$ref/generations"
     val generationOneUrl = s"$generationsUrl/1"
     val generationTwoUrl = s"$generationsUrl/2"
     val bitstreamOneUrl = s"$generationOneUrl/bitstreams/1"
@@ -682,8 +695,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
-    val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -727,9 +740,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
-    val fragmentOneUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
-    val fragmentTwoUrl = s"/api/entity/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -791,7 +804,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val entityUrl = s"/api/entity/${entity.path.get}/${entity.ref}"
+    val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
       <AdditionalInformation>
@@ -851,7 +864,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Paging>
         <Next>http://localhost:{
       preservicaPort
-    }/api/entity/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z
+    }/api/entity/v$apiVersion/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z
           &amp;
           start=100
           &amp;
@@ -861,7 +874,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/updated-since"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
         .withQueryParams(
           Map(
             "date" -> equalTo("2023-04-25T00:00:00.000Z"),
@@ -891,7 +904,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/updated-since"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
         .withQueryParams(
           Map(
             "date" -> equalTo("2023-04-25T00:00:00.000Z"),
@@ -913,7 +926,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/updated-since"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
         .withQueryParams(
           Map(
             "date" -> equalTo("2023-04-25T00:00:00.000Z"),
@@ -948,7 +961,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Paging>
         <Next>http://localhost:{
       preservicaPort
-    }/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions?max=1000&amp;start=1000</Next>
+    }/api/entity/v{
+      apiVersion
+    }/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions?max=1000&amp;start=1000</Next>
       </Paging>
     </EventActionsResponse>
     val secondPage = <EventActionsResponse>
@@ -969,7 +984,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+      get(
+        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
+      )
         .withQueryParams(
           Map(
             "max" -> equalTo("1000"),
@@ -980,7 +997,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+      get(
+        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
+      )
         .withQueryParams(
           Map(
             "max" -> equalTo("1000"),
@@ -1018,7 +1037,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "entityEventActions" should "return an error if the request is malformed" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions"))
+      get(
+        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
+      )
         .withQueryParams(
           Map(
             "max" -> equalTo("1000"),
@@ -1078,7 +1099,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Paging>
         <Next>http://localhost:{
       preservicaPort
-    }/api/entity/entities/by-identifier?type=testIdentifier&amp;value=testValue
+    }/api/entity/v$apiVersion/entities/by-identifier?type=testIdentifier&amp;value=testValue
         </Next>
       </Paging>
     </EntitiesResponse>
@@ -1094,7 +1115,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
         .withQueryParams(
           Map(
             "type" -> equalTo("testIdentifier"),
@@ -1104,7 +1125,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         .willReturn(ok(pageResult.toString()))
     )
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/structural-objects/$id"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$id"))
         .willReturn(ok(fullEntityResponse.toString))
     )
 
@@ -1130,7 +1151,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
         .withQueryParams(
           Map(
             "type" -> equalTo("testIdentifier"),
@@ -1151,7 +1172,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "entitiesByIdentifier" should "return an error if the request is malformed" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/entities/by-identifier"))
+      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
         .withQueryParams(
           Map(
             "type" -> equalTo("testIdentifier"),
@@ -1188,13 +1209,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <TotalResults>1</TotalResults>
         </Paging>
         <AdditionalInformation>
-          <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+          <Self>http://mockapi.com/api/entity/v$apiVersion/structural-objects/$ref/identifiers</Self>
         </AdditionalInformation>
       </IdentifiersResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
     )
 
     val client = testClient
@@ -1219,7 +1240,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "addIdentifierForEntity" should s"return an exception if the API call does" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(badRequest())
+      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(badRequest())
     )
 
     val client = testClient
@@ -1231,7 +1252,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
 
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/structural-objects/$ref/identifiers with method POST "
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/$ref/identifiers with method POST "
     )
   }
 
@@ -1252,13 +1273,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <TotalResults>1</TotalResults>
       </Paging>
       <AdditionalInformation>
-        <Self>http://mockapi.com/api/entity/structural-objects/$ref/identifiers</Self>
+        <Self>http://mockapi.com/api/entity/v$apiVersion/structural-objects/$ref/identifiers</Self>
       </AdditionalInformation>
     </IdentifiersResponse>.toString()
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
+      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
     )
 
     val client = testClient
@@ -1284,7 +1305,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/structural-objects/$id"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$id"))
         .willReturn(ok(fullEntityResponse.toString))
     )
     val entity = valueFromF(client.getEntity(id, StructuralObject))
@@ -1312,7 +1333,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/$id"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/$id"))
         .willReturn(ok(fullEntityResponse.toString))
     )
     val ex = intercept[PreservicaClientException] {
@@ -1325,7 +1346,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val host = s"http://localhost:$preservicaPort"
     val client = testClient
     val id = UUID.randomUUID()
-    val getUrl = s"/api/entity/information-objects/$id"
+    val getUrl = s"/api/entity/v$apiVersion/information-objects/$id"
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
@@ -1356,7 +1377,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     identifiers.foreach { identifier =>
       preservicaServer.stubFor(
-        put(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers/${identifier.id}"))
+        put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers/${identifier.id}"))
           .willReturn(ok(response.toString))
       )
     }
@@ -1365,7 +1386,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val putEvents = preservicaServer.getAllServeEvents.asScala
       .filter { e =>
         e.getRequest.getMethod == RequestMethod.PUT && e.getRequest.getUrl.startsWith(
-          s"/api/entity/structural-objects/${entity.ref}/identifiers/"
+          s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers/"
         )
 
       }
@@ -1396,7 +1417,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
     val entity = createEntity()
     val identifiers = List(IdentifierResponse("1", "Name1", "Value1"))
-    val url = s"/api/entity/structural-objects/${entity.ref}/identifiers/1"
+    val url = s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers/1"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       put(urlEqualTo(url))
@@ -1414,7 +1435,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response = <IdentifiersResponse></IdentifiersResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"))
         .willReturn(ok(response.toString))
     )
     val identifiers = valueFromF(client.getEntityIdentifiers(entity))
@@ -1443,7 +1464,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </IdentifiersResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/structural-objects/${entity.ref}/identifiers"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"))
         .willReturn(ok(response.toString))
     )
     val identifiers = valueFromF(client.getEntityIdentifiers(entity)).sortBy(_.id)
@@ -1481,7 +1502,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getEntityIdentifiers" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity()
-    val url = s"/api/entity/structural-objects/${entity.ref}/identifiers"
+    val url = s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(url))
@@ -1499,7 +1520,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response = <RepresentationResponse></RepresentationResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
@@ -1513,13 +1534,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response =
       <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
         <Representations>
-          <Representation type="Preservation">http://localhost/api/entity/information-objects/{
+          <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Preservation/1</Representation>
-          <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/{
+          <Representation type="Access" name="Access name1">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Access/1</Representation>
-          <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/{
+          <Representation type="Access" name="Access name2">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Access/2</Representation>
         </Representations>
@@ -1527,12 +1548,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <TotalResults>3</TotalResults>
         </Paging>
         <AdditionalInformation>
-          <Self>http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
+          <Self>http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
         </AdditionalInformation>
       </RepresentationsResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
@@ -1540,7 +1561,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     urls.size should equal(1)
     urls should equal(
       Seq(
-        "http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1"
+        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1"
       )
     )
   }
@@ -1552,13 +1573,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val response =
       <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
         <Representations>
-          <Representation type="Preservation">http://localhost/api/entity/information-objects/{
+          <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Preservation/1</Representation>
-          <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/{
+          <Representation type="Access" name="Access name1">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Access/1</Representation>
-          <Representation type="Access" name="Access name2">http://localhost/api/entity/information-objects/{
+          <Representation type="Access" name="Access name2">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
       }/representations/Access/2</Representation>
         </Representations>
@@ -1566,12 +1587,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <TotalResults>3</TotalResults>
         </Paging>
         <AdditionalInformation>
-          <Self>http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
+          <Self>http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
         </AdditionalInformation>
       </RepresentationsResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
         .willReturn(ok(response.toString))
     )
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, None))
@@ -1579,9 +1600,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     urls.size should equal(3)
     urls should equal(
       Seq(
-        "http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1",
-        "http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/1",
-        "http://localhost/api/entity/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/2"
+        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1",
+        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/1",
+        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/2"
       )
     )
   }
@@ -1589,7 +1610,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getUrlsToIoRepresentations" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val url = s"/api/entity/information-objects/${entity.ref}/representations"
+    val url = s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(url))
@@ -1616,12 +1637,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </xip:Representation>
         <ContentObjects/>
         <AdditionalInformation>
-          <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+          <Self>http://localhost/api/entity/v$apiVersion/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
         </AdditionalInformation>
       </RepresentationResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"))
         .willReturn(ok(response.toString))
     )
     val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, 1))
@@ -1647,12 +1668,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </xip:Representation>
         <ContentObjects/>
         <AdditionalInformation>
-          <Self>http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
+          <Self>http://localhost/api/entity/v$apiVersion/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
         </AdditionalInformation>
       </RepresentationResponse>
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"))
+      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"))
         .willReturn(ok(response.toString))
     )
     val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, 1))
@@ -1687,7 +1708,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   "getContentObjectsFromRepresentation" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val url = s"/api/entity/information-objects/${entity.ref}/representations/Preservation/1"
+    val url = s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(url))
