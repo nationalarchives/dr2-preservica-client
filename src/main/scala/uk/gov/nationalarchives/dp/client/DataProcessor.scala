@@ -293,7 +293,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @param elem
     *   The element containing the namespace with the version in it
     * @return
-    *   A `Float` parsed from the XML
+    *   A `Float`, representing the Preservica version, parsed from the XML
     */
   def getPreservicaNamespaceVersion(elem: Elem): F[Float] =
     me.pure {

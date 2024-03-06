@@ -6,7 +6,7 @@ The methods correspond to calls in the Preservica entity API.
 @@include[create-client.md](../../.includes/client/create-client.md)
 
 @@snip [Clients.scala](../../../scala/examples/Clients.scala) { #entity_client }
-The client exposes 12 methods
+The client exposes 15 methods
 
 ```scala
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
