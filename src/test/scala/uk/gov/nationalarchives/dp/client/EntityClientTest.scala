@@ -37,6 +37,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   def testClient: EntityClient[F, S] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
   private val apiVersion = 7.0f
+  private val xipVersion = 7.0f
+  private val xipUrl = s"http://preservica.com/XIP/v${xipVersion}"
+  private val namespaceUrl = s"http://preservica.com/EntityAPI/v${apiVersion}"
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
@@ -81,7 +84,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   List((Some(ref), "with"), (None, "without")).foreach { case (reference, withOrWithout) =>
     "addEntity" should s"make a correct request $withOrWithout a predefined reference to add an entity" in {
       val entityResponse =
-        <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+        <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
           <xip:StructuralObject>
             <xip:Ref>
               {ref}
@@ -121,7 +124,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       requestMade should be(
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
-            <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
+            <StructuralObject xmlns="http://preservica.com/XIP/v${xipVersion}">
               ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
@@ -134,7 +137,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "addEntity" should s"make a correct request with the object details inside a XIP node if entity path to add is an 'information object'" in {
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:InformationObject>
         <xip:Ref>
           {ref}
@@ -173,8 +176,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     requestMade should be(
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <XIP xmlns="http://preservica.com/XIP/v6.5">
-            <InformationObject xmlns="http://preservica.com/XIP/v6.5">
+            <XIP xmlns="http://preservica.com/XIP/v${xipVersion}">
+            <InformationObject xmlns="http://preservica.com/XIP/v${xipVersion}">
               ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
@@ -229,7 +232,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "addEntity" should s"return a message confirmation if the object got updated" in {
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:StructuralObject>
         <xip:Ref>
           {ref}
@@ -298,7 +301,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
       "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
         val entityResponse =
-          <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+          <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
           <xip:StructuralObject>
             <xip:Ref>
               {ref}
@@ -338,7 +341,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         requestMade should be(
           s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
-            <StructuralObject xmlns="http://preservica.com/XIP/v6.5">
+            <StructuralObject xmlns="http://preservica.com/XIP/v${xipVersion}">
               <Ref>${updateEntityRequest.ref}</Ref>
               <Title>${Utility.escape(updateEntityRequest.title)}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
@@ -376,7 +379,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "updateEntity" should s"return a message confirmation if the object got updated" in {
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:StructuralObject>
         <xip:Ref>
           {ref}
@@ -448,7 +451,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val bitstreamUrl = s"$generationUrl/bitstreams/1"
 
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <xip:ContentObject>
           <xip:Ref>b2f07829-e167-499a-9f3e-727cf3f64468</xip:Ref>
           <xip:Title>page1File.txt</xip:Title>
@@ -461,13 +464,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </AdditionalInformation>
     </EntityResponse>.toString()
     val generationsResponse =
-      <GenerationsResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <GenerationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Generations>
         <Generation active="true">http://localhost:{preservicaPort}{generationUrl}</Generation>
       </Generations>
     </GenerationsResponse>.toString()
     val generationResponse =
-      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Bitstreams>
         <Bitstream filename="test.txt">http://localhost:{preservicaPort}{bitstreamUrl}</Bitstream>
       </Bitstreams>
@@ -518,7 +521,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val bitstreamTwoUrl = s"$generationTwoUrl/bitstreams/1"
 
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <xip:ContentObject>
           <xip:Ref>b2f07829-e167-499a-9f3e-727cf3f64468</xip:Ref>
           <xip:Title>page1File.txt</xip:Title>
@@ -531,21 +534,21 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </AdditionalInformation>
       </EntityResponse>.toString()
     val generationsResponse =
-      <GenerationsResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <GenerationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Generations>
         <Generation active="true">http://localhost:{preservicaPort}{generationOneUrl}</Generation>
         <Generation active="true">http://localhost:{preservicaPort}{generationTwoUrl}</Generation>
       </Generations>
     </GenerationsResponse>.toString()
     val generationOneResponse =
-      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Bitstreams>
         <Bitstream filename="test1.txt">http://localhost:{preservicaPort}{bitstreamOneUrl}</Bitstream>
       </Bitstreams>
     </GenerationResponse>.toString()
 
     val generationTwoResponse =
-      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Bitstreams>
         <Bitstream filename="test2.txt">http://localhost:{preservicaPort}{bitstreamTwoUrl}</Bitstream>
       </Bitstreams>
@@ -622,7 +625,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "getBitstreamInfo" should "return an error if no generations are available" in {
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <AdditionalInformation>
       </AdditionalInformation>
     </EntityResponse>.toString()
@@ -698,7 +701,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <AdditionalInformation>
         <Metadata>
           <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
@@ -710,7 +713,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Test1Value>Test1Value</Test1Value>
     </Test1>
     val fragmentOneResponse =
-      <MetadataResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <MetadataContainer>
         <Content>
           {fragmentOneContent}
@@ -744,7 +747,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <AdditionalInformation>
         <Metadata>
           <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
@@ -757,7 +760,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Test1Value>Test1Value</Test1Value>
     </Test1>
     val fragmentOneResponse =
-      <MetadataResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <MetadataContainer>
         <Content>
           {fragmentOneContent}
@@ -769,7 +772,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Test2Value>Test2Value</Test2Value>
     </Test2>
     val fragmentTwoResponse =
-      <MetadataResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <MetadataContainer>
         <Content>
           {fragmentTwoContent}
@@ -806,7 +809,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val entityResponse =
-      <EntityResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <AdditionalInformation>
         <Metadata>
         </Metadata>
@@ -1196,7 +1199,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "addIdentifierForEntity" should s"make a correct request to add an identifier to an Entity" in {
     val entityResponse =
-      <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <Identifiers>
           <xip:Identifier>
             <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
@@ -1228,7 +1231,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val expectedXml =
       new PrettyPrinter(80, 2).format(
-        <Identifier xmlns="http://preservica.com/XIP/v6.5">
+        <Identifier xmlns={xipUrl}>
           <Type>TestIdentifierName</Type>
           <Value>TestIdentifierValue</Value>
         </Identifier>
@@ -1258,7 +1261,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   "addIdentifierForEntity" should s"return a message confirmation if the Identifier was added" in {
     val entityResponse =
-      <IdentifiersResponse xmlns="http://preservica.com/EntityAPI/v6.5" xmlns:xip="http://preservica.com/XIP/v6.5">
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Identifiers>
         <xip:Identifier>
           <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
@@ -1532,7 +1535,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = createEntity(InformationObject)
 
     val response =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <Representations>
           <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
@@ -1571,7 +1574,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = createEntity(InformationObject)
 
     val response =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <Representations>
           <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
         entity.ref
@@ -1626,7 +1629,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
     val entity = createEntity(InformationObject)
     val response =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <xip:Representation>
           <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>
@@ -1654,7 +1657,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = createEntity(InformationObject)
 
     val response =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <xip:Representation>
           <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>

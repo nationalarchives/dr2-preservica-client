@@ -220,6 +220,7 @@ object EntityClient {
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiVersion = 7.0f
+    private val namespaceUrl = s"http://preservica.com/XIP/v$apiVersion"
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val missingPathExceptionMessage: UUID => String = ref =>
       s"No path found for entity id $ref. Could this entity have been deleted?"
@@ -260,7 +261,7 @@ object EntityClient {
 
     private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
       val identifierAsXml: String = {
-        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+        val xml = <Identifier xmlns={namespaceUrl}>
           <Type>{identifierName}</Type>
           <Value>{identifierValue}</Value>
         </Identifier>
@@ -368,8 +369,8 @@ object EntityClient {
         addOpeningXipTag: Boolean = false
     ): String = {
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
-            <$nodeName xmlns="http://preservica.com/XIP/v6.5">
+            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v$apiVersion">""" else ""}
+            <$nodeName xmlns="http://preservica.com/XIP/v$apiVersion">
               ${ref.map(r => s"<Ref>$r</Ref>").getOrElse("")}
               <Title>${escape(title)}</Title>
               ${descriptionToChange
