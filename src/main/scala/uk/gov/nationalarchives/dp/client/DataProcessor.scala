@@ -288,6 +288,20 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         )
       }
     }
+
+  /** Returns a `Float`
+    * @param elem
+    *   The element containing the namespace with the version in it
+    * @return
+    *   A `Float`, representing the Preservica version, parsed from the XML
+    */
+  def getPreservicaNamespaceVersion(elem: Elem): F[Float] =
+    me.pure {
+      val namespaceUrl = elem.namespace
+      val version = namespaceUrl.split("/").last
+      version.stripPrefix("v").toFloat
+    }
+
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class

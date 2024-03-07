@@ -195,6 +195,15 @@ trait EntityClient[F[_], S] {
       entityType: EntityType,
       identifier: Identifier
   ): F[String]
+
+  /** Gets the version of Preservica in the namespace
+    * @param endpoint
+    *   The Entity endpoint to be called (this should exclude the baseUrl and path)
+    * @return
+    *   The version of Preservica in the namespace as a Float
+    */
+
+  def getPreservicaNamespaceVersion(endpoint: String): F[Float]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -580,6 +589,14 @@ object EntityClient {
           _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
         } yield identifier
       }.sequence
+    }
+
+    override def getPreservicaNamespaceVersion(endpoint: String): F[Float] = {
+      for {
+        token <- getAuthenticationToken
+        resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", token, Method.GET)
+        version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
+      } yield version
     }
   }
 
