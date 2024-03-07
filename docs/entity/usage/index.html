@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.53*
+0.0.54*
 </div>
 </div>
 <div class="nav-toc">
@@ -92,7 +92,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.53*
+0.0.54*
 </div>
 </div>
 <div class="nav-toc">
@@ -177,7 +177,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   val zioEntityClientWithDefaults: Task[EntityClient[Task, ZioStreams]] =
     ZioClient.entityClient(preservicaUrl, secretName)
 }</code></pre>
-<p>The client exposes 12 methods</p>
+<p>The client exposes 15 methods</p>
 <pre class="prettyprint"><code class="language-scala">  def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
   def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
@@ -225,6 +225,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
       entityType: EntityType,
       identifier: Identifier
   ): F[String]
+
+  def getPreservicaNamespaceVersion(
+      endpoint: String
+  ): F[Float]
 </code></pre><h2><a href="#method-descriptions" name="method-descriptions" class="anchor"><span class="anchor-link"></span></a>Method descriptions</h2>
 <p>These are descriptions of the steps taken by each method. All methods get an authentication token first, either from the API or the cache.</p>
 <h3><a href="#metadataforentity" name="metadataforentity" class="anchor"><span class="anchor-link"></span></a>metadataForEntity</h3>
@@ -315,6 +319,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Converts the arguments to the XML input</li>
   <li>Calls the <code>identifiers</code> endpoint to create an identifier for an entity</li>
 </ul>
+<h3><a href="#getpreservicanamespaceversion" name="getpreservicanamespaceversion" class="anchor"><span class="anchor-link"></span></a>getPreservicaNamespaceVersion</h3>
+<ul>
+  <li>Calls any Entity Preservica endpoint that returns XML</li>
+  <li>Returns version number found in namespace</li>
+</ul>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../../entity/usage/zio.html">Use with ZIO</a></p>
 </div>
@@ -396,7 +405,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.53-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.54-SNAPSHOT', '')});</script>
 
 
 </html>
