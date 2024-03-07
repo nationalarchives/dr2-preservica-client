@@ -642,4 +642,15 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       )
     )
   }
+
+  "getPreservicaNamespaceVersion" should "extract version number from namespace" in {
+    val input =
+      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
+      </RetentionPoliciesResponse>
+    val version = valueFromF(
+      new DataProcessor[F]().getPreservicaNamespaceVersion(input)
+    )
+
+    version should equal(7.0)
+  }
 }
