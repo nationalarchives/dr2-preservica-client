@@ -21,6 +21,7 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
     with BeforeAndAfterEach
     with TableDrivenPropertyChecks {
 
+  private val apiVersion = 7.0f
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
   def valueFromF[T](value: F[T]): T
@@ -94,7 +95,7 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
       case t: TransformFileInfo     => client.addOrUpdateTransforms(t :: Nil)
     }
 
-    val url = s"/api/admin/$path"
+    val url = s"/api/admin/v$apiVersion/$path"
 
     methodName should "call the delete endpoint if the name already exists" in {
       val deleteMapping = delete(urlPathMatching(s"$url/1")).willReturn(ok(testResponse))
@@ -158,7 +159,7 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
       preservicaServer.stubFor(get(urlPathMatching(url)).willReturn(serverError()))
       val error = intercept[PreservicaClientException](valueFromF(result))
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path with method GET "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/v$apiVersion/$path with method GET "
       )
     }
 
@@ -169,7 +170,7 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
 
       val error = intercept[PreservicaClientException](valueFromF(result))
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path/1 with method DELETE "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/v$apiVersion/$path/1 with method DELETE "
       )
     }
 
@@ -186,7 +187,7 @@ abstract class AdminClientTest[F[_]](preservicaPort: Int, secretsManagerPort: In
       val error = intercept[PreservicaClientException](valueFromF(result))
       val paramsString = input.toQueryParams.map(param => s"${param._1}=${param._2}").mkString("&")
       error.getMessage should equal(
-        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/$path?$paramsString with method POST "
+        s"Status code 500 calling http://localhost:$preservicaPort/api/admin/v$apiVersion/$path?$paramsString with method POST "
       )
     }
   })
