@@ -68,11 +68,13 @@ object AdminClient {
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
+    private val apiVersion = 7.0f
     private val client: Client[F, S] = Client(clientConfig)
     import client._
+    private val apiUrl = s"$apiBaseUrl/api/admin/v$apiVersion"
 
     private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
-      val url = uri"$apiBaseUrl/api/admin/$path/$apiId"
+      val url = uri"$apiUrl/$path/$apiId"
       backend
         .send {
           basicRequest.delete(url).headers(Map("Preservica-Access-Token" -> token))
@@ -92,7 +94,7 @@ object AdminClient {
         body: String,
         token: String
     ): F[Unit] = {
-      val url = uri"$apiBaseUrl/api/admin/$path?$queryParams"
+      val url = uri"$apiUrl/$path?$queryParams"
       backend
         .send(
           basicRequest
@@ -116,7 +118,7 @@ object AdminClient {
         elementName: String
     ) = for {
       token <- getAuthenticationToken
-      res <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/$path", token, Method.GET)
+      res <- sendXMLApiRequest(s"$apiUrl/$path", token, Method.GET)
       _ <- fileInfo.map { info =>
         val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
           case Some(id) => deleteDocument(path, id, token)
