@@ -195,6 +195,15 @@ trait EntityClient[F[_], S] {
       entityType: EntityType,
       identifier: Identifier
   ): F[String]
+
+  /** Gets the version of Preservica in the namespace
+    * @param endpoint
+    *   The Entity endpoint to be called (this should exclude the baseUrl and path)
+    * @return
+    *   The version of Preservica in the namespace as a Float
+    */
+
+  def getPreservicaNamespaceVersion(endpoint: String): F[Float]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -220,6 +229,10 @@ object EntityClient {
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
+    private val apiVersion = 7.0f
+    private val apiUrl = s"$apiBaseUrl/api/entity/v$apiVersion"
+    private val namespaceUrl = s"http://preservica.com/XIP/v$apiVersion"
+
     private val missingPathExceptionMessage: UUID => String = ref =>
       s"No path found for entity id $ref. Could this entity have been deleted?"
 
@@ -259,7 +272,7 @@ object EntityClient {
 
     private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
       val identifierAsXml: String = {
-        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+        val xml = <Identifier xmlns={namespaceUrl}>
           <Type>{identifierName}</Type>
           <Value>{identifierValue}</Value>
         </Identifier>
@@ -269,7 +282,7 @@ object EntityClient {
     }
 
     override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
-      val url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef"
+      val url = uri"$apiUrl/${entityType.entityPath}/$entityRef"
       for {
         token <- getAuthenticationToken
         entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
@@ -283,7 +296,7 @@ object EntityClient {
     ): F[Seq[String]] =
       for {
         token <- getAuthenticationToken
-        url = uri"$apiBaseUrl/api/entity/information-objects/$entityRef/representations"
+        url = uri"$apiUrl/information-objects/$entityRef/representations"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
           representationsResponse,
@@ -298,7 +311,8 @@ object EntityClient {
     ): F[Seq[Entity]] =
       for {
         token <- getAuthenticationToken
-        url = uri"$apiBaseUrl/api/entity/information-objects/$ioEntityRef/representations/$representationType/$version"
+        url =
+          uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$version"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
           representationsResponse,
@@ -313,7 +327,7 @@ object EntityClient {
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers"
+        url = uri"$apiUrl/$path/${entity.ref}/identifiers"
         token <- getAuthenticationToken
         identifiers <- entityIdentifiers(url.toString.some, token, Nil)
       } yield identifiers
@@ -366,8 +380,8 @@ object EntityClient {
         addOpeningXipTag: Boolean = false
     ): String = {
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
-            <$nodeName xmlns="http://preservica.com/XIP/v6.5">
+            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v$apiVersion">""" else ""}
+            <$nodeName xmlns="http://preservica.com/XIP/v$apiVersion">
               ${ref.map(r => s"<Ref>$r</Ref>").getOrElse("")}
               <Title>${escape(title)}</Title>
               ${descriptionToChange
@@ -405,7 +419,7 @@ object EntityClient {
         )
         // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
         fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
-        url = uri"$apiBaseUrl/api/entity/$path"
+        url = uri"$apiUrl/$path"
         addEntityResponse <- sendXMLApiRequest(url.toString, token, Method.POST, Some(fullRequestBody))
         ref <- dataProcessor.childNodeFromEntity(addEntityResponse, nodeName, "Ref")
       } yield UUID.fromString(ref.trim)
@@ -428,7 +442,7 @@ object EntityClient {
           nodeName
         )
         path = updateEntityRequest.entityType.entityPath
-        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
+        url = uri"$apiUrl/$path/${updateEntityRequest.ref}"
         _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
         response = "Entity was updated"
       } yield response
@@ -440,7 +454,7 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         contentEntity <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$contentRef",
+          s"$apiUrl/${ContentObject.entityPath}/$contentRef",
           token,
           Method.GET
         )
@@ -465,7 +479,7 @@ object EntityClient {
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         entityInfo <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/$path/${entity.ref}",
+          s"$apiUrl/$path/${entity.ref}",
           token,
           Method.GET
         )
@@ -481,7 +495,7 @@ object EntityClient {
     ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
       val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
-      val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
+      val url = uri"$apiUrl/entities/updated-since?$queryParams"
       for {
         token <- getAuthenticationToken
         updatedEntities <- getEntities(url.toString, token)
@@ -499,7 +513,7 @@ object EntityClient {
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
+        url = uri"$apiUrl/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken
         eventActions <- eventActions(url.toString.some, token, Nil)
       } yield eventActions.reverse // most recent event first
@@ -509,7 +523,7 @@ object EntityClient {
         identifier: Identifier
     ): F[Seq[Entity]] = {
       val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
-      val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
+      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
       for {
         token <- getAuthenticationToken
         entitiesWithIdentifier <- getEntities(url.toString, token)
@@ -533,7 +547,7 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         _ <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
+          s"$apiUrl/${entityType.entityPath}/$entityRef/identifiers",
           token,
           Method.POST,
           Some(requestBodyForIdentifier(identifier.identifierName, identifier.value))
@@ -571,10 +585,18 @@ object EntityClient {
             PreservicaClientException(missingPathExceptionMessage(entity.ref))
           )
           token <- getAuthenticationToken
-          url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers/${identifier.id}"
+          url = uri"$apiUrl/$path/${entity.ref}/identifiers/${identifier.id}"
           _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
         } yield identifier
       }.sequence
+    }
+
+    override def getPreservicaNamespaceVersion(endpoint: String): F[Float] = {
+      for {
+        token <- getAuthenticationToken
+        resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", token, Method.GET)
+        version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
+      } yield version
     }
   }
 

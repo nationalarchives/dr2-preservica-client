@@ -10,6 +10,11 @@ import java.time.ZonedDateTime
 import java.util.UUID
 
 abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
+  private val apiVersion = 7.0f
+  private val xipVersion = 7.0f
+  private val xipUrl = s"http://preservica.com/XIP/v${xipVersion}"
+  private val namespaceUrl = s"http://preservica.com/EntityAPI/v${apiVersion}"
+
   def valueFromF[T](value: F[T]): T
 
   private def generateContentObject(ref: String) = Entity(
@@ -529,7 +534,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
   "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
     val input =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Representations>
         <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
         <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
@@ -554,7 +559,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
   "getUrlsToIoRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
     val input =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Representations>
         <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
         <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
@@ -582,7 +587,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
   "getContentObjectsFromRepresentation" should "return an empty list if there are no content objects" in {
     val input =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:Representation>
         <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
         <xip:Name>Preservation</xip:Name>
@@ -609,7 +614,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
   "getContentObjectsFromRepresentation" should "return a list of Content Objects belonging to the representation" in {
     val input =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:Representation>
         <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
         <xip:Name>Preservation</xip:Name>
@@ -641,5 +646,16 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         generateContentObject("354f47cf-3ca2-4a4e-8181-81b714334f00")
       )
     )
+  }
+
+  "getPreservicaNamespaceVersion" should "extract version number from namespace" in {
+    val input =
+      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
+      </RetentionPoliciesResponse>
+    val version = valueFromF(
+      new DataProcessor[F]().getPreservicaNamespaceVersion(input)
+    )
+
+    version should equal(7.0)
   }
 }
