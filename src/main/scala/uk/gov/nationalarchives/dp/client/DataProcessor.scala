@@ -140,11 +140,10 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `String` with the text content of every `Bitstreams` -> `Bitstream` element
     */
-  def allBitstreamUrls(generationElements: Seq[Elem]): F[Seq[String]] = {
+  def allBitstreamUrls(generationElements: Seq[Elem]): F[Seq[String]] =
     me.pure(
       generationElements.flatMap(ge => (ge \ "Bitstreams" \ "Bitstream").map(_.text))
     )
-  }
 
   /** Returns a list of [[Client.BitStreamInfo]] objects
     * @param entity
@@ -152,18 +151,17 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] = {
+  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
     me.pure {
-      entity.map(e => {
+      entity.map { e =>
         val filename = (e \\ "Bitstream" \\ "Filename").text
         val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
         val bitstreamUrl = (e \\ "AdditionalInformation" \\ "Content").text
         val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
         val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
         BitStreamInfo(filename, fileSize, bitstreamUrl, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
-      })
+      }
     }
-  }
 
   /** Returns the next page
     * @param elem
