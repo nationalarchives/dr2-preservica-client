@@ -146,19 +146,19 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     )
 
   /** Returns a list of [[Client.BitStreamInfo]] objects
-    * @param entity
-    *   The entity containing the bitstreams
+    * @param bitstreamElements
+    *   The elements containing the bitstream information
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
+  def allBitstreamInfo(bitstreamElements: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
     me.pure {
-      entity.map { e =>
-        val filename = (e \\ "Bitstream" \\ "Filename").text
-        val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
-        val bitstreamUrl = (e \\ "AdditionalInformation" \\ "Content").text
-        val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
-        val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
+      bitstreamElements.map { be =>
+        val filename = (be \\ "Bitstream" \\ "Filename").text
+        val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
+        val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
+        val fixityAlgorithm = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
+        val fixityValue = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
         BitStreamInfo(filename, fileSize, bitstreamUrl, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
       }
     }
