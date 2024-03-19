@@ -11,7 +11,7 @@ The client exposes 15 methods
 ```scala
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
-  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentObjectRef: UUID): F[Seq[BitStreamInfo]]
 
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
