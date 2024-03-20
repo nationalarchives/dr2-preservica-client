@@ -179,7 +179,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <XIP xmlns="http://preservica.com/XIP/v$xipVersion">
             <InformationObject xmlns="http://preservica.com/XIP/v$xipVersion">
-              ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>" else ""}
+              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
               <SecurityTag>open</SecurityTag>
