@@ -69,6 +69,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   val ref: UUID = UUID.randomUUID()
   val entityUrl = s"/api/entity/v$apiVersion/content-objects/$ref"
+  val ioRef: UUID = UUID.randomUUID()
 
   private val identifier = Identifier(
     "TestIdentifierName",
@@ -465,16 +466,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </EntityResponse>.toString()
     val generationsResponse =
       <GenerationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Generations>
-        <Generation active="true">http://localhost:{preservicaPort}{generationUrl}</Generation>
-      </Generations>
-    </GenerationsResponse>.toString()
+        <Generations>
+          <Generation active="true">http://localhost:{preservicaPort}{generationUrl}</Generation>
+        </Generations>
+      </GenerationsResponse>.toString()
     val generationResponse =
       <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Bitstreams>
-        <Bitstream filename="test.txt">http://localhost:{preservicaPort}{bitstreamUrl}</Bitstream>
-      </Bitstreams>
-    </GenerationResponse>.toString()
+        <Generation original="false" active="true">
+        </Generation>
+        <Bitstreams>
+          <Bitstream filename="test.txt">http://localhost:{preservicaPort}{bitstreamUrl}</Bitstream>
+        </Bitstreams>
+      </GenerationResponse>.toString()
     val bitstreamResponse = <BitstreamResponse>
       <xip:Bitstream>
         <xip:Filename>{fileName}</xip:Filename>
@@ -487,6 +490,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
+        <Self>http://test/generations/1/bitstreams/1</Self>
         <Content>http://test</Content>
       </AdditionalInformation>
     </BitstreamResponse>.toString()
@@ -506,6 +510,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.fileSize should equal(1234)
     bitStreamInfo.fixity.algorithm should equal("SHA1")
     bitStreamInfo.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    bitStreamInfo.generationVersion should equal(1)
+    bitStreamInfo.generationType should equal(Derived)
     bitStreamInfo.potentialCoTitle should equal(Some("page1File.txt"))
 
     checkServerCall(entityUrl)
@@ -542,17 +548,21 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     </GenerationsResponse>.toString()
     val generationOneResponse =
       <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Bitstreams>
-        <Bitstream filename="test1.txt">http://localhost:{preservicaPort}{bitstreamOneUrl}</Bitstream>
-      </Bitstreams>
-    </GenerationResponse>.toString()
+        <Generation original="true" active="true">
+        </Generation>
+        <Bitstreams>
+          <Bitstream filename="test1.txt">http://localhost:{preservicaPort}{bitstreamOneUrl}</Bitstream>
+        </Bitstreams>
+      </GenerationResponse>.toString()
 
     val generationTwoResponse =
       <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Bitstreams>
-        <Bitstream filename="test2.txt">http://localhost:{preservicaPort}{bitstreamTwoUrl}</Bitstream>
-      </Bitstreams>
-    </GenerationResponse>.toString()
+        <Generation original="false" active="true">
+        </Generation>
+        <Bitstreams>
+          <Bitstream filename="test2.txt">http://localhost:{preservicaPort}{bitstreamTwoUrl}</Bitstream>
+        </Bitstreams>
+      </GenerationResponse>.toString()
 
     val bitstreamOneResponse = <BitstreamResponse>
       <xip:Bitstream>
@@ -566,6 +576,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
+        <Self>http://test/generations/1/bitstreams/1</Self>
         <Content>http://test</Content>
       </AdditionalInformation>
     </BitstreamResponse>.toString()
@@ -582,6 +593,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </xip:Fixities>
       </xip:Bitstream>
       <AdditionalInformation>
+        <Self>http://test/generations/2/bitstreams/1</Self>
         <Content>http://test</Content>
       </AdditionalInformation>
     </BitstreamResponse>.toString()
@@ -608,6 +620,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.head.fileSize should equal(1234)
     bitStreamInfo.head.fixity.algorithm should equal("SHA1")
     bitStreamInfo.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    bitStreamInfo.head.generationVersion should equal(1)
+    bitStreamInfo.head.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
 
     bitStreamInfo.last.url should equal(s"http://test")
@@ -615,7 +629,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.last.fileSize should equal(1234)
     bitStreamInfo.last.fixity.algorithm should equal("SHA1")
     bitStreamInfo.last.fixity.value should equal("5e0a0af2f597bf6b06c5295fea11be74cf89e1c1")
-    bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.last.generationVersion should equal(2)
+    bitStreamInfo.last.generationType should equal(Derived)
+    bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
 
     checkServerCall(entityUrl)
     checkServerCall(generationsUrl)

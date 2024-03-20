@@ -10,6 +10,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import java.time.ZonedDateTime
 import java.util.UUID
 import scala.xml.{Elem, Node, NodeSeq}
+import scala.xml
 
 /** A class to process XML responses from Preservica
   * @param me
@@ -134,16 +135,44 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       case generationUrls => me.pure(generationUrls)
     }
 
+  /** Returns whether the the text content of every `Generations` -> `Generation` element
+    * @param generationsElement
+    *   The 'Generations' element containing the generations
+    * @return
+    *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
+    */
+
+  def generationType(generationsElement: Elem, contentObjectRef: UUID): F[GenerationType] =
+    (generationsElement \ "Generation").map(_.attributes) match {
+      case Nil | List(xml.Null) =>
+        me.raiseError(PreservicaClientException(s"No attributes found for entity ref: $contentObjectRef"))
+      case attributesPerGenerationInList =>
+        val attributesPerGeneration = attributesPerGenerationInList.head
+        val potentialOriginalityStatus = attributesPerGeneration.get("original").map(_.text)
+
+        val potentialGenerationType: F[GenerationType] =
+          potentialOriginalityStatus match {
+            case Some("true")  => me.pure(Original)
+            case Some("false") => me.pure(Derived)
+            case _ =>
+              me.raiseError(
+                PreservicaClientException(
+                  s"'original' attribute could not be found on Generation for entity ref: $contentObjectRef"
+                )
+              )
+          }
+        potentialGenerationType
+    }
+
   /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
-    * @param generationElements
-    *   The 'Generation' elements containing the bitstreams
+    * @param generationElement
+    *   The 'Generation' element containing the bitstreams
     * @return
     *   A `Seq` of `String` with the text content of every `Bitstreams` -> `Bitstream` element
     */
-  def allBitstreamUrls(generationElements: Seq[Elem]): F[Seq[String]] =
-    me.pure(
-      generationElements.flatMap(ge => (ge \ "Bitstreams" \ "Bitstream").map(_.text))
-    )
+  def allBitstreamUrls(generationElement: Elem): F[Seq[String]] = me.pure {
+    (generationElement \ "Bitstreams" \ "Bitstream").map(_.text)
+  }
 
   /** Returns a list of [[Client.BitStreamInfo]] objects
     * @param bitstreamElements
@@ -151,15 +180,32 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(bitstreamElements: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
+  def allBitstreamInfo(
+      bitstreamElements: Seq[Elem],
+      generationType: GenerationType,
+      potentialCoTitle: Option[String] = None
+  ): F[Seq[BitStreamInfo]] =
     me.pure {
       bitstreamElements.map { be =>
         val filename = (be \\ "Bitstream" \\ "Filename").text
         val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
+        val bitstreamInfoUrl = (be \\ "AdditionalInformation" \\ "Self").text
+
+        val bitstreamInfoUrlReversed = bitstreamInfoUrl.split("/").reverse
+        val generationVersion = bitstreamInfoUrlReversed(2).toInt
+
         val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
         val fixityAlgorithm = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
         val fixityValue = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
-        BitStreamInfo(filename, fileSize, bitstreamUrl, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
+        BitStreamInfo(
+          filename,
+          fileSize,
+          bitstreamUrl,
+          Fixity(fixityAlgorithm, fixityValue),
+          generationVersion,
+          generationType,
+          potentialCoTitle
+        )
       }
     }
 

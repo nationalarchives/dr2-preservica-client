@@ -1,10 +1,11 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.implicits.toTraverseOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Preservation, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Original, Preservation, StructuralObject}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -203,8 +204,68 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     error.getMessage should equal(expectedErrorMessage)
   }
 
+  "generationType" should "return the 'Original' generation type if the generation's 'original' attribute is 'true'" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation original="true" active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationType = valueFromF(generationTypeF)
+
+    generationType should equal(Original)
+  }
+
+  "generationType" should "return an error if the generation has no attributes" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation>
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal("No attributes found for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+  }
+
+  "generationType" should "return an error if the generation's 'original' attribute is not present" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal(
+      "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
+    )
+  }
+
+  "generationType" should "return an error if the generation's 'original' attribute is neither 'true' nor 'false'" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation original="unexpectedValue" active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal(
+      "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
+    )
+  }
+
   "allBitstreamUrls" should "return the correct urls" in {
-    val input = Seq(
+    val generationElements = Seq(
       <GenerationResponse>
         <Bitstreams>
           <Bitstream>http://test1</Bitstream>
@@ -216,7 +277,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
         </Bitstreams>
       </GenerationResponse>
     )
-    val generationsF = new DataProcessor[F]().allBitstreamUrls(input)
+    val generationsF = generationElements.map(ge => new DataProcessor[F]().allBitstreamUrls(ge)).flatSequence
     val generations = valueFromF(generationsF)
 
     generations.size should equal(2)
@@ -238,12 +299,13 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
           </xip:Fixities>
         </xip:Bitstream>
         <AdditionalInformation>
+          <Self>http://test/generations/2/bitstreams/1</Self>
           <Content>http://test</Content>
         </AdditionalInformation>
       </BitstreamResponse>
     )
 
-    val generationsF = new DataProcessor[F]().allBitstreamInfo(input, Some("testCoTitle"))
+    val generationsF = new DataProcessor[F]().allBitstreamInfo(input, Original, Some("testCoTitle"))
     val response = valueFromF(generationsF)
 
     response.size should equal(1)
@@ -252,6 +314,8 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     response.head.url should equal("http://test")
     response.head.fixity.algorithm should equal("SHA1")
     response.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    response.head.generationVersion should equal(2)
+    response.head.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
   }
 
