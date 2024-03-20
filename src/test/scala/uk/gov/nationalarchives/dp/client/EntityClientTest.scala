@@ -38,8 +38,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   private val apiVersion = 7.0f
   private val xipVersion = 7.0f
-  private val xipUrl = s"http://preservica.com/XIP/v${xipVersion}"
-  private val namespaceUrl = s"http://preservica.com/EntityAPI/v${apiVersion}"
+  private val xipUrl = s"http://preservica.com/XIP/v$xipVersion"
+  private val namespaceUrl = s"http://preservica.com/EntityAPI/v$apiVersion"
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
@@ -125,7 +125,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       requestMade should be(
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
-            <StructuralObject xmlns="http://preservica.com/XIP/v${xipVersion}">
+            <StructuralObject xmlns="http://preservica.com/XIP/v$xipVersion">
               ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
@@ -177,8 +177,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     requestMade should be(
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <XIP xmlns="http://preservica.com/XIP/v${xipVersion}">
-            <InformationObject xmlns="http://preservica.com/XIP/v${xipVersion}">
+            <XIP xmlns="http://preservica.com/XIP/v$xipVersion">
+            <InformationObject xmlns="http://preservica.com/XIP/v$xipVersion">
               ${if (addEntityRequest.ref.nonEmpty) "<Ref>${addEntityRequest.ref}</Ref>" else ""}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A new description</Description>
@@ -342,7 +342,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         requestMade should be(
           s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
-            <StructuralObject xmlns="http://preservica.com/XIP/v${xipVersion}">
+            <StructuralObject xmlns="http://preservica.com/XIP/v$xipVersion">
               <Ref>${updateEntityRequest.ref}</Ref>
               <Title>${Utility.escape(updateEntityRequest.title)}</Title>
               ${if (updateEntityRequest.descriptionToChange.nonEmpty)
