@@ -9,7 +9,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import scala.xml.{Elem, Node, NodeSeq}
+import scala.xml.{Elem, MetaData, Node, NodeSeq}
 import scala.xml
 
 /** A class to process XML responses from Preservica
@@ -146,8 +146,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     (generationsElement \ "Generation").map(_.attributes) match {
       case Nil | List(xml.Null) =>
         me.raiseError(PreservicaClientException(s"No attributes found for entity ref: $contentObjectRef"))
-      case attributesPerGenerationInList =>
-        val attributesPerGeneration = attributesPerGenerationInList.head
+      case (attributesPerGeneration: MetaData) :: _ =>
         val potentialOriginalityStatus = attributesPerGeneration.get("original").map(_.text)
 
         val potentialGenerationType: F[GenerationType] =
