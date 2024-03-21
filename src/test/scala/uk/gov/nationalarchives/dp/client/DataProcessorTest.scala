@@ -172,6 +172,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
   }
 
   "allGenerationUrls" should "return a sequence of generation urls" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
     val input =
       <GenerationsResponse>
         <Generations>
@@ -179,7 +180,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
           <Generation>http://localhost/generation2</Generation>
         </Generations>
       </GenerationsResponse>
-    val generationsF = new DataProcessor[F]().allGenerationUrls(input)
+    val generationsF = new DataProcessor[F]().allGenerationUrls(input, contentObjectRef)
     val generations = valueFromF(generationsF)
 
     generations.size should equal(2)
@@ -188,20 +189,17 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
   }
 
   "allGenerationUrls" should "return an error if there are no generation urls" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
     val input =
       <GenerationsResponse>
         <Generations>
         </Generations>
       </GenerationsResponse>
-    val generationsF = new DataProcessor[F]().allGenerationUrls(input)
+    val generationsF = new DataProcessor[F]().allGenerationUrls(input, contentObjectRef)
     val error = intercept[PreservicaClientException] {
       valueFromF(generationsF)
     }
-    val expectedErrorMessage = """No generations found for entity:
-                                 |<GenerationsResponse>
-                                 |        <Generations>
-                                 |        </Generations>
-                                 |      </GenerationsResponse>""".stripMargin
+    val expectedErrorMessage = s"No generations found for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
     error.getMessage should equal(expectedErrorMessage)
   }
 

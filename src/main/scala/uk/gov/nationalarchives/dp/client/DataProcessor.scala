@@ -113,57 +113,55 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   }
 
   /** Gets the text of the first generation element
-    * @param contentEntity
-    *   The element to search
+    * @param contentObjectElement
+    *   The Content Object element to search
     * @return
     *   The text of the first generation element wrapped in the F effect
     */
-  def generationUrlFromEntity(contentEntity: Elem): F[String] =
-    (contentEntity \ "AdditionalInformation" \ "Generations").textOfFirstElement()
+  def generationUrlFromEntity(contentObjectElement: Elem): F[String] =
+    (contentObjectElement \ "AdditionalInformation" \ "Generations").textOfFirstElement()
 
   /** Returns all the text content of every `Generations` -> `Generation` element
-    * @param entity
-    *   The entity containing the generations
+    * @param generationsElement
+    *   The 'Generations' element containing the generations
     * @return
     *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
     */
-  def allGenerationUrls(entity: Elem): F[Seq[String]] =
-    (entity \ "Generations" \ "Generation").map(_.text) match {
+  def allGenerationUrls(generationsElement: Elem, contentObjectRef: UUID): F[Seq[String]] =
+    (generationsElement \ "Generations" \ "Generation").map(_.text) match {
       case Nil =>
-        me.raiseError(PreservicaClientException(s"No generations found for entity:\n${entity.toString}"))
+        me.raiseError(PreservicaClientException(s"No generations found for entity ref: $contentObjectRef"))
       case generationUrls => me.pure(generationUrls)
     }
 
   /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
-    * @param entity
-    *   The entity containing the bitstreams
+    * @param generationElements
+    *   The 'Generation' elements containing the bitstreams
     * @return
     *   A `Seq` of `String` with the text content of every `Bitstreams` -> `Bitstream` element
     */
-  def allBitstreamUrls(entity: Seq[Elem]): F[Seq[String]] = {
+  def allBitstreamUrls(generationElements: Seq[Elem]): F[Seq[String]] =
     me.pure(
-      entity.flatMap(e => (e \ "Bitstreams" \ "Bitstream").map(_.text))
+      generationElements.flatMap(ge => (ge \ "Bitstreams" \ "Bitstream").map(_.text))
     )
-  }
 
   /** Returns a list of [[Client.BitStreamInfo]] objects
-    * @param entity
-    *   The entity containing the bitstreams
+    * @param bitstreamElements
+    *   The elements containing the bitstream information
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] = {
+  def allBitstreamInfo(bitstreamElements: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
     me.pure {
-      entity.map(e => {
-        val filename = (e \\ "Bitstream" \\ "Filename").text
-        val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
-        val url = (e \\ "AdditionalInformation" \\ "Content").text
-        val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
-        val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
-        BitStreamInfo(filename, fileSize, url, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
-      })
+      bitstreamElements.map { be =>
+        val filename = (be \\ "Bitstream" \\ "Filename").text
+        val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
+        val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
+        val fixityAlgorithm = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
+        val fixityValue = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
+        BitStreamInfo(filename, fileSize, bitstreamUrl, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
+      }
     }
-  }
 
   /** Returns the next page
     * @param elem

@@ -449,25 +449,25 @@ object EntityClient {
     }
 
     override def getBitstreamInfo(
-        contentRef: UUID
+        contentObjectRef: UUID
     ): F[Seq[BitStreamInfo]] =
       for {
         token <- getAuthenticationToken
-        contentEntity <- sendXMLApiRequest(
-          s"$apiUrl/${ContentObject.entityPath}/$contentRef",
+        contentObjectElement <- sendXMLApiRequest(
+          s"$apiUrl/${ContentObject.entityPath}/$contentObjectRef",
           token,
           Method.GET
         )
-        generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
-        allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
+        generationsEndpointUrl <- dataProcessor.generationUrlFromEntity(contentObjectElement)
+        generationsElement <- sendXMLApiRequest(generationsEndpointUrl, token, Method.GET)
+        allGenerationUrls <- dataProcessor.allGenerationUrls(generationsElement, contentObjectRef)
         allGenerationElements <- allGenerationUrls
           .map(url => sendXMLApiRequest(url, token, Method.GET))
           .sequence
-        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        contentObjectTitle <- dataProcessor.getEntity(contentRef, contentEntity, ContentObject)
-        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls, contentObjectTitle.title)
+        allBitstreamUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
+        bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+        contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
+        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, contentObject.title)
       } yield allBitstreamInfo
 
     override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
