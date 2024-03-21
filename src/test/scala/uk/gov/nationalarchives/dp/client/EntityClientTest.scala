@@ -23,7 +23,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
-import scala.xml.{PrettyPrinter, Utility, XML}
+import scala.xml.{Utility, XML}
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(implicit
     cme: MonadError[F, Throwable]
@@ -1230,12 +1230,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val requestMade = getRequestMade(preservicaServer)
 
     val expectedXml =
-      new PrettyPrinter(80, 2).format(
-        <Identifier xmlns={xipUrl}>
+      <Identifier xmlns={xipUrl}>
           <Type>TestIdentifierName</Type>
           <Value>TestIdentifierValue</Value>
-        </Identifier>
-      )
+        </Identifier>.toString()
 
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
   }
