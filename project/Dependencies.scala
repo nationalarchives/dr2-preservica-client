@@ -1,6 +1,6 @@
 import sbt._
 object Dependencies {
-  lazy val sttpVersion = "3.9.4"
+  lazy val sttpVersion = "3.9.5"
   lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.10.0"
