@@ -5,7 +5,7 @@ import cats.implicits._
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities._
-import uk.gov.nationalarchives.dp.client.EntityClient._
+import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, _}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -182,7 +182,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def allBitstreamInfo(
       bitstreamElements: Seq[Elem],
       generationType: GenerationType,
-      potentialCoTitle: Option[String] = None
+      contentObject: Entity
   ): F[Seq[BitStreamInfo]] =
     me.pure {
       bitstreamElements.map { be =>
@@ -203,7 +203,8 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
           Fixity(fixityAlgorithm, fixityValue),
           generationVersion,
           generationType,
-          potentialCoTitle
+          contentObject.title,
+          contentObject.parent
         )
       }
     }
