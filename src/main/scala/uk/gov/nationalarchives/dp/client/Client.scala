@@ -13,6 +13,7 @@ import sttp.client3._
 import sttp.client3.upicklejson._
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
 import upickle.default._
 
 import java.net.URI
@@ -140,8 +141,22 @@ object Client {
     *   The size of the bitstream
     * @param url
     *   The url to download the bitstream
+    * @param fixity
+    *   The fixity of the bitstream
+    * @param generationVersion
+    *   The url to download the bitstream
+    * @param potentialCoTitle
+    *   The url to download the bitstream
     */
-  case class BitStreamInfo(name: String, fileSize: Long, url: String, fixity: Fixity, potentialCoTitle: Option[String])
+  case class BitStreamInfo(
+      name: String,
+      fileSize: Long,
+      url: String,
+      fixity: Fixity,
+      generationVersion: Int,
+      generationType: GenerationType,
+      potentialCoTitle: Option[String]
+  )
 
   /** Configuration for the clients
     * @param apiBaseUrl
