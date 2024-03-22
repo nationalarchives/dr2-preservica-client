@@ -21,7 +21,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.Utility.escape
-import scala.xml.{Elem, PrettyPrinter, XML}
+import scala.xml.{Elem, XML}
 
 /** A client to create, get and update entities in Preservica
   * @tparam F
@@ -271,13 +271,12 @@ object EntityClient {
     }
 
     private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
-      val identifierAsXml: String = {
-        val xml = <Identifier xmlns={namespaceUrl}>
+      val identifierAsXml =
+        <Identifier xmlns={namespaceUrl}>
           <Type>{identifierName}</Type>
           <Value>{identifierValue}</Value>
         </Identifier>
-        new PrettyPrinter(80, 2).format(xml)
-      }
+
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
     }
 

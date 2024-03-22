@@ -8,8 +8,6 @@ import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
-import scala.xml.PrettyPrinter
-
 /** A client to start a Preservica workflow
   * @tparam F
   *   Type of the effect
@@ -54,6 +52,7 @@ object WorkflowClient {
 
     override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
       val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
+      val newLine = Some("\n  ")
 
       val workflowContextIdNode = startWorkflowRequest.workflowContextId
         .map { workflowId =>
@@ -65,12 +64,15 @@ object WorkflowClient {
           <WorkflowContextName>{workflowName}</WorkflowContextName>
         }
 
-      val parameterNodes = startWorkflowRequest.parameters
-        .map { parameter =>
-          <Parameter>
-              <Key>{parameter.key}</Key>
-              <Value>{parameter.value}</Value>
-          </Parameter>
+      val parameterNodes = startWorkflowRequest.parameters.zipWithIndex
+        .flatMap { case (parameter, index) =>
+          List(
+            List(if (index == 0) "" else "\n  "),
+            <Parameter>
+          <Key>{parameter.key}</Key>
+          <Value>{parameter.value}</Value>
+        </Parameter>
+          )
         }
 
       val correlationIdNode =
@@ -80,9 +82,16 @@ object WorkflowClient {
           }
 
       val requestNodes =
-        List(workflowContextIdNode, workflowContextNameNode, correlationIdNode).flatten ++ parameterNodes
+        List(
+          workflowContextIdNode,
+          newLine,
+          workflowContextNameNode,
+          newLine,
+          correlationIdNode,
+          newLine
+        ).flatten ++ parameterNodes
 
-      val requestBody =
+      val xmlRequestBody =
         <StartWorkflowRequest xmlns="http://workflow.preservica.com">
           {
           requestNodes.map { requestNode =>
@@ -91,8 +100,7 @@ object WorkflowClient {
         }
         </StartWorkflowRequest>
 
-      val requestBodyString =
-        s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n${new PrettyPrinter(100, 2).format(requestBody)}"
+      val requestBodyString = s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n$xmlRequestBody"
       for {
         _ <-
           if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
