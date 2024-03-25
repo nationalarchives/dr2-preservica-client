@@ -5,7 +5,7 @@ import cats.implicits._
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities._
-import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, _}
+import uk.gov.nationalarchives.dp.client.EntityClient._
 
 import java.time.ZonedDateTime
 import java.util.UUID
