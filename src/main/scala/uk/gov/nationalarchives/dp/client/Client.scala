@@ -3,7 +3,9 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.effect.Sync
 import cats.implicits._
+import com.github.benmanes.caffeine.cache.{Caffeine, Cache => CCache}
 import scalacache._
+import scalacache.caffeine._
 import scalacache.memoization._
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
@@ -36,6 +38,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
+  val underlying: CCache[String, Entry[F[String]]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
+  implicit val caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
@@ -43,8 +48,6 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
 
   private implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
-
-  implicit val cache: Cache[F, String, F[String]] = new PreservicaClientCache()
 
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration

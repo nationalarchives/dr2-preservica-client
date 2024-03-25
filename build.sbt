@@ -54,6 +54,7 @@ lazy val commonSettings = Seq(
     catsCore,
     dynamoFormatters,
     scalaCacheCore,
+    scalaCacheCaffeine,
     log4Cats,
     scalaXml,
     sttpCore,

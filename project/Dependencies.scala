@@ -6,6 +6,7 @@ object Dependencies {
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.10.0"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.18"
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
+  lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
   lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
   lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.9"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
