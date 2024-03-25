@@ -6,10 +6,10 @@ import cats.implicits._
 import sttp.capabilities.Streams
 import sttp.client3._
 import sttp.model.Method
+import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.Client._
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
-import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,
   EntityType,
@@ -463,10 +463,16 @@ object EntityClient {
         allGenerationElements <- allGenerationUrls
           .map(url => sendXMLApiRequest(url, token, Method.GET))
           .sequence
-        allBitstreamUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
-        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, contentObject.title)
+        allBitstreamInfo <- allGenerationElements.map { generationElement =>
+          for {
+            generationType <- dataProcessor.generationType(generationElement, contentObjectRef)
+            allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationElement)
+            bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+            contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
+            allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject.title)
+          } yield allBitstreamInfo
+        }.flatSequence
+
       } yield allBitstreamInfo
 
     override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
@@ -725,4 +731,12 @@ object EntityClient {
   case object Access extends RepresentationType
 
   case object Preservation extends RepresentationType
+
+  sealed trait GenerationType {
+    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+  }
+
+  case object Original extends GenerationType
+
+  case object Derived extends GenerationType
 }
