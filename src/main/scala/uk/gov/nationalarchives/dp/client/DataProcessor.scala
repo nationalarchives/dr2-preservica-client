@@ -92,24 +92,26 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   }
 
   /** Returns a list of metadata content
-    * @param elems
-    *   The element which contains the content
+    * @param metadataResponseElements
+    *   The MetadataResponse elements that contains the fragments
     * @return
     *   A `Seq` of String representing the metadata XML or an error if none are found
     */
-  def fragments(elems: Seq[Elem]): F[Seq[String]] = {
-    val metadataObjects = elems.map { elem =>
-      val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
-      eachContent.flatMap(_.child).toString()
-    }
-    metadataObjects.filter(!_.isBlank) match {
-      case Nil =>
+  def fragments(metadataResponseElements: Seq[Elem]): F[Seq[String]] = {
+    val metadataContainerObjects =
+      metadataResponseElements.map { mre => (mre, mre.flatMap(_.child).toString()) }
+
+    val blankMetadataContainerObjects =
+      metadataContainerObjects.filter { case (_, metadataAsString) => metadataAsString.isBlank }
+
+    blankMetadataContainerObjects match {
+      case Nil => me.pure(metadataContainerObjects.map { case (_, metadata) => metadata })
+      case blankObjects =>
         me.raiseError(
           PreservicaClientException(
-            s"No content found for elements:\n${elems.map(_.toString).mkString("\n")}"
+            s"No 'MetadataContainer' found for elements:\n${blankObjects.map { case (elem, _) => elem.toString }.mkString("\n")}"
           )
         )
-      case objects => me.pure(objects)
     }
   }
 
