@@ -513,6 +513,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.generationVersion should equal(1)
     bitStreamInfo.generationType should equal(Derived)
     bitStreamInfo.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
 
     checkServerCall(entityUrl)
     checkServerCall(generationsUrl)
@@ -623,6 +624,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.head.generationVersion should equal(1)
     bitStreamInfo.head.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
 
     bitStreamInfo.last.url should equal(s"http://test")
     bitStreamInfo.last.name should equal("test2.txt")
@@ -632,6 +634,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.last.generationVersion should equal(2)
     bitStreamInfo.last.generationType should equal(Derived)
     bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
 
     checkServerCall(entityUrl)
     checkServerCall(generationsUrl)
