@@ -81,14 +81,14 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   }
 
   /** Returns the metadata fragment urls from the element
-    * @param elem
-    *   The element to search
+    * @param entityResponseElement
+    *   The EntityResponse element to search
     * @return
     *   A `Seq` of `String` wrapped in the F effect with the fragment URLS
     */
-  def fragmentUrls(elem: Elem): F[Seq[String]] = {
-    val fragments = elem \ "AdditionalInformation" \ "Metadata" \ "Fragment"
-    me.pure(fragments.map(_.text))
+  def fragmentUrls(entityResponseElement: Elem): F[Seq[String]] = {
+    val fragmentUrls = entityResponseElement \ "AdditionalInformation" \ "Metadata" \ "Fragment"
+    me.pure(fragmentUrls.map(_.text))
   }
 
   /** Returns a list of metadata content

@@ -48,7 +48,7 @@ The client exposes 15 methods
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
       representationType: RepresentationType,
-      version: Int
+      repTypeIndex: Int
   ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
