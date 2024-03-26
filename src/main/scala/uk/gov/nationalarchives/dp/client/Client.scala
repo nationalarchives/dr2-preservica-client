@@ -38,7 +38,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
-  val underlying: CCache[String, Entry[F[String]]] =
+  private val underlying: CCache[String, Entry[F[String]]] =
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
   implicit val caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
   val secretName: String = clientConfig.secretName
