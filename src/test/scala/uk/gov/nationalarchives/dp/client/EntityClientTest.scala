@@ -1437,7 +1437,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getEntity(id, InformationObject))
     }
-    ex.getMessage should be(s"Entity not found for id $id")
+    ex.getMessage should be(s"Entity type 'InformationObject' not found for id $id")
   }
 
   "getEntity" should "return an error if the entity is not found" in {

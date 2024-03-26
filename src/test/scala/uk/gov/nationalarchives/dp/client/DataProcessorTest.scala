@@ -521,7 +521,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     }
 
-    exception.getMessage should equal(s"Entity not found for id $id")
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
   }
 
   "childNodeFromWorkflowInstance" should "return the node requested" in {
