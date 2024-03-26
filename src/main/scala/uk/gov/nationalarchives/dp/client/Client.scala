@@ -19,6 +19,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
 import upickle.default._
 
 import java.net.URI
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.xml.{Elem, XML}
 
@@ -150,6 +151,8 @@ object Client {
     *   The url to download the bitstream
     * @param potentialCoTitle
     *   The url to download the bitstream
+    * @param parentRef
+    *   The parent ref of the CO
     */
   case class BitStreamInfo(
       name: String,
@@ -158,7 +161,8 @@ object Client {
       fixity: Fixity,
       generationVersion: Int,
       generationType: GenerationType,
-      potentialCoTitle: Option[String]
+      potentialCoTitle: Option[String],
+      parentRef: Option[UUID]
   )
 
   /** Configuration for the clients

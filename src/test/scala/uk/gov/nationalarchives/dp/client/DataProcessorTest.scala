@@ -18,10 +18,10 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
   def valueFromF[T](value: F[T]): T
 
-  private def generateContentObject(ref: String) = Entity(
+  private def generateContentObject(ref: String, title: Option[String] = None) = Entity(
     Some(ContentObject),
     UUID.fromString(ref),
-    None,
+    title,
     None,
     false,
     Some(ContentObject.entityPath),
@@ -305,7 +305,11 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       </BitstreamResponse>
     )
 
-    val generationsF = new DataProcessor[F]().allBitstreamInfo(input, Original, Some("testCoTitle"))
+    val generationsF = new DataProcessor[F]().allBitstreamInfo(
+      input,
+      Original,
+      generateContentObject("ad30d41e-b75c-4195-b569-91e820f430ac", Some("testCoTitle"))
+    )
     val response = valueFromF(generationsF)
 
     response.size should equal(1)
@@ -317,6 +321,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     response.head.generationVersion should equal(2)
     response.head.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
+    response.head.parentRef should equal(Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")))
   }
 
   "getNextPage" should "return the next page" in {

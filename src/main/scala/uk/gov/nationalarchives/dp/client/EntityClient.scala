@@ -469,7 +469,7 @@ object EntityClient {
             allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationElement)
             bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
             contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
-            allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject.title)
+            allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject)
           } yield allBitstreamInfo
         }.flatSequence
 

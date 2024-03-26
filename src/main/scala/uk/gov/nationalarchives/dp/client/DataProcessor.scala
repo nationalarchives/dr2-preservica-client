@@ -182,7 +182,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   def allBitstreamInfo(
       bitstreamElements: Seq[Elem],
       generationType: GenerationType,
-      potentialCoTitle: Option[String] = None
+      contentObject: Entity
   ): F[Seq[BitStreamInfo]] =
     me.pure {
       bitstreamElements.map { be =>
@@ -203,7 +203,8 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
           Fixity(fixityAlgorithm, fixityValue),
           generationVersion,
           generationType,
-          potentialCoTitle
+          contentObject.title,
+          contentObject.parent
         )
       }
     }
