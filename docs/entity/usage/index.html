@@ -217,7 +217,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
       representationType: RepresentationType,
-      version: Int
+      repTypeIndex: Int
   ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
