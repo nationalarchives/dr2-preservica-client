@@ -148,9 +148,9 @@ object Client {
     * @param fixity
     *   The fixity of the bitstream
     * @param generationVersion
-    *   The url to download the bitstream
+    *   The version of the generation
     * @param potentialCoTitle
-    *   The url to download the bitstream
+    *   The title of the CO
     * @param parentRef
     *   The parent ref of the CO
     */
