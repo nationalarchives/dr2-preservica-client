@@ -124,25 +124,21 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     val fragments = valueFromF(fragmentsF)
 
     fragments.size should equal(2)
-    fragments.head.trim should equal(fragment(1).toString)
-    fragments.last.trim should equal(fragment(2).toString)
+    fragments.head.trim should equal(fragmentContainer(1).child(1).toString)
+    fragments.last.trim should equal(fragmentContainer(2).child(1).toString)
   }
 
   "fragments" should "return an error if there is no content" in {
     val input =
       <MetadataResponse>
-        <MetadataContainer>
-        </MetadataContainer>
       </MetadataResponse>
 
     val fragmentsF = new DataProcessor[F]().fragments(Seq(input))
     val error = intercept[PreservicaClientException] {
       valueFromF(fragmentsF)
     }
-    val expectedMessage = """No content found for elements:
+    val expectedMessage = """Could not be retrieve all 'MetadataContainer' Nodes from:
                             |<MetadataResponse>
-                            |        <MetadataContainer>
-                            |        </MetadataContainer>
                             |      </MetadataResponse>""".stripMargin
     error.getMessage should equal(expectedMessage)
 
@@ -525,7 +521,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
       valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     }
 
-    exception.getMessage should equal(s"Entity not found for id $id")
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
   }
 
   "childNodeFromWorkflowInstance" should "return the node requested" in {

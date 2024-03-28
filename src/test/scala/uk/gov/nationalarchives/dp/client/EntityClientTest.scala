@@ -752,7 +752,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val metadata = valueFromF(res)
 
     metadata.size should equal(1)
-    metadata.head should equal(fragmentOneContent)
+    metadata.head should equal(
+      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+        <Content>
+          <Test1>
+      <Test1Value>Test1Value</Test1Value>
+    </Test1>
+        </Content>
+      </MetadataContainer>
+    )
 
     checkServerCall(entityUrl)
     checkServerCall(fragmentOneUrl)
@@ -779,7 +787,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Test1Value>Test1Value</Test1Value>
     </Test1>
     val fragmentOneResponse =
-      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl} >
       <MetadataContainer>
         <Content>
           {fragmentOneContent}
@@ -791,7 +799,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <Test2Value>Test2Value</Test2Value>
     </Test2>
     val fragmentTwoResponse =
-      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl} >
       <MetadataContainer>
         <Content>
           {fragmentTwoContent}
@@ -814,26 +822,42 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val metadata = valueFromF(res)
 
     metadata.size should equal(2)
-    metadata.head should equal(fragmentOneContent)
-    metadata.last should equal(fragmentTwoContent)
+    metadata.head should equal(
+      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+        <Content>
+          <Test1>
+      <Test1Value>Test1Value</Test1Value>
+    </Test1>
+        </Content>
+      </MetadataContainer>
+    )
+    metadata.last should equal(
+      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+        <Content>
+          <Test2>
+      <Test2Value>Test2Value</Test2Value>
+    </Test2>
+        </Content>
+      </MetadataContainer>
+    )
 
     checkServerCall(entityUrl)
     checkServerCall(fragmentOneUrl)
     checkServerCall(fragmentTwoUrl)
   }
 
-  "metadataForEntityUrl" should "return an error when the object has no fragments" in {
+  "metadataForEntityUrl" should "return an an empty list when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <AdditionalInformation>
-        <Metadata>
-        </Metadata>
-      </AdditionalInformation>
-    </EntityResponse>.toString
+        <AdditionalInformation>
+          <Metadata>
+          </Metadata>
+        </AdditionalInformation>
+      </EntityResponse>.toString
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
@@ -841,10 +865,73 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val client = testClient
 
     val res = client.metadataForEntity(entity)
+    val metadata = valueFromF(res)
+
+    metadata should equal(Nil)
+    checkServerCall(entityUrl)
+  }
+
+  "metadataForEntityUrl" should "return an error if even one metadata response element is empty" in {
+    val url = s"http://localhost:$preservicaPort"
+    val entityId = UUID.randomUUID()
+    val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
+    val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val entityResponse =
+      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <AdditionalInformation>
+          <Metadata>
+            <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
+            <Fragment>{s"$url$fragmentTwoUrl"}</Fragment>
+          </Metadata>
+        </AdditionalInformation>
+      </EntityResponse>.toString
+
+    val fragmentOneContent = <Test1>
+      <Test1Value>Test1Value</Test1Value>
+    </Test1>
+    val fragmentOneResponse =
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <MetadataContainer>
+          <Content>
+            {fragmentOneContent}
+          </Content>
+        </MetadataContainer>
+      </MetadataResponse>
+
+    val fragmentTwoResponse =
+      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+      </MetadataResponse>
+
+    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(
+      get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(fragmentTwoUrl)).willReturn(ok(fragmentTwoResponse.toString))
+    )
+
+    val client = testClient
+
+    val res = client.metadataForEntity(entity)
     val error = intercept[PreservicaClientException] {
       valueFromF(res)
     }
-    error.getMessage should equal("No content found for elements:\n")
+    error.getMessage should equal(
+      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+                                                                        |        <MetadataContainer>
+                                                                        |          <Content>
+                                                                        |            <Test1>
+                                                                        |      <Test1Value>Test1Value</Test1Value>
+                                                                        |    </Test1>
+                                                                        |          </Content>
+                                                                        |        </MetadataContainer>
+                                                                        |      </MetadataResponse>
+                                                                        |<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+                                                                         |      </MetadataResponse>""".stripMargin
+    )
 
     checkServerCall(entityUrl)
   }
@@ -1359,7 +1446,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getEntity(id, InformationObject))
     }
-    ex.getMessage should be(s"Entity not found for id $id")
+    ex.getMessage should be(s"Entity type 'InformationObject' not found for id $id")
   }
 
   "getEntity" should "return an error if the entity is not found" in {
