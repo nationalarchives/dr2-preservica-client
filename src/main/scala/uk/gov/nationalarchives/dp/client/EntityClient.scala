@@ -21,7 +21,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.Utility.escape
-import scala.xml.{Elem, XML}
+import scala.xml.{Node, XML}
 
 /** A client to create, get and update entities in Preservica
   * @tparam F
@@ -37,9 +37,9 @@ trait EntityClient[F[_], S] {
     * @param entity
     *   The entity to return metadata for
     * @return
-    *   A `Seq` of `Elem` containing the metadata wrapped in the F effect
+    *   A `Seq` of `Node` containing the metadata (Entity node, Identifiers and metadata) wrapped in the F effect
     */
-  def metadataForEntity(entity: Entity): F[Seq[Elem]]
+  def metadataForEntity(entity: Entity): F[Seq[Node]]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
     * @param contentRef
@@ -475,7 +475,7 @@ object EntityClient {
 
       } yield allBitstreamInfo
 
-    override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
+    override def metadataForEntity(entity: Entity): F[Seq[Node]] =
       for {
         token <- getAuthenticationToken
 
@@ -483,15 +483,42 @@ object EntityClient {
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        entityInfo <- sendXMLApiRequest(
-          s"$apiUrl/$path/${entity.ref}",
-          token,
-          Method.GET
-        )
+
+        entityInfo <- sendXMLApiRequest(s"$apiUrl/$path/${entity.ref}", token, Method.GET)
+        entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entity.entityType.get)
+
+        identifiers <- entityIdentifiersXml(Some(s"$apiUrl/$path/identifiers"), token, Nil)
+        identifiersInElem = <xip:Identifiers>{identifiers}</xip:Identifiers>
+
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
-      } yield fragments.map(XML.loadString)
+
+        entityNodeAndIdentifiersAndMetadata = Seq(
+          Seq(entityNode),
+          Seq(identifiersInElem),
+          fragments.map(XML.loadString)
+        ).flatten
+      } yield entityNodeAndIdentifiersAndMetadata
+
+    private def entityIdentifiersXml(
+        url: Option[String],
+        token: String,
+        currentCollectionOfIdentifiers: Seq[Node]
+    ): F[Seq[Node]] =
+      if (url.isEmpty)
+        me.pure(currentCollectionOfIdentifiers)
+      else
+        for {
+          identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
+          identifiersBatch <- dataProcessor.getIdentifiersXml(identifiersResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(identifiersResponseXml)
+          allIdentifiers <- entityIdentifiersXml(
+            nextPageUrl,
+            token,
+            currentCollectionOfIdentifiers ++ identifiersBatch
+          )
+        } yield allIdentifiers
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
