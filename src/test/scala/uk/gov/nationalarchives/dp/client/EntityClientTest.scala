@@ -718,9 +718,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <InformationObject>
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>
       <AdditionalInformation>
         <Metadata>
           <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
@@ -728,9 +737,22 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </AdditionalInformation>
     </EntityResponse>.toString
 
+    val identifiersResponse =
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+      </IdentifiersResponse>.toString
+
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
+
     val fragmentOneResponse =
       <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <MetadataContainer>
@@ -742,6 +764,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
     )
@@ -751,15 +774,33 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata.size should equal(1)
-    metadata.head should equal(
+    metadata.size should equal(3)
+    metadata.head.toString should equal(
+      <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>.toString
+    )
+    metadata(1).toString should equal(
+      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier></xip:Identifiers>.toString
+    )
+    metadata(2).toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
         </Content>
-      </MetadataContainer>
+      </MetadataContainer>.toString
     )
 
     checkServerCall(entityUrl)
@@ -773,8 +814,17 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <InformationObject>
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>
       <AdditionalInformation>
         <Metadata>
           <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
@@ -782,6 +832,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Metadata>
       </AdditionalInformation>
     </EntityResponse>.toString
+
+    val identifiersResponse =
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+      </IdentifiersResponse>.toString
 
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
@@ -809,6 +871,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
     )
@@ -821,24 +884,42 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata.size should equal(2)
-    metadata.head should equal(
+    metadata.size should equal(4)
+    metadata.head.toString should equal(
+      <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>.toString
+    )
+    metadata(1).toString should equal(
+      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier></xip:Identifiers>.toString
+    )
+    metadata(2).toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
         </Content>
-      </MetadataContainer>
+      </MetadataContainer>.toString
     )
-    metadata.last should equal(
+    metadata.last.toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test2>
       <Test2Value>Test2Value</Test2Value>
     </Test2>
         </Content>
-      </MetadataContainer>
+      </MetadataContainer>.toString
     )
 
     checkServerCall(entityUrl)
@@ -851,23 +932,64 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
+
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <InformationObject>
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>
         <AdditionalInformation>
           <Metadata>
           </Metadata>
         </AdditionalInformation>
       </EntityResponse>.toString
 
+    val identifiersResponse =
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+      </IdentifiersResponse>.toString
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
 
     val client = testClient
 
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata should equal(Nil)
+    metadata.size should equal(2)
+    metadata.head.toString should equal(
+      <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>.toString
+    )
+    metadata(1).toString should equal(
+      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier></xip:Identifiers>.toString
+    )
     checkServerCall(entityUrl)
   }
 
@@ -876,10 +998,19 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <InformationObject>
+          <Ref>{entityId}</Ref>
+          <Title>Title</Title>
+          <Description>A description</Description>
+          <SecurityTag>open</SecurityTag>
+          <Deleted>true</Deleted>
+          <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+        </InformationObject>
         <AdditionalInformation>
           <Metadata>
             <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
@@ -887,6 +1018,18 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           </Metadata>
         </AdditionalInformation>
       </EntityResponse>.toString
+
+    val identifiersResponse =
+      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Identifiers>
+          <xip:Identifier>
+            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
+            <xip:Type>identifier</xip:Type>
+            <xip:Value>testValue</xip:Value>
+            <xip:Entity>{entityId}</xip:Entity>
+          </xip:Identifier>
+        </Identifiers>
+      </IdentifiersResponse>.toString
 
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
@@ -906,6 +1049,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
     )

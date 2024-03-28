@@ -5,7 +5,14 @@ import cats.implicits.toTraverseOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{ContentObject, Open, Original, Preservation, StructuralObject}
+import uk.gov.nationalarchives.dp.client.EntityClient.{
+  ContentObject,
+  InformationObject,
+  Open,
+  Original,
+  Preservation,
+  StructuralObject
+}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -519,6 +526,48 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
 
     val exception = intercept[PreservicaClientException] {
       valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
+    }
+
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
+  }
+
+  "getEntityXml" should "return the full entity if all fields are provided" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <InformationObject>
+        <Title>Title</Title>
+        <Description>A description</Description>
+        <SecurityTag>open</SecurityTag>
+        <Deleted>true</Deleted>
+        <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+      </InformationObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, InformationObject))
+    response should equal(entityResponse.child(1))
+  }
+
+  "getEntityXml" should "return an error if the entity type in the response doesn't match" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <InformationObject>
+      </InformationObject>
+    </EntityResponse>
+
+    val exception = intercept[PreservicaClientException] {
+      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, StructuralObject))
+    }
+
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
+  }
+
+  "getEntityXml" should "blahreturn an error if the entity type in the response doesn't match" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+    </EntityResponse>
+
+    val exception = intercept[PreservicaClientException] {
+      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, StructuralObject))
     }
 
     exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
