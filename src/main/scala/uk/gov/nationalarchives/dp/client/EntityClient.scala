@@ -85,15 +85,15 @@ trait EntityClient[F[_], S] {
     *   The reference of the Information Object
     * @param representationType
     *   The [[EntityClient.RepresentationType]] of the entity.
-    * @param version
-    *   The version of the Representation.
+    * @param repTypeIndex
+    *   The index of the Representation.
     * @return
     *   A `Seq` of [[Entities.Entity]] wrapped in the F effect
     */
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
       representationType: RepresentationType,
-      version: Int
+      repTypeIndex: Int
   ): F[Seq[Entity]]
 
   /** Adds an entity to Preservica
@@ -306,12 +306,12 @@ object EntityClient {
     override def getContentObjectsFromRepresentation(
         ioEntityRef: UUID,
         representationType: RepresentationType,
-        version: Int
+        repTypeIndex: Int
     ): F[Seq[Entity]] =
       for {
         token <- getAuthenticationToken
         url =
-          uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$version"
+          uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
           representationsResponse,
@@ -489,8 +489,8 @@ object EntityClient {
           Method.GET
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-        fragmentResponse <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        fragments <- dataProcessor.fragments(fragmentResponse)
+        fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+        fragments <- dataProcessor.fragments(fragmentResponses)
       } yield fragments.map(XML.loadString)
 
     override def entitiesUpdatedSince(

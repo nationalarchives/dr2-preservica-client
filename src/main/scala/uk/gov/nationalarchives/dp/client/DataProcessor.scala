@@ -10,7 +10,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import java.time.ZonedDateTime
 import java.util.UUID
 import scala.xml.{Elem, MetaData, Node, NodeSeq}
-import scala.xml
 
 /** A class to process XML responses from Preservica
   * @param me
@@ -47,7 +46,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         val parent = optionValue("Parent").map(UUID.fromString)
         fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
       }
-      .getOrElse(me.raiseError(PreservicaClientException(s"Entity not found for id $entityRef")))
+      .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
   }
 
   /** Fetches `nodeName` -> `childNodeName` text from `entityResponse`
@@ -81,35 +80,36 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
   }
 
   /** Returns the metadata fragment urls from the element
-    * @param elem
-    *   The element to search
+    * @param entityResponseElement
+    *   The EntityResponse element to search
     * @return
     *   A `Seq` of `String` wrapped in the F effect with the fragment URLS
     */
-  def fragmentUrls(elem: Elem): F[Seq[String]] = {
-    val fragments = elem \ "AdditionalInformation" \ "Metadata" \ "Fragment"
-    me.pure(fragments.map(_.text))
+  def fragmentUrls(entityResponseElement: Elem): F[Seq[String]] = {
+    val fragmentUrls = entityResponseElement \ "AdditionalInformation" \ "Metadata" \ "Fragment"
+    me.pure(fragmentUrls.map(_.text))
   }
 
   /** Returns a list of metadata content
-    * @param elems
-    *   The element which contains the content
+    * @param metadataResponseElements
+    *   The MetadataResponse elements that contains the fragments
     * @return
     *   A `Seq` of String representing the metadata XML or an error if none are found
     */
-  def fragments(elems: Seq[Elem]): F[Seq[String]] = {
-    val metadataObjects = elems.map { elem =>
-      val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
-      eachContent.flatMap(_.child).toString()
-    }
-    metadataObjects.filter(!_.isBlank) match {
-      case Nil =>
+  def fragments(metadataResponseElements: Seq[Elem]): F[Seq[String]] = {
+    val metadataContainerObjects =
+      metadataResponseElements.map(_.flatMap(_.child).toString())
+
+    val blankMetadataContainerObjects = metadataContainerObjects.filter(_.isBlank)
+
+    blankMetadataContainerObjects match {
+      case Nil => me.pure(metadataContainerObjects)
+      case _ =>
         me.raiseError(
           PreservicaClientException(
-            s"No content found for elements:\n${elems.map(_.toString).mkString("\n")}"
+            s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
           )
         )
-      case objects => me.pure(objects)
     }
   }
 
