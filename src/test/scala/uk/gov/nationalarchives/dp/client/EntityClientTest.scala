@@ -920,7 +920,16 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       valueFromF(res)
     }
     error.getMessage should equal(
-      "No 'MetadataContainer' found for elements:\n" + """<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+                                                                        |        <MetadataContainer>
+                                                                        |          <Content>
+                                                                        |            <Test1>
+                                                                        |      <Test1Value>Test1Value</Test1Value>
+                                                                        |    </Test1>
+                                                                        |          </Content>
+                                                                        |        </MetadataContainer>
+                                                                        |      </MetadataResponse>
+                                                                        |<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
                                                                          |      </MetadataResponse>""".stripMargin
     )
 

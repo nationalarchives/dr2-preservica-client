@@ -99,17 +99,16 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     */
   def fragments(metadataResponseElements: Seq[Elem]): F[Seq[String]] = {
     val metadataContainerObjects =
-      metadataResponseElements.map { mre => (mre, mre.flatMap(_.child).toString()) }
+      metadataResponseElements.map(_.flatMap(_.child).toString())
 
-    val blankMetadataContainerObjects =
-      metadataContainerObjects.filter { case (_, metadataAsString) => metadataAsString.isBlank }
+    val blankMetadataContainerObjects = metadataContainerObjects.filter(_.isBlank)
 
     blankMetadataContainerObjects match {
-      case Nil => me.pure(metadataContainerObjects.map { case (_, metadata) => metadata })
+      case Nil => me.pure(metadataContainerObjects)
       case blankObjects =>
         me.raiseError(
           PreservicaClientException(
-            s"No 'MetadataContainer' found for elements:\n${blankObjects.map { case (elem, _) => elem.toString }.mkString("\n")}"
+            s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
           )
         )
     }

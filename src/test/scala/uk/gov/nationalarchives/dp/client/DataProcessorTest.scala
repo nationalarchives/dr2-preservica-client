@@ -137,7 +137,7 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     val error = intercept[PreservicaClientException] {
       valueFromF(fragmentsF)
     }
-    val expectedMessage = """No 'MetadataContainer' found for elements:
+    val expectedMessage = """Could not be retrieve all 'MetadataContainer' Nodes from:
                             |<MetadataResponse>
                             |      </MetadataResponse>""".stripMargin
     error.getMessage should equal(expectedMessage)
