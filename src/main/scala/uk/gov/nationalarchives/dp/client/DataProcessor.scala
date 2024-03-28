@@ -10,7 +10,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient._
 import java.time.ZonedDateTime
 import java.util.UUID
 import scala.xml.{Elem, MetaData, Node, NodeSeq}
-import scala.xml
 
 /** A class to process XML responses from Preservica
   * @param me
@@ -105,7 +104,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
 
     blankMetadataContainerObjects match {
       case Nil => me.pure(metadataContainerObjects)
-      case blankObjects =>
+      case _ =>
         me.raiseError(
           PreservicaClientException(
             s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
