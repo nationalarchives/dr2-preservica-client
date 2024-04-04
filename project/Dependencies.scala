@@ -8,7 +8,7 @@ object Dependencies {
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
   lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
-  lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.9"
+  lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.11"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
