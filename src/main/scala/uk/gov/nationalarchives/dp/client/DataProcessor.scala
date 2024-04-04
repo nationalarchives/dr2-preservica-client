@@ -7,11 +7,11 @@ import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.*
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import scala.util.Try
-import scala.xml.{Elem, Node, NodeSeq}
+import scala.xml.{Elem, MetaData, Node, NodeSeq}
 
 /** A class to process XML responses from Preservica
   * @param me
@@ -19,11 +19,13 @@ import scala.xml.{Elem, Node, NodeSeq}
   * @tparam F
   *   The effect type
   */
-class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
-  extension (ns: NodeSeq)
-    def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match
+class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
+
+  extension(ns: NodeSeq)
+    def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
-      case None        => me.raiseError(PreservicaClientException("Generation not found"))
+      case None => me.raiseError(PreservicaClientException("Generation not found"))
+    }
 
   /** Converts an entity response to an [[Entities.Entity]] case class
     * @param entityRef
@@ -35,18 +37,19 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
     * @return
     *   An [[Entities.Entity]] wrapped in the F effect
     */
-  def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] =
+  def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] = {
     (entityResponse \ entityType.toString).headOption
       .map { entity =>
         def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text.trim)
         val title = optionValue("Title")
         val description = optionValue("Description")
-        val securityTag = optionValue("SecurityTag").flatMap(tag => Try(SecurityTag.valueOf(tag)).toOption)
+        val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
         val deleted = optionValue("Deleted").isDefined
         val parent = optionValue("Parent").map(UUID.fromString)
         fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
       }
-      .getOrElse(me.raiseError(PreservicaClientException(s"Entity not found for id $entityRef")))
+      .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
+  }
 
   /** Fetches `nodeName` -> `childNodeName` text from `entityResponse`
     * @param entityResponse
@@ -74,87 +77,138 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
     * @return
     *   An optional string with the `ApiId` or `None` if not found.
     */
-  def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] =
+  def existingApiId(res: Elem, elementName: String, fileName: String): Option[String] = {
     (res \\ elementName).find(n => (n \ "Name").text == fileName).map(n => (n \ "ApiId").text)
+  }
 
   /** Returns the metadata fragment urls from the element
-    * @param elem
-    *   The element to search
+    * @param entityResponseElement
+    *   The EntityResponse element to search
     * @return
     *   A `Seq` of `String` wrapped in the F effect with the fragment URLS
     */
-  def fragmentUrls(elem: Elem): F[Seq[String]] =
-    val fragments = elem \ "AdditionalInformation" \ "Metadata" \ "Fragment"
-    me.pure(fragments.map(_.text))
+  def fragmentUrls(entityResponseElement: Elem): F[Seq[String]] = {
+    val fragmentUrls = entityResponseElement \ "AdditionalInformation" \ "Metadata" \ "Fragment"
+    me.pure(fragmentUrls.map(_.text))
+  }
 
   /** Returns a list of metadata content
-    * @param elems
-    *   The element which contains the content
+    * @param metadataResponseElements
+    *   The MetadataResponse elements that contains the fragments
     * @return
     *   A `Seq` of String representing the metadata XML or an error if none are found
     */
-  def fragments(elems: Seq[Elem]): F[Seq[String]] =
-    val metadataObjects = elems.map { elem =>
-      val eachContent: NodeSeq = elem \ "MetadataContainer" \ "Content"
-      eachContent.flatMap(_.child).toString()
-    }
-    metadataObjects.filter(!_.isBlank) match
-      case Nil =>
+  def fragments(metadataResponseElements: Seq[Elem]): F[Seq[String]] = {
+    val metadataContainerObjects =
+      metadataResponseElements.map(_.flatMap(_.child).toString())
+
+    val blankMetadataContainerObjects = metadataContainerObjects.filter(_.isBlank)
+
+    blankMetadataContainerObjects match {
+      case Nil => me.pure(metadataContainerObjects)
+      case _ =>
         me.raiseError(
           PreservicaClientException(
-            s"No content found for elements:\n${elems.map(_.toString).mkString("\n")}"
+            s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
           )
         )
-      case objects => me.pure(objects)
+    }
+  }
 
   /** Gets the text of the first generation element
-    * @param contentEntity
-    *   The element to search
+    * @param contentObjectElement
+    *   The Content Object element to search
     * @return
     *   The text of the first generation element wrapped in the F effect
     */
-  def generationUrlFromEntity(contentEntity: Elem): F[String] =
-    (contentEntity \ "AdditionalInformation" \ "Generations").textOfFirstElement()
+  def generationUrlFromEntity(contentObjectElement: Elem): F[String] =
+    (contentObjectElement \ "AdditionalInformation" \ "Generations").textOfFirstElement()
 
   /** Returns all the text content of every `Generations` -> `Generation` element
-    * @param entity
-    *   The entity containing the generations
+    * @param generationsElement
+    *   The 'Generations' element containing the generations
     * @return
     *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
     */
-  def allGenerationUrls(entity: Elem): F[Seq[String]] =
-    (entity \ "Generations" \ "Generation").map(_.text) match
+  def allGenerationUrls(generationsElement: Elem, contentObjectRef: UUID): F[Seq[String]] =
+    (generationsElement \ "Generations" \ "Generation").map(_.text) match {
       case Nil =>
-        me.raiseError(PreservicaClientException(s"No generations found for entity:\n${entity.toString}"))
+        me.raiseError(PreservicaClientException(s"No generations found for entity ref: $contentObjectRef"))
       case generationUrls => me.pure(generationUrls)
+    }
+
+  /** Returns whether the the text content of every `Generations` -> `Generation` element
+    * @param generationsElement
+    *   The 'Generations' element containing the generations
+    * @return
+    *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
+    */
+
+  def generationType(generationsElement: Elem, contentObjectRef: UUID): F[GenerationType] =
+    (generationsElement \ "Generation").map(_.attributes) match {
+      case Nil | List(xml.Null) =>
+        me.raiseError(PreservicaClientException(s"No attributes found for entity ref: $contentObjectRef"))
+      case (attributesPerGeneration: MetaData) :: _ =>
+        val potentialOriginalityStatus = attributesPerGeneration.get("original").map(_.text)
+
+        val potentialGenerationType: F[GenerationType] =
+          potentialOriginalityStatus match {
+            case Some("true")  => me.pure(Original)
+            case Some("false") => me.pure(Derived)
+            case _ =>
+              me.raiseError(
+                PreservicaClientException(
+                  s"'original' attribute could not be found on Generation for entity ref: $contentObjectRef"
+                )
+              )
+          }
+        potentialGenerationType
+    }
 
   /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
-    * @param entity
-    *   The entity containing the bitstreams
+    * @param generationElement
+    *   The 'Generation' element containing the bitstreams
     * @return
     *   A `Seq` of `String` with the text content of every `Bitstreams` -> `Bitstream` element
     */
-  def allBitstreamUrls(entity: Seq[Elem]): F[Seq[String]] =
-    me.pure(
-      entity.flatMap(e => (e \ "Bitstreams" \ "Bitstream").map(_.text))
-    )
+  def allBitstreamUrls(generationElement: Elem): F[Seq[String]] = me.pure {
+    (generationElement \ "Bitstreams" \ "Bitstream").map(_.text)
+  }
 
   /** Returns a list of [[Client.BitStreamInfo]] objects
-    * @param entity
-    *   The entity containing the bitstreams
+    * @param bitstreamElements
+    *   The elements containing the bitstream information
     * @return
     *   A `Seq` of `BitStreamInfo` objects parsed from the XML
     */
-  def allBitstreamInfo(entity: Seq[Elem], potentialCoTitle: Option[String] = None): F[Seq[BitStreamInfo]] =
+  def allBitstreamInfo(
+      bitstreamElements: Seq[Elem],
+      generationType: GenerationType,
+      contentObject: Entity
+  ): F[Seq[BitStreamInfo]] =
     me.pure {
-      entity.map(e =>
-        val filename = (e \\ "Bitstream" \\ "Filename").text
-        val fileSize = (e \\ "Bitstream" \\ "FileSize").text.toLong
-        val url = (e \\ "AdditionalInformation" \\ "Content").text
-        val fixityAlgorithm = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
-        val fixityValue = (e \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
-        BitStreamInfo(filename, fileSize, url, Fixity(fixityAlgorithm, fixityValue), potentialCoTitle)
-      )
+      bitstreamElements.map { be =>
+        val filename = (be \\ "Bitstream" \\ "Filename").text
+        val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
+        val bitstreamInfoUrl = (be \\ "AdditionalInformation" \\ "Self").text
+
+        val bitstreamInfoUrlReversed = bitstreamInfoUrl.split("/").reverse
+        val generationVersion = bitstreamInfoUrlReversed(2).toInt
+
+        val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
+        val fixityAlgorithm = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
+        val fixityValue = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
+        BitStreamInfo(
+          filename,
+          fileSize,
+          bitstreamUrl,
+          Fixity(fixityAlgorithm, fixityValue),
+          generationVersion,
+          generationType,
+          contentObject.title,
+          contentObject.parent
+        )
+      }
     }
 
   /** Returns the next page
@@ -190,7 +244,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
     * @return
     *   A `Seq` of `IdentifierResponse` objects parsed from the XML
     */
-  def getIdentifiers(elem: Elem): F[Seq[IdentifierResponse]] =
+  def getIdentifiers(elem: Elem): F[Seq[IdentifierResponse]] = {
     me.pure {
       (elem \ "Identifiers" \ "Identifier")
         .map { i =>
@@ -200,6 +254,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
           IdentifierResponse(id, identifierName, identifierValue)
         }
     }
+  }
 
   /** Returns a list of [[DataProcessor.EventAction]] objects
     * @param elem
@@ -207,7 +262,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
     * @return
     *   A `Seq` of `EventAction` objects parsed from the XML
     */
-  def getEventActions(elem: Elem): F[Seq[EventAction]] =
+  def getEventActions(elem: Elem): F[Seq[EventAction]] = {
     me.pure(
       (elem \ "EventActions" \ "EventAction")
         .map { e =>
@@ -218,6 +273,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
           EventAction(eventRef, eventType, dateOfEvent)
         }
     )
+  }
 
   /** Gets the child node from a workflow instance response
     * @param workflowInstanceResponse
@@ -279,10 +335,25 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]):
       }
     }
 
+  /** Returns a `Float`
+    * @param elem
+    *   The element containing the namespace with the version in it
+    * @return
+    *   A `Float`, representing the Preservica version, parsed from the XML
+    */
+  def getPreservicaNamespaceVersion(elem: Elem): F[Float] =
+    me.pure {
+      val namespaceUrl = elem.namespace
+      val version = namespaceUrl.split("/").last
+      version.stripPrefix("v").toFloat
+    }
+
+}
+
 /** An apply method for the `DataProcessor` class and the `EventAction` case class
   */
-object DataProcessor:
-  def apply[F[_]]()(using me: MonadError[F, Throwable]) = new DataProcessor[F]()
+object DataProcessor {
+  def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
 
   /** @param eventRef
     *   The reference of the event
@@ -292,3 +363,4 @@ object DataProcessor:
     *   The date of the event
     */
   case class EventAction(eventRef: UUID, eventType: String, dateOfEvent: ZonedDateTime)
+}

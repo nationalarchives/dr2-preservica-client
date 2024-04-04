@@ -55,6 +55,7 @@ lazy val commonSettings = Seq(
     circeGeneric,
     dynamoFormatters,
     scalaCacheCore,
+    scalaCacheCaffeine,
     log4Cats,
     scalaXml,
     sttpCore,
@@ -66,7 +67,7 @@ lazy val commonSettings = Seq(
   ),
   version := version.value,
   scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation"),
-//  scalacOptions ++= Seq("-unchecked", "-source:3.0-migration"),
+
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
 ) ++ releaseSettings

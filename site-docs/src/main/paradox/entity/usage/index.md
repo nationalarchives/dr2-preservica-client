@@ -6,12 +6,12 @@ The methods correspond to calls in the Preservica entity API.
 @@include[create-client.md](../../.includes/client/create-client.md)
 
 @@snip [Clients.scala](../../../scala/examples/Clients.scala) { #entity_client }
-The client exposes 12 methods
+The client exposes 15 methods
 
 ```scala
   def metadataForEntity(entity: Entity): F[Seq[Elem]]
 
-  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentObjectRef: UUID): F[Seq[BitStreamInfo]]
 
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
@@ -48,7 +48,7 @@ The client exposes 12 methods
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
       representationType: RepresentationType,
-      version: Int
+      repTypeIndex: Int
   ): F[Seq[Entity]]
 
   def addIdentifierForEntity(
@@ -56,6 +56,10 @@ The client exposes 12 methods
       entityType: EntityType,
       identifier: Identifier
   ): F[String]
+
+  def getPreservicaNamespaceVersion(
+      endpoint: String
+  ): F[Float]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
@@ -134,6 +138,10 @@ The client exposes 12 methods
 ### addIdentifierForEntity
 * Converts the arguments to the XML input
 * Calls the `identifiers` endpoint to create an identifier for an entity
+
+### getPreservicaNamespaceVersion
+* Calls any Entity Preservica endpoint that returns XML
+* Returns version number found in namespace
 
 @@@ index
 

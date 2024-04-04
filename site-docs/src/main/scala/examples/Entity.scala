@@ -18,11 +18,14 @@ object Entity {
       for {
         client <- Fs2Client.entityClient(url, "secretName")
         bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID())
-        _ <- bitStreamInfo.map(eachBitStream => {
-          client.streamBitstreamContent[Unit](Fs2Streams.apply)(eachBitStream.url,
-            stream => processStream(eachBitStream.name, stream) //Pass a function in to handle the stream
-          )
-        }).sequence
+        _ <- bitStreamInfo
+          .map(eachBitStream => {
+            client.streamBitstreamContent[Unit](Fs2Streams.apply)(
+              eachBitStream.url,
+              stream => processStream(eachBitStream.name, stream) // Pass a function in to handle the stream
+            )
+          })
+          .sequence
       } yield ()
     }
   }

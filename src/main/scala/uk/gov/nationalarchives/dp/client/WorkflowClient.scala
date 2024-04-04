@@ -8,13 +8,11 @@ import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
-import scala.xml.PrettyPrinter
-
 /** A client to start a Preservica workflow
   * @tparam F
   *   Type of the effect
   */
-trait WorkflowClient[F[_]]:
+trait WorkflowClient[F[_]] {
 
   /** Starts a preservica workflow
     * @param startWorkflowRequest
@@ -23,10 +21,11 @@ trait WorkflowClient[F[_]]:
     *   The id of the new workflow wrapped in the F effect.
     */
   def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int]
+}
 
 /** An object containing a method which returns an implementation of the WorkflowClient trait
   */
-object WorkflowClient:
+object WorkflowClient {
 
   /** Creates a new `WorkflowClient` instance.
     * @param clientConfig
@@ -45,14 +44,15 @@ object WorkflowClient:
   def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): WorkflowClient[F] = new WorkflowClient[F]:
+  ): WorkflowClient[F] = new WorkflowClient[F] {
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, S] = Client(clientConfig)
 
     import client.*
 
-    override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] =
+    override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
       val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
+      val newLine = Some("\n  ")
 
       val workflowContextIdNode = startWorkflowRequest.workflowContextId
         .map { workflowId =>
@@ -64,12 +64,15 @@ object WorkflowClient:
           <WorkflowContextName>{workflowName}</WorkflowContextName>
         }
 
-      val parameterNodes = startWorkflowRequest.parameters
-        .map { parameter =>
-          <Parameter>
-              <Key>{parameter.key}</Key>
-              <Value>{parameter.value}</Value>
-          </Parameter>
+      val parameterNodes = startWorkflowRequest.parameters.zipWithIndex
+        .flatMap { case (parameter, index) =>
+          List(
+            List(if (index == 0) "" else "\n  "),
+            <Parameter>
+          <Key>{parameter.key}</Key>
+          <Value>{parameter.value}</Value>
+        </Parameter>
+          )
         }
 
       val correlationIdNode =
@@ -79,9 +82,16 @@ object WorkflowClient:
           }
 
       val requestNodes =
-        List(workflowContextIdNode, workflowContextNameNode, correlationIdNode).flatten ++ parameterNodes
+        List(
+          workflowContextIdNode,
+          newLine,
+          workflowContextNameNode,
+          newLine,
+          correlationIdNode,
+          newLine
+        ).flatten ++ parameterNodes
 
-      val requestBody =
+      val xmlRequestBody =
         <StartWorkflowRequest xmlns="http://workflow.preservica.com">
           {
           requestNodes.map { requestNode =>
@@ -90,17 +100,16 @@ object WorkflowClient:
         }
         </StartWorkflowRequest>
 
-      val requestBodyString =
-        s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n${new PrettyPrinter(100, 2).format(requestBody)}"
-      for
+      val requestBodyString = s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n$xmlRequestBody"
+      for {
         _ <-
-          if startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty then
+          if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
             me.raiseError(
               PreservicaClientException(
                 "You must pass in either a workflowContextName or a workflowContextId!"
               )
             )
-          else me.unit
+          } else me.unit
         token <- getAuthenticationToken
         startWorkflowResponse <- sendXMLApiRequest(
           startWorkflowUrl.toString,
@@ -109,7 +118,9 @@ object WorkflowClient:
           Some(requestBodyString)
         )
         id <- dataProcessor.childNodeFromWorkflowInstance(startWorkflowResponse, "Id")
-      yield id.toInt
+      } yield id.toInt
+    }
+  }
 
   /** A workflow request parameter
     * @param key
@@ -135,3 +146,4 @@ object WorkflowClient:
       parameters: List[Parameter] = Nil,
       correlationId: Option[String] = None
   )
+}

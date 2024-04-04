@@ -9,10 +9,14 @@ object Workflow {
 
     val url = "https://test.preservica.com"
     val parameters: List[Parameter] = List(Parameter("param1", "value1"))
-    val startWorkflowRequestWithName: StartWorkflowRequest = StartWorkflowRequest(Option("contextName"), None, parameters, Option("correlationId"))
-    val startWorkflowRequestWithId: StartWorkflowRequest = StartWorkflowRequest(None, Option(1), parameters, Option("correlationId"))
-    val startWorkflowRequestNoCorrelationId: StartWorkflowRequest = StartWorkflowRequest(None, Option(1), parameters, None)
-    val startWorkflowRequestNoParameters: StartWorkflowRequest = StartWorkflowRequest(None, Option(1), Nil, Option("correlationId"))
+    val startWorkflowRequestWithName: StartWorkflowRequest =
+      StartWorkflowRequest(Option("contextName"), None, parameters, Option("correlationId"))
+    val startWorkflowRequestWithId: StartWorkflowRequest =
+      StartWorkflowRequest(None, Option(1), parameters, Option("correlationId"))
+    val startWorkflowRequestNoCorrelationId: StartWorkflowRequest =
+      StartWorkflowRequest(None, Option(1), parameters, None)
+    val startWorkflowRequestNoParameters: StartWorkflowRequest =
+      StartWorkflowRequest(None, Option(1), Nil, Option("correlationId"))
 
     def searchEntities(): IO[Unit] = {
       for {

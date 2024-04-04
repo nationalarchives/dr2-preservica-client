@@ -1,6 +1,6 @@
 import sbt.*
 object Dependencies {
-  lazy val sttpVersion = "3.9.3"
+  lazy val sttpVersion = "3.9.5"
   private lazy val scalaTestVersion = "3.2.18"
   private lazy val scalaCacheVersion = "1.0.0-M6"
 
@@ -8,8 +8,9 @@ object Dependencies {
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.5"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
+  lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
   lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
-  lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.10-SNAPSHOT"
+  lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.12-SNAPSHOT"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.6.0"

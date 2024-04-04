@@ -12,7 +12,7 @@ import uk.gov.nationalarchives.dp.client.Client.ClientConfig
   * @tparam F
   *   Type of the effect
   */
-trait AdminClient[F[_]]:
+trait AdminClient[F[_]] {
 
   /** Add or update a schema document in Preservica
     * @param fileInfo
@@ -34,7 +34,7 @@ trait AdminClient[F[_]]:
     * @param fileInfo
     *   A `List` of `IndexDefinitionInfo` containing the details of the index definition updates
     * @return
-    *   Unit wrapped in the F effect
+    *   Unit wrapped in the FF effect
     */
   def addOrUpdateIndexDefinitions(fileInfo: List[IndexDefinitionInfo]): F[Unit]
 
@@ -45,10 +45,11 @@ trait AdminClient[F[_]]:
     *   Unit wrapped in the F effect
     */
   def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit]
+}
 
 /** An object containing a method which returns an implementation of the AdminClient trait
   */
-object AdminClient:
+object AdminClient {
 
   /** Creates a new `AdminClient` instance.
     * @param clientConfig
@@ -66,12 +67,14 @@ object AdminClient:
   def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): AdminClient[F] = new AdminClient[F]:
+  ): AdminClient[F] = new AdminClient[F] {
+    private val apiVersion = 7.0f
     private val client: Client[F, S] = Client(clientConfig)
     import client.*
+    private val apiUrl = s"$apiBaseUrl/api/admin/v$apiVersion"
 
-    private def deleteDocument(path: String, apiId: String, token: String): F[Unit] =
-      val url = uri"$apiBaseUrl/api/admin/$path/$apiId"
+    private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {
+      val url = uri"$apiUrl/$path/$apiId"
       backend
         .send {
           basicRequest.delete(url).headers(Map("Preservica-Access-Token" -> token))
@@ -83,14 +86,15 @@ object AdminClient:
               .map(_ => ())
           }
         )
+    }
 
     private def createSchema(
         path: String,
         queryParams: Map[String, String],
         body: String,
         token: String
-    ): F[Unit] =
-      val url = uri"$apiBaseUrl/api/admin/$path?$queryParams"
+    ): F[Unit] = {
+      val url = uri"$apiUrl/$path?$queryParams"
       backend
         .send(
           basicRequest
@@ -106,21 +110,23 @@ object AdminClient:
               .map(_ => ())
           }
         )
+    }
 
     private def updateFiles(
         fileInfo: List[FileInfo],
         path: String,
         elementName: String
-    ) = for
+    ) = for {
       token <- getAuthenticationToken
-      res <- sendXMLApiRequest(s"$apiBaseUrl/api/admin/$path", token, Method.GET)
+      res <- sendXMLApiRequest(s"$apiUrl/$path", token, Method.GET)
       _ <- fileInfo.map { info =>
-        val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match
+        val deleteIfPresent = dataProcessor.existingApiId(res, elementName, info.name) match {
           case Some(id) => deleteDocument(path, id, token)
           case None     => me.unit
+        }
         me.flatMap(deleteIfPresent)(_ => createSchema(path, info.toQueryParams, info.xmlData, token))
       }.sequence
-    yield ()
+    } yield ()
 
     override def addOrUpdateSchemas(fileInfo: List[SchemaFileInfo]): F[Unit] =
       updateFiles(fileInfo, "schemas", "Schema")
@@ -133,3 +139,5 @@ object AdminClient:
 
     override def addOrUpdateMetadataTemplates(fileInfo: List[MetadataTemplateInfo]): F[Unit] =
       updateFiles(fileInfo, "documents", "Document")
+  }
+}

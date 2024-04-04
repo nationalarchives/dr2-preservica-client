@@ -1,23 +1,30 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.implicits.toTraverseOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import uk.gov.nationalarchives.dp.client.Entities.Entity
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
 import java.time.ZonedDateTime
 import java.util.UUID
 
-abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec:
+abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec {
+  private val apiVersion = 7.0f
+  private val xipVersion = 7.0f
+  private val xipUrl = s"http://preservica.com/XIP/v${xipVersion}"
+  private val namespaceUrl = s"http://preservica.com/EntityAPI/v${apiVersion}"
+
   def valueFromF[T](value: F[T]): T
 
-  private def generateContentObject(ref: String) = Entity(
+  private def generateContentObject(ref: String, title: Option[String] = None) = Entity(
     Some(ContentObject),
     UUID.fromString(ref),
-    None,
+    title,
     None,
     false,
     Some(ContentObject.entityPath),
@@ -120,25 +127,21 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val fragments = valueFromF(fragmentsF)
 
     fragments.size should equal(2)
-    fragments.head.trim should equal(fragment(1).toString)
-    fragments.last.trim should equal(fragment(2).toString)
+    fragments.head.trim should equal(fragmentContainer(1).child(1).toString)
+    fragments.last.trim should equal(fragmentContainer(2).child(1).toString)
   }
 
   "fragments" should "return an error if there is no content" in {
     val input =
       <MetadataResponse>
-        <MetadataContainer>
-        </MetadataContainer>
       </MetadataResponse>
 
     val fragmentsF = new DataProcessor[F]().fragments(Seq(input))
     val error = intercept[PreservicaClientException] {
       valueFromF(fragmentsF)
     }
-    val expectedMessage = """No content found for elements:
+    val expectedMessage = """Could not be retrieve all 'MetadataContainer' Nodes from:
                             |<MetadataResponse>
-                            |        <MetadataContainer>
-                            |        </MetadataContainer>
                             |      </MetadataResponse>""".stripMargin
     error.getMessage should equal(expectedMessage)
 
@@ -169,6 +172,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
   }
 
   "allGenerationUrls" should "return a sequence of generation urls" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
     val input =
       <GenerationsResponse>
         <Generations>
@@ -176,7 +180,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
           <Generation>http://localhost/generation2</Generation>
         </Generations>
       </GenerationsResponse>
-    val generationsF = new DataProcessor[F]().allGenerationUrls(input)
+    val generationsF = new DataProcessor[F]().allGenerationUrls(input, contentObjectRef)
     val generations = valueFromF(generationsF)
 
     generations.size should equal(2)
@@ -185,25 +189,82 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
   }
 
   "allGenerationUrls" should "return an error if there are no generation urls" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
     val input =
       <GenerationsResponse>
         <Generations>
         </Generations>
       </GenerationsResponse>
-    val generationsF = new DataProcessor[F]().allGenerationUrls(input)
+    val generationsF = new DataProcessor[F]().allGenerationUrls(input, contentObjectRef)
     val error = intercept[PreservicaClientException] {
       valueFromF(generationsF)
     }
-    val expectedErrorMessage = """No generations found for entity:
-                                 |<GenerationsResponse>
-                                 |        <Generations>
-                                 |        </Generations>
-                                 |      </GenerationsResponse>""".stripMargin
+    val expectedErrorMessage = s"No generations found for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
     error.getMessage should equal(expectedErrorMessage)
   }
 
+  "generationType" should "return the 'Original' generation type if the generation's 'original' attribute is 'true'" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation original="true" active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationType = valueFromF(generationTypeF)
+
+    generationType should equal(Original)
+  }
+
+  "generationType" should "return an error if the generation has no attributes" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation>
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal("No attributes found for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+  }
+
+  "generationType" should "return an error if the generation's 'original' attribute is not present" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal(
+      "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
+    )
+  }
+
+  "generationType" should "return an error if the generation's 'original' attribute is neither 'true' nor 'false'" in {
+    val contentObjectRef = UUID.fromString("485bbde7-a20c-4f80-bbae-62d30b89ae5e")
+    val input =
+      <GenerationsResponse>
+        <Generation original="unexpectedValue" active="true">
+        </Generation>
+      </GenerationsResponse>
+    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationsError = intercept[Throwable] {
+      valueFromF(generationTypeF)
+    }
+    generationsError.getMessage should equal(
+      "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
+    )
+  }
+
   "allBitstreamUrls" should "return the correct urls" in {
-    val input = Seq(
+    val generationElements = Seq(
       <GenerationResponse>
         <Bitstreams>
           <Bitstream>http://test1</Bitstream>
@@ -215,7 +276,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
         </Bitstreams>
       </GenerationResponse>
     )
-    val generationsF = new DataProcessor[F]().allBitstreamUrls(input)
+    val generationsF = generationElements.map(ge => new DataProcessor[F]().allBitstreamUrls(ge)).flatSequence
     val generations = valueFromF(generationsF)
 
     generations.size should equal(2)
@@ -237,12 +298,17 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
           </xip:Fixities>
         </xip:Bitstream>
         <AdditionalInformation>
+          <Self>http://test/generations/2/bitstreams/1</Self>
           <Content>http://test</Content>
         </AdditionalInformation>
       </BitstreamResponse>
     )
 
-    val generationsF = new DataProcessor[F]().allBitstreamInfo(input, Some("testCoTitle"))
+    val generationsF = new DataProcessor[F]().allBitstreamInfo(
+      input,
+      Original,
+      generateContentObject("ad30d41e-b75c-4195-b569-91e820f430ac", Some("testCoTitle"))
+    )
     val response = valueFromF(generationsF)
 
     response.size should equal(1)
@@ -251,7 +317,10 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.head.url should equal("http://test")
     response.head.fixity.algorithm should equal("SHA1")
     response.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    response.head.generationVersion should equal(2)
+    response.head.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
+    response.head.parentRef should equal(Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")))
   }
 
   "getNextPage" should "return the next page" in {
@@ -296,12 +365,13 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
         fileName: String,
         description: String,
         deleted: Boolean = false
-    ) =
+    ) = {
       entity.path.getOrElse("") should equal(entityType)
       entity.ref.toString should equal(uuid)
       entity.deleted should equal(deleted)
       entity.title.getOrElse("") should equal(fileName)
       entity.description.getOrElse("") should equal(description)
+    }
 
     checkResponse(
       entities.head,
@@ -399,7 +469,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     response.title.get should equal("Title")
     response.description.get should equal("A description")
-    response.securityTag.get should equal(open)
+    response.securityTag.get should equal(Open)
     response.deleted should equal(true)
     response.parent.get should equal(UUID.fromString("f567352f-0874-49da-85aa-ac0fbfa3b335"))
   }
@@ -454,7 +524,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     }
 
-    exception.getMessage should equal(s"Entity not found for id $id")
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
   }
 
   "childNodeFromWorkflowInstance" should "return the node requested" in {
@@ -530,7 +600,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
     val input =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Representations>
         <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
         <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
@@ -555,7 +625,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getUrlsToIoRepresentations" should "return all urls of representations if 'representationType' filter passed in, was 'None'" in {
     val input =
-      <RepresentationsResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <Representations>
         <Representation type="Preservation">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Representation>
         <Representation type="Access" name="Access name1">http://localhost/api/entity/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Access/1</Representation>
@@ -583,7 +653,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getContentObjectsFromRepresentation" should "return an empty list if there are no content objects" in {
     val input =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:Representation>
         <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
         <xip:Name>Preservation</xip:Name>
@@ -610,7 +680,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getContentObjectsFromRepresentation" should "return a list of Content Objects belonging to the representation" in {
     val input =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v6.9" xmlns:xip="http://preservica.com/XIP/v6.9">
+      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       <xip:Representation>
         <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
         <xip:Name>Preservation</xip:Name>
@@ -643,3 +713,15 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       )
     )
   }
+
+  "getPreservicaNamespaceVersion" should "extract version number from namespace" in {
+    val input =
+      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
+      </RetentionPoliciesResponse>
+    val version = valueFromF(
+      new DataProcessor[F]().getPreservicaNamespaceVersion(input)
+    )
+
+    version should equal(7.0)
+  }
+}

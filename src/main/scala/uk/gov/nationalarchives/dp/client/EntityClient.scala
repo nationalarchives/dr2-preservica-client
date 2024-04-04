@@ -6,30 +6,30 @@ import cats.implicits.*
 import sttp.capabilities.Streams
 import sttp.client3.*
 import sttp.model.Method
+import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
-import uk.gov.nationalarchives.DynamoFormatters.Identifier
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,
   EntityType,
   RepresentationType,
   UpdateEntityRequest
-}
 
-import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.Utility.escape
-import scala.xml.{Elem, PrettyPrinter, XML}
+import scala.xml.{Elem, XML}
 
 /** A client to create, get and update entities in Preservica
   * @tparam F
   *   Type of the effect
   */
-trait EntityClient[F[_], S]:
+trait EntityClient[F[_], S] {
 
   /** Used to format dates.
     */
@@ -87,15 +87,15 @@ trait EntityClient[F[_], S]:
     *   The reference of the Information Object
     * @param representationType
     *   The [[EntityClient.RepresentationType]] of the entity.
-    * @param version
-    *   The version of the Representation.
+    * @param repTypeIndex
+    *   The index of the Representation.
     * @return
     *   A `Seq` of [[Entities.Entity]] wrapped in the F effect
     */
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
       representationType: RepresentationType,
-      version: Int
+      repTypeIndex: Int
   ): F[Seq[Entity]]
 
   /** Adds an entity to Preservica
@@ -198,9 +198,19 @@ trait EntityClient[F[_], S]:
       identifier: Identifier
   ): F[String]
 
+  /** Gets the version of Preservica in the namespace
+    * @param endpoint
+    *   The Entity endpoint to be called (this should exclude the baseUrl and path)
+    * @return
+    *   The version of Preservica in the namespace as a Float
+    */
+
+  def getPreservicaNamespaceVersion(endpoint: String): F[Float]
+}
+
 /** An object containing a method which returns an implementation of the EntityClient trait
   */
-object EntityClient:
+object EntityClient {
 
   /** Creates a new `EntityClient` instance.
     * @param clientConfig
@@ -218,9 +228,13 @@ object EntityClient:
   def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
-  ): EntityClient[F, S] = new EntityClient[F, S]:
+  ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
+    private val apiVersion = 7.0f
+    private val apiUrl = s"$apiBaseUrl/api/entity/v$apiVersion"
+    private val namespaceUrl = s"http://preservica.com/XIP/v$apiVersion"
+
     private val missingPathExceptionMessage: UUID => String = ref =>
       s"No path found for entity id $ref. Could this entity have been deleted?"
 
@@ -232,19 +246,20 @@ object EntityClient:
         url: String,
         token: String
     ): F[Seq[Entity]] =
-      for
+      for {
         entitiesResponseXml <- sendXMLApiRequest(url, token, Method.GET)
         entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
-      yield entitiesWithUpdates
+      } yield entitiesWithUpdates
 
     private def eventActions(
         url: Option[String],
         token: String,
         currentCollectionOfEventActions: Seq[EventAction]
-    ): F[Seq[EventAction]] =
-      if url.isEmpty then me.pure(currentCollectionOfEventActions)
-      else
-        for
+    ): F[Seq[EventAction]] = {
+      if (url.isEmpty) {
+        me.pure(currentCollectionOfEventActions)
+      } else {
+        for {
           eventActionsResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
           eventActionsBatch <- dataProcessor.getEventActions(eventActionsResponseXml)
           nextPageUrl <- dataProcessor.nextPage(eventActionsResponseXml)
@@ -253,74 +268,81 @@ object EntityClient:
             token,
             currentCollectionOfEventActions ++ eventActionsBatch
           )
-        yield allEventActions
+        } yield allEventActions
+      }
+    }
 
-    private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String =
-      val identifierAsXml: String =
-        val xml = <Identifier xmlns="http://preservica.com/XIP/v6.5">
+    private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
+      val identifierAsXml =
+        <Identifier xmlns={namespaceUrl}>
           <Type>{identifierName}</Type>
           <Value>{identifierValue}</Value>
         </Identifier>
-        new PrettyPrinter(80, 2).format(xml)
-      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
 
-    override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] =
-      val url = uri"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef"
-      for
+      s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
+    }
+
+    override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
+      val url = uri"$apiUrl/${entityType.entityPath}/$entityRef"
+      for {
         token <- getAuthenticationToken
         entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
-      yield entity
+      } yield entity
+    }
 
     override def getUrlsToIoRepresentations(
         entityRef: UUID,
         representationType: Option[RepresentationType]
     ): F[Seq[String]] =
-      for
+      for {
         token <- getAuthenticationToken
-        url = uri"$apiBaseUrl/api/entity/information-objects/$entityRef/representations"
+        url = uri"$apiUrl/information-objects/$entityRef/representations"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
           representationsResponse,
           representationType
         )
-      yield urlsOfRepresentations
+      } yield urlsOfRepresentations
 
     override def getContentObjectsFromRepresentation(
         ioEntityRef: UUID,
         representationType: RepresentationType,
-        version: Int
+        repTypeIndex: Int
     ): F[Seq[Entity]] =
-      for
+      for {
         token <- getAuthenticationToken
-        url = uri"$apiBaseUrl/api/entity/information-objects/$ioEntityRef/representations/$representationType/$version"
+        url =
+          uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex"
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
           representationsResponse,
           representationType,
           ioEntityRef
         )
-      yield contentObjects
+      } yield contentObjects
 
-    override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] =
-      for
+    override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
+      for {
         path <- me.fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers"
+        url = uri"$apiUrl/$path/${entity.ref}/identifiers"
         token <- getAuthenticationToken
         identifiers <- entityIdentifiers(url.toString.some, token, Nil)
-      yield identifiers
+      } yield identifiers
+    }
 
     private def entityIdentifiers(
         url: Option[String],
         token: String,
         currentCollectionOfIdentifiers: Seq[IdentifierResponse]
-    ): F[Seq[IdentifierResponse]] =
-      if url.isEmpty then me.pure(currentCollectionOfIdentifiers)
-      else
-        for
+    ): F[Seq[IdentifierResponse]] = {
+      if (url.isEmpty) {
+        me.pure(currentCollectionOfIdentifiers)
+      } else {
+        for {
           identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
           identifiersBatch <- dataProcessor.getIdentifiers(identifiersResponseXml)
           nextPageUrl <- dataProcessor.nextPage(identifiersResponseXml)
@@ -329,15 +351,17 @@ object EntityClient:
             token,
             currentCollectionOfIdentifiers ++ identifiersBatch
           )
-        yield allIdentifiers
+        } yield allIdentifiers
+      }
+    }
 
     private def validateEntityUpdateInputs(
         entityType: EntityType,
         parentRef: Option[UUID]
     ): F[(String, String)] =
-      for
+      for {
         _ <-
-          if entityType.entityPath != StructuralObject.entityPath && parentRef.isEmpty then
+          if (entityType.entityPath != StructuralObject.entityPath && parentRef.isEmpty)
             me.raiseError(
               PreservicaClientException(
                 "You must pass in the parent ref if you would like to add/update a non-structural object."
@@ -345,7 +369,7 @@ object EntityClient:
             )
           else me.unit
         token <- getAuthenticationToken
-      yield (entityType.toString, token)
+      } yield (entityType.toString, token)
 
     private def createUpdateRequestBody(
         ref: Option[UUID],
@@ -355,10 +379,10 @@ object EntityClient:
         securityTag: SecurityTag,
         nodeName: String,
         addOpeningXipTag: Boolean = false
-    ): String =
+    ): String = {
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            ${if addOpeningXipTag then s"""<XIP xmlns="http://preservica.com/XIP/v6.5">""" else ""}
-            <$nodeName xmlns="http://preservica.com/XIP/v6.5">
+            ${if (addOpeningXipTag) s"""<XIP xmlns="http://preservica.com/XIP/v$apiVersion">""" else ""}
+            <$nodeName xmlns="http://preservica.com/XIP/v$apiVersion">
               ${ref.map(r => s"<Ref>$r</Ref>").getOrElse("")}
               <Title>${escape(title)}</Title>
               ${descriptionToChange
@@ -367,12 +391,13 @@ object EntityClient:
               <SecurityTag>$securityTag</SecurityTag>
               ${parentRef.map(parent => s"<Parent>$parent</Parent>").getOrElse("")}
             </$nodeName>"""
+    }
 
-    override def addEntity(addEntityRequest: AddEntityRequest): F[UUID] =
+    override def addEntity(addEntityRequest: AddEntityRequest): F[UUID] = {
       val path = addEntityRequest.entityType.entityPath
-      for
+      for {
         _ <-
-          if path == ContentObject.entityPath then
+          if (path == ContentObject.entityPath)
             me.raiseError(
               PreservicaClientException("You currently cannot create a content object via the API.")
             )
@@ -394,14 +419,15 @@ object EntityClient:
           addXipTag
         )
         // "Representations" can be appended to an 'information-objects' request; for now, we'll exclude it and instead, just close the tag
-        fullRequestBody = if addXipTag then addRequestBody + "\n            </XIP>" else addRequestBody
-        url = uri"$apiBaseUrl/api/entity/$path"
+        fullRequestBody = if (addXipTag) addRequestBody + "\n            </XIP>" else addRequestBody
+        url = uri"$apiUrl/$path"
         addEntityResponse <- sendXMLApiRequest(url.toString, token, Method.POST, Some(fullRequestBody))
         ref <- dataProcessor.childNodeFromEntity(addEntityResponse, nodeName, "Ref")
-      yield UUID.fromString(ref.trim)
+      } yield UUID.fromString(ref.trim)
+    }
 
-    override def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String] =
-      for
+    override def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String] = {
+      for {
         nodeNameAndToken <- validateEntityUpdateInputs(
           updateEntityRequest.entityType,
           updateEntityRequest.parentRef
@@ -417,35 +443,42 @@ object EntityClient:
           nodeName
         )
         path = updateEntityRequest.entityType.entityPath
-        url = uri"$apiBaseUrl/api/entity/$path/${updateEntityRequest.ref}"
+        url = uri"$apiUrl/$path/${updateEntityRequest.ref}"
         _ <- sendXMLApiRequest(url.toString, token, Method.PUT, Some(updateRequestBody))
         response = "Entity was updated"
-      yield response
+      } yield response
+    }
 
     override def getBitstreamInfo(
-        contentRef: UUID
+        contentObjectRef: UUID
     ): F[Seq[BitStreamInfo]] =
-      for
+      for {
         token <- getAuthenticationToken
-        contentEntity <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/${ContentObject.entityPath}/$contentRef",
+        contentObjectElement <- sendXMLApiRequest(
+          s"$apiUrl/${ContentObject.entityPath}/$contentObjectRef",
           token,
           Method.GET
         )
-        generationUrl <- dataProcessor.generationUrlFromEntity(contentEntity)
-        generationInfo <- sendXMLApiRequest(generationUrl, token, Method.GET)
-        allGenerationUrls <- dataProcessor.allGenerationUrls(generationInfo)
+        generationsEndpointUrl <- dataProcessor.generationUrlFromEntity(contentObjectElement)
+        generationsElement <- sendXMLApiRequest(generationsEndpointUrl, token, Method.GET)
+        allGenerationUrls <- dataProcessor.allGenerationUrls(generationsElement, contentObjectRef)
         allGenerationElements <- allGenerationUrls
           .map(url => sendXMLApiRequest(url, token, Method.GET))
           .sequence
-        allUrls <- dataProcessor.allBitstreamUrls(allGenerationElements)
-        bitstreamXmls <- allUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        contentObjectTitle <- dataProcessor.getEntity(contentRef, contentEntity, ContentObject)
-        allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamXmls, contentObjectTitle.title)
-      yield allBitstreamInfo
+        allBitstreamInfo <- allGenerationElements.map { generationElement =>
+          for {
+            generationType <- dataProcessor.generationType(generationElement, contentObjectRef)
+            allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationElement)
+            bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+            contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
+            allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject)
+          } yield allBitstreamInfo
+        }.flatSequence
+
+      } yield allBitstreamInfo
 
     override def metadataForEntity(entity: Entity): F[Seq[Elem]] =
-      for
+      for {
         token <- getAuthenticationToken
 
         path <- me.fromOption(
@@ -453,119 +486,158 @@ object EntityClient:
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         entityInfo <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/$path/${entity.ref}",
+          s"$apiUrl/$path/${entity.ref}",
           token,
           Method.GET
         )
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-        fragmentResponse <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
-        fragments <- dataProcessor.fragments(fragmentResponse)
-      yield fragments.map(XML.loadString)
+        fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+        fragments <- dataProcessor.fragments(fragmentResponses)
+      } yield fragments.map(XML.loadString)
 
     override def entitiesUpdatedSince(
         dateTime: ZonedDateTime,
         startEntry: Int,
         maxEntries: Int = 1000
-    ): F[Seq[Entity]] =
+    ): F[Seq[Entity]] = {
       val dateString = dateTime.format(dateFormatter)
       val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
-      val url = uri"$apiBaseUrl/api/entity/entities/updated-since?$queryParams"
-      for
+      val url = uri"$apiUrl/entities/updated-since?$queryParams"
+      for {
         token <- getAuthenticationToken
         updatedEntities <- getEntities(url.toString, token)
-      yield updatedEntities
+      } yield updatedEntities
+    }
 
     override def entityEventActions(
         entity: Entity,
         startEntry: Int = 0,
         maxEntries: Int = 1000
-    ): F[Seq[EventAction]] =
+    ): F[Seq[EventAction]] = {
       val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
-      for
+      for {
         path <- me.fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
-        url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/event-actions?$queryParams"
+        url = uri"$apiUrl/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken
         eventActions <- eventActions(url.toString.some, token, Nil)
-      yield eventActions.reverse // most recent event first
+      } yield eventActions.reverse // most recent event first
+    }
 
     override def entitiesByIdentifier(
         identifier: Identifier
-    ): F[Seq[Entity]] =
+    ): F[Seq[Entity]] = {
       val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
-      val url = uri"$apiBaseUrl/api/entity/entities/by-identifier?$queryParams"
-      for
+      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
+      for {
         token <- getAuthenticationToken
         entitiesWithIdentifier <- getEntities(url.toString, token)
         entities <- entitiesWithIdentifier.map { entity =>
-          for
+          for {
             entityType <- me.fromOption(
               entity.entityType,
               PreservicaClientException(s"No entity type found for entity ${entity.ref}")
             )
             entity <- getEntity(entity.ref, entityType)
-          yield entity
+          } yield entity
         }.sequence
-      yield entities
+      } yield entities
+    }
 
     override def addIdentifierForEntity(
         entityRef: UUID,
         entityType: EntityType,
         identifier: Identifier
     ): F[String] =
-      for
+      for {
         token <- getAuthenticationToken
         _ <- sendXMLApiRequest(
-          s"$apiBaseUrl/api/entity/${entityType.entityPath}/$entityRef/identifiers",
+          s"$apiUrl/${entityType.entityPath}/$entityRef/identifiers",
           token,
           Method.POST,
           Some(requestBodyForIdentifier(identifier.identifierName, identifier.value))
         )
         response = s"The Identifier was added"
-      yield response
+      } yield response
 
     def streamBitstreamContent[T](
         stream: Streams[S]
-    )(url: String, streamFn: stream.BinaryStream => F[T]): F[T] =
+    )(url: String, streamFn: stream.BinaryStream => F[T]): F[T] = {
       val apiUri = uri"$url"
       def request(token: String) = basicRequest
         .get(apiUri)
         .headers(Map("Preservica-Access-Token" -> token))
         .response(asStream(stream)(streamFn))
 
-      for
+      for {
         token <- getAuthenticationToken
         res <- backend.send(request(token))
         body <- me.fromEither {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
         }
-      yield body
+      } yield body
+    }
 
     override def updateEntityIdentifiers(
         entity: Entity,
         identifiers: Seq[IdentifierResponse]
-    ): F[Seq[IdentifierResponse]] =
+    ): F[Seq[IdentifierResponse]] = {
       identifiers.map { identifier =>
         val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
-        for
+        for {
           path <- me.fromOption(
             entity.path,
             PreservicaClientException(missingPathExceptionMessage(entity.ref))
           )
           token <- getAuthenticationToken
-          url = uri"$apiBaseUrl/api/entity/$path/${entity.ref}/identifiers/${identifier.id}"
+          url = uri"$apiUrl/$path/${entity.ref}/identifiers/${identifier.id}"
           _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
-        yield identifier
+        } yield identifier
       }.sequence
+    }
+
+    override def getPreservicaNamespaceVersion(endpoint: String): F[Float] = {
+      for {
+        token <- getAuthenticationToken
+        resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", token, Method.GET)
+        version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
+      } yield version
+    }
+  }
+
+  /** Represents a Preservica security tag
+    */
+  enum SecurityTag:
+    override def toString: String = this match
+      case Open => "open"
+      case Closed => "closed"
+    case Open,Closed
+
+  object SecurityTag {
+
+    def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
+      case "open" => Option(Open)
+      case "closed" => Option(Closed)
+      case _ => None
+    }
+  }
 
   /** Represents an entity type
     */
   enum EntityType(val entityPath: String, val entityTypeShort: String):
+    case StructuralObject extends EntityType("structural-objects", "SO")
     case InformationObject extends EntityType("information-objects", "IO")
     case ContentObject extends EntityType("content-objects", "CO")
-    case StructuralObject extends EntityType("structural-objects", "SO")
+
+
+  /** Represents a Preservica representation tag
+    */
+
+  enum RepresentationType:
+    case Access, Preservation
+
 
   /** Represents an entity to add to Preservica
     * @param ref
@@ -613,12 +685,10 @@ object EntityClient:
       parentRef: Option[UUID]
   )
 
-  /** Represents a Preservica security tag
-    */
-  enum SecurityTag:
-    case open, closed
 
-  /** Represents a Preservica representation tag
-    */
-  enum RepresentationType:
-    case Access, Preservation
+  enum GenerationType:
+    case Original, Derived
+
+
+
+}

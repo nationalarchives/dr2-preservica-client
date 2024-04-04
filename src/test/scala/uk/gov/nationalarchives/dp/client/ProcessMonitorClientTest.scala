@@ -347,11 +347,10 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
       val requestUrls = allRequests.map(_.getRequest.getAbsoluteUrl)
 
-      allRequests.length should equal(3)
+      allRequests.length should equal(2)
       requestUrls should equal(
         List(
           s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
-          s"http://localhost:$preservicaPort/api/accesstoken/login",
           s"http://localhost:$preservicaPort/api/accesstoken/login"
         )
       )
@@ -403,12 +402,11 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
       val allRequests = getAllRequests(preservicaServer)
       val requestUrls = allRequests.map(_.getRequest.getAbsoluteUrl)
 
-      allRequests.length should equal(4)
+      allRequests.length should equal(3)
       requestUrls should equal(
         List(
           s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=1000&max=1000",
           s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
-          s"http://localhost:$preservicaPort/api/accesstoken/login",
           s"http://localhost:$preservicaPort/api/accesstoken/login"
         )
       )

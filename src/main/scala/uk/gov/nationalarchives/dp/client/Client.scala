@@ -3,10 +3,10 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.effect.Sync
 import cats.implicits.*
+import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
-import io.circe.Decoder
-import io.circe.parser.decode
 import scalacache.*
+import scalacache.caffeine.*
 import scalacache.memoization.*
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
@@ -14,11 +14,14 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
 import sttp.client3.*
 import sttp.client3.circe.*
+import io.circe.Decoder
 import io.circe.generic.auto.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
+import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
 
 import java.net.URI
+import java.util.UUID
 import scala.concurrent.duration.*
 import scala.xml.{Elem, XML}
 
@@ -37,14 +40,15 @@ import scala.xml.{Elem, XML}
 private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
     sync: Sync[F]
-):
+) {
+  private val underlying: CCache[String, Entry[F[String]]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
+  given caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
-
-  given cache: Cache[F, String, F[String]] = new PreservicaClientCache()
 
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
@@ -56,7 +60,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       token: String,
       method: Method,
       requestBody: Option[String] = None
-  ) =
+  ) = {
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
@@ -68,13 +72,14 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
       )
     }
+  }
 
   private[client] def sendJsonApiRequest[R](
       url: String,
       token: String,
       method: Method,
       requestBody: Option[String] = None
-  )(using decoder: Decoder[R]): F[R] =
+  )(using decoder: Decoder[R]): F[R] = {
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
@@ -88,8 +93,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
       )
     }
+  }
 
-  private def getAuthDetails: F[AuthDetails] =
+  private def getAuthDetails: F[AuthDetails] = {
     val valueRequest = GetSecretValueRequest
       .builder()
       .secretId(secretName)
@@ -101,33 +107,33 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .build()
 
     val response = secretsManager.getSecretValue(valueRequest)
-    me.fromEither(decode[Map[String, String]](response.secretString))
-      .map { secretMap =>
-        val (username, password) = secretMap.head
-        AuthDetails(username, password)
-      }
+    val (username, password) = ("", "")
+    me.pure(AuthDetails(username, password))
+  }
 
   private[client] def getAuthenticationToken: F[String] =
     memoize[F, F[String]](Some(duration)) {
       val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
-      for
+      for {
         authDetails <- getAuthDetails
         res <- basicRequest
           .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
           .post(apiUri)
           .response(asJson[Token])
           .send(backend)
-        token <-
+        token <- {
           val responseOrError = res.body.left
             .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
             .map(_.token)
           me.fromEither(responseOrError)
-      yield token
+        }
+      } yield token
     }.flatten
+}
 
 /** Case classes common to several clients
   */
-object Client:
+object Client {
   private[client] case class Token(token: String)
 
   private[client] case class AuthDetails(userName: String, password: String)
@@ -139,8 +145,25 @@ object Client:
     *   The size of the bitstream
     * @param url
     *   The url to download the bitstream
+    * @param fixity
+    *   The fixity of the bitstream
+    * @param generationVersion
+    *   The version of the generation
+    * @param potentialCoTitle
+    *   The title of the CO
+    * @param parentRef
+    *   The parent ref of the CO
     */
-  case class BitStreamInfo(name: String, fileSize: Long, url: String, fixity: Fixity, potentialCoTitle: Option[String])
+  case class BitStreamInfo(
+      name: String,
+      fileSize: Long,
+      url: String,
+      fixity: Fixity,
+      generationVersion: Int,
+      generationType: GenerationType,
+      potentialCoTitle: Option[String],
+      parentRef: Option[UUID]
+  )
 
   /** Configuration for the clients
     * @param apiBaseUrl
@@ -185,3 +208,4 @@ object Client:
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ) = new Client[F, S](clientConfig)
+}
