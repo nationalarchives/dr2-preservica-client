@@ -493,13 +493,7 @@ object EntityClient {
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
-
-        entityNodeAndIdentifiersAndMetadata = Seq(
-          Seq(entityNode),
-          Seq(identifiersInElem),
-          fragments.map(XML.loadString)
-        ).flatten
-      } yield entityNodeAndIdentifiersAndMetadata
+      } yield Seq(Seq(entityNode), Seq(identifiersInElem), fragments.map(XML.loadString)).flatten
 
     private def entityIdentifiersXml(
         url: Option[String],

@@ -276,8 +276,7 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `Identifier` elements parsed from the XML
     */
-  def getIdentifiersXml(elem: Elem): F[Seq[Node]] =
-    me.pure((elem \ "Identifiers" \ "Identifier"))
+  def getIdentifiersXml(elem: Elem): F[Seq[Node]] = me.pure(elem \ "Identifiers" \ "Identifier")
 
   /** Returns a list of [[DataProcessor.EventAction]] objects
     * @param elem
