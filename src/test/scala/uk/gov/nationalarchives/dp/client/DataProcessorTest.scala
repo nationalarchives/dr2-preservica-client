@@ -561,16 +561,16 @@ abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) e
     exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
   }
 
-  "getEntityXml" should "blahreturn an error if the entity type in the response doesn't match" in {
+  "getEntityXml" should "return an error if the entity type in the response doesn't exist" in {
     val id = UUID.randomUUID()
     val entityResponse = <EntityResponse>
     </EntityResponse>
 
     val exception = intercept[PreservicaClientException] {
-      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, StructuralObject))
+      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, InformationObject))
     }
 
-    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
+    exception.getMessage should equal(s"Entity type 'InformationObject' not found for id $id")
   }
 
   "childNodeFromWorkflowInstance" should "return the node requested" in {
