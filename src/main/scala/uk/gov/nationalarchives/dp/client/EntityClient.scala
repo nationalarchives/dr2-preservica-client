@@ -12,6 +12,7 @@ import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,
+  EntityMetadata,
   EntityType,
   RepresentationType,
   UpdateEntityRequest
@@ -37,9 +38,9 @@ trait EntityClient[F[_], S] {
     * @param entity
     *   The entity to return metadata for
     * @return
-    *   A `Seq` of `Node` containing the metadata (Entity node, Identifiers and metadata) wrapped in the F effect
+    *   An EntityMetadata object containing the metadata (Entity node, Identifiers and metadata) wrapped in the F effect
     */
-  def metadataForEntity(entity: Entity): F[Seq[Node]]
+  def metadataForEntity(entity: Entity): F[EntityMetadata]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
     * @param contentRef
@@ -475,7 +476,7 @@ object EntityClient {
 
       } yield allBitstreamInfo
 
-    override def metadataForEntity(entity: Entity): F[Seq[Node]] =
+    override def metadataForEntity(entity: Entity): F[EntityMetadata] =
       for {
         token <- getAuthenticationToken
 
@@ -493,7 +494,7 @@ object EntityClient {
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
-      } yield Seq(Seq(entityNode), Seq(identifiersInElem), fragments.map(XML.loadString)).flatten
+      } yield EntityMetadata(entityNode, identifiersInElem, fragments.map(XML.loadString))
 
     private def entityIdentifiersXml(
         url: Option[String],
@@ -760,4 +761,6 @@ object EntityClient {
   case object Original extends GenerationType
 
   case object Derived extends GenerationType
+
+  case class EntityMetadata(entityNode: Node, identifiersNode: Node, metadataContainerNode: Seq[Node])
 }

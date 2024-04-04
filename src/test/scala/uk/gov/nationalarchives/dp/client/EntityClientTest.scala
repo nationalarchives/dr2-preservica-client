@@ -774,8 +774,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata.size should equal(3)
-    metadata.head.toString should equal(
+    metadata.entityNode.toString should equal(
       <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
           <Ref>{entityId}</Ref>
           <Title>Title</Title>
@@ -785,7 +784,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata(1).toString should equal(
+    metadata.identifiersNode.toString should equal(
       <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
@@ -793,7 +792,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entityId}</xip:Entity>
           </xip:Identifier></xip:Identifiers>.toString
     )
-    metadata(2).toString should equal(
+    metadata.metadataContainerNode.head.toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
@@ -884,8 +883,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata.size should equal(4)
-    metadata.head.toString should equal(
+    metadata.entityNode.toString should equal(
       <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
           <Ref>{entityId}</Ref>
           <Title>Title</Title>
@@ -895,7 +893,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata(1).toString should equal(
+    metadata.identifiersNode.toString should equal(
       <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
@@ -903,7 +901,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entityId}</xip:Entity>
           </xip:Identifier></xip:Identifiers>.toString
     )
-    metadata(2).toString should equal(
+    metadata.metadataContainerNode(0).toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
@@ -912,7 +910,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Content>
       </MetadataContainer>.toString
     )
-    metadata.last.toString should equal(
+    metadata.metadataContainerNode.last.toString should equal(
       <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test2>
@@ -971,8 +969,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
-    metadata.size should equal(2)
-    metadata.head.toString should equal(
+    metadata.entityNode.toString should equal(
       <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
           <Ref>{entityId}</Ref>
           <Title>Title</Title>
@@ -982,7 +979,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata(1).toString should equal(
+    metadata.identifiersNode.toString should equal(
       <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
