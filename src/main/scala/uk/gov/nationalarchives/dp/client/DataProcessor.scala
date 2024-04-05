@@ -49,6 +49,22 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
   }
 
+  /** Retrieves the [[EntityClient.EntityType]] Node from an entity response
+    * @param entityRef
+    *   The reference of the entity
+    * @param entityResponse
+    *   The XML response from Preservica
+    * @param entityType
+    *   The [[EntityClient.EntityType]] of the entity.
+    * @return
+    *   An [[scala.xml.Node]] found in the entity response (by searching for [[EntityClient.EntityType]]) wrapped in the
+    *   F effect
+    */
+  def getEntityXml(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Node] =
+    (entityResponse \ entityType.toString).headOption
+      .map(me.pure)
+      .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
+
   /** Fetches `nodeName` -> `childNodeName` text from `entityResponse`
     * @param entityResponse
     *   The response from the entity
@@ -253,6 +269,14 @@ class DataProcessor[F[_]]()(implicit me: MonadError[F, Throwable]) {
         }
     }
   }
+
+  /** Returns a list of [[NodeSeq]] objects
+    * @param elem
+    *   The element containing the identifiers
+    * @return
+    *   A `Seq` of `Identifier` elements parsed from the XML
+    */
+  def getIdentifiersXml(elem: Elem): F[Seq[Node]] = me.pure(elem \ "Identifiers" \ "Identifier")
 
   /** Returns a list of [[DataProcessor.EventAction]] objects
     * @param elem
