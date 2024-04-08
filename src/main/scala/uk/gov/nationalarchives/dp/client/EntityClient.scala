@@ -17,7 +17,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient.{
   EntityType,
   RepresentationType,
   UpdateEntityRequest
-
 }
 
 import java.time.ZonedDateTime
@@ -633,16 +632,16 @@ object EntityClient {
     */
   enum SecurityTag:
     override def toString: String = this match
-      case Open => "open"
+      case Open   => "open"
       case Closed => "closed"
-    case Open,Closed
+    case Open, Closed
 
   object SecurityTag {
 
     def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
-      case "open" => Option(Open)
+      case "open"   => Option(Open)
       case "closed" => Option(Closed)
-      case _ => None
+      case _        => None
     }
   }
 
@@ -653,13 +652,11 @@ object EntityClient {
     case InformationObject extends EntityType("information-objects", "IO")
     case ContentObject extends EntityType("content-objects", "CO")
 
-
   /** Represents a Preservica representation tag
     */
 
   enum RepresentationType:
     case Access, Preservation
-
 
   /** Represents an entity to add to Preservica
     * @param ref
@@ -706,7 +703,6 @@ object EntityClient {
       securityTag: SecurityTag,
       parentRef: Option[UUID]
   )
-
 
   enum GenerationType:
     case Original, Derived

@@ -349,9 +349,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <StructuralObject xmlns="http://preservica.com/XIP/v$xipVersion">
               <Ref>${updateEntityRequest.ref}</Ref>
               <Title>${Utility.escape(updateEntityRequest.title)}</Title>
-              ${if (updateEntityRequest.descriptionToChange.nonEmpty)
-              s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
-            else ""}
+              ${
+              if (updateEntityRequest.descriptionToChange.nonEmpty)
+                s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
+              else ""
+            }
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")

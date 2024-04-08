@@ -10,7 +10,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
-
 import java.time.ZonedDateTime
 import java.util.UUID
 

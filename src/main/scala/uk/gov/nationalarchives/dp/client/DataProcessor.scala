@@ -21,10 +21,10 @@ import scala.xml.{Elem, MetaData, Node, NodeSeq}
   */
 class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
 
-  extension(ns: NodeSeq)
+  extension (ns: NodeSeq)
     def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
-      case None => me.raiseError(PreservicaClientException("Generation not found"))
+      case None        => me.raiseError(PreservicaClientException("Generation not found"))
     }
 
   /** Converts an entity response to an [[Entities.Entity]] case class
