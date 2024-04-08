@@ -10,6 +10,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
+
 import java.time.ZonedDateTime
 import java.util.UUID
 
@@ -525,6 +526,48 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     }
 
     exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
+  }
+
+  "getEntityXml" should "return the full entity if all fields are provided" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <InformationObject>
+        <Title>Title</Title>
+        <Description>A description</Description>
+        <SecurityTag>open</SecurityTag>
+        <Deleted>true</Deleted>
+        <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
+      </InformationObject>
+    </EntityResponse>
+
+    val response = valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, InformationObject))
+    response should equal(entityResponse.child(1))
+  }
+
+  "getEntityXml" should "return an error if the entity type in the response doesn't match" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+      <InformationObject>
+      </InformationObject>
+    </EntityResponse>
+
+    val exception = intercept[PreservicaClientException] {
+      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, StructuralObject))
+    }
+
+    exception.getMessage should equal(s"Entity type 'StructuralObject' not found for id $id")
+  }
+
+  "getEntityXml" should "return an error if the entity type in the response doesn't exist" in {
+    val id = UUID.randomUUID()
+    val entityResponse = <EntityResponse>
+    </EntityResponse>
+
+    val exception = intercept[PreservicaClientException] {
+      valueFromF(new DataProcessor[F]().getEntityXml(id, entityResponse, InformationObject))
+    }
+
+    exception.getMessage should equal(s"Entity type 'InformationObject' not found for id $id")
   }
 
   "childNodeFromWorkflowInstance" should "return the node requested" in {
