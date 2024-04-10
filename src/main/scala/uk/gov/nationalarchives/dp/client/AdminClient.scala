@@ -34,7 +34,7 @@ trait AdminClient[F[_]] {
     * @param fileInfo
     *   A `List` of `IndexDefinitionInfo` containing the details of the index definition updates
     * @return
-    *   Unit wrapped in the FF effect
+    *   Unit wrapped in the F effect
     */
   def addOrUpdateIndexDefinitions(fileInfo: List[IndexDefinitionInfo]): F[Unit]
 
