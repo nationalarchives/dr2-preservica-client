@@ -10,13 +10,10 @@ object Clients {
   object EntityClients {
     import cats.effect.IO
     import sttp.capabilities.fs2.Fs2Streams
-    import sttp.capabilities.zio.ZioStreams
     import uk.gov.nationalarchives.dp.client.EntityClient
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-    import uk.gov.nationalarchives.dp.client.zio.ZioClient
-    import zio.Task
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
@@ -29,8 +26,6 @@ object Clients {
       Fs2Client.entityClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2EntityClientWithCustomProxy: IO[EntityClient[IO, Fs2Streams[IO]]] =
       Fs2Client.entityClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
-    val zioEntityClientWithDefaults: Task[EntityClient[Task, ZioStreams]] =
-      ZioClient.entityClient(preservicaUrl, secretName)
   }
   // #entity_client
   // #content_client
@@ -38,10 +33,8 @@ object Clients {
     import cats.effect.IO
     import uk.gov.nationalarchives.dp.client.ContentClient
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-    import uk.gov.nationalarchives.dp.client.zio.ZioClient
-    import zio.Task
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
@@ -53,7 +46,6 @@ object Clients {
       Fs2Client.contentClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2ContentClientWithCustomProxy: IO[ContentClient[IO]] =
       Fs2Client.contentClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
-    val zioContentClientWithDefaults: Task[ContentClient[Task]] = ZioClient.contentClient(preservicaUrl, secretName)
   }
   // #content_client
 
@@ -62,10 +54,8 @@ object Clients {
     import cats.effect.IO
     import uk.gov.nationalarchives.dp.client.AdminClient
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-    import uk.gov.nationalarchives.dp.client.zio.ZioClient
-    import zio.Task
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
@@ -77,7 +67,6 @@ object Clients {
       Fs2Client.adminClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2AdminClientWithCustomProxy: IO[AdminClient[IO]] =
       Fs2Client.adminClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
-    val zioAdminClientWithDefaults: Task[AdminClient[Task]] = ZioClient.adminClient(preservicaUrl, secretName)
   }
   // #admin_client
 
@@ -86,10 +75,8 @@ object Clients {
     import cats.effect.IO
     import uk.gov.nationalarchives.dp.client.WorkflowClient
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-    import uk.gov.nationalarchives.dp.client.zio.ZioClient
-    import zio.Task
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
@@ -101,7 +88,6 @@ object Clients {
       Fs2Client.workflowClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2WorkflowClientWithCustomProxy: IO[WorkflowClient[IO]] =
       Fs2Client.workflowClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
-    val zioWorkflowClientWithDefaults: Task[WorkflowClient[Task]] = ZioClient.workflowClient(preservicaUrl, secretName)
   }
   // #workflow_client
 
@@ -110,10 +96,8 @@ object Clients {
     import cats.effect.IO
     import uk.gov.nationalarchives.dp.client.ProcessMonitorClient
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-    import uk.gov.nationalarchives.dp.client.zio.ZioClient
-    import zio.Task
 
-    import scala.concurrent.duration._
+    import scala.concurrent.duration.*
 
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
@@ -129,8 +113,6 @@ object Clients {
       secretName,
       potentialProxyUrl = Option(URI.create("http://proxy.url"))
     )
-    val zioProcessMonitorClientWithDefaults: Task[ProcessMonitorClient[Task]] =
-      ZioClient.processMonitorClient(preservicaUrl, secretName)
   }
   // #process_monitor_client
 }

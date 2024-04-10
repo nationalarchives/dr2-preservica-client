@@ -2,15 +2,14 @@ package uk.gov.nationalarchives.dp.client
 
 /** Represents a generic XML schema document The specific schema documents are represented in the object
   */
-trait FileInfo {
+trait FileInfo:
   def toQueryParams: Map[String, String]
   def xmlData: String
   def name: String
-}
 
 /** This contains implementations of the `FileInfo` trait
   */
-object FileInfo {
+object FileInfo:
 
   /** Represents an XML schema in the Preservica config
     * @param name
@@ -27,10 +26,9 @@ object FileInfo {
       description: String,
       originalName: String,
       xmlData: String
-  ) extends FileInfo {
+  ) extends FileInfo:
     def toQueryParams: Map[String, String] =
       Map("name" -> name, "description" -> description, "originalName" -> originalName)
-  }
 
   /** Represents a Preservica transform.
     * @param name
@@ -53,7 +51,7 @@ object FileInfo {
       purpose: String,
       originalName: String,
       xmlData: String
-  ) extends FileInfo {
+  ) extends FileInfo:
     def toQueryParams: Map[String, String] = Map(
       "name" -> name,
       "from" -> from,
@@ -61,7 +59,6 @@ object FileInfo {
       "purpose" -> purpose,
       "originalName" -> originalName
     )
-  }
 
   /** Represents an index definition in Preservica
     * @param name
@@ -69,10 +66,9 @@ object FileInfo {
     * @param xmlData
     *   The XML of the definition
     */
-  case class IndexDefinitionInfo(name: String, xmlData: String) extends FileInfo {
+  case class IndexDefinitionInfo(name: String, xmlData: String) extends FileInfo:
     override def toQueryParams: Map[String, String] =
       Map("name" -> name, "type" -> "CustomIndexDefinition")
-  }
 
   /** Represents a metadata template in Preservica
     * @param name
@@ -80,8 +76,6 @@ object FileInfo {
     * @param xmlData
     *   The XML of the metadata template
     */
-  case class MetadataTemplateInfo(name: String, xmlData: String) extends FileInfo {
+  case class MetadataTemplateInfo(name: String, xmlData: String) extends FileInfo:
     override def toQueryParams: Map[String, String] =
       Map("name" -> name, "type" -> "MetadataTemplate")
-  }
-}

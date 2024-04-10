@@ -2,10 +2,10 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import sttp.client3._
+import cats.implicits.*
+import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.WorkflowClient.StartWorkflowRequest
 
 /** A client to start a Preservica workflow
@@ -41,14 +41,14 @@ object WorkflowClient {
     * @return
     *   A new `WorkflowClient`
     */
-  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): WorkflowClient[F] = new WorkflowClient[F] {
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, S] = Client(clientConfig)
 
-    import client._
+    import client.*
 
     override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
       val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"

@@ -1,11 +1,11 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect._
-import cats.implicits._
-import sttp.client3._
+import cats.effect.*
+import cats.implicits.*
+import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.FileInfo._
+import uk.gov.nationalarchives.dp.client.FileInfo.*
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 
 /** A client to update schemas, transfers, index definitions and metadata templates in Preservica
@@ -64,13 +64,13 @@ object AdminClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): AdminClient[F] = new AdminClient[F] {
     private val apiVersion = 7.0f
     private val client: Client[F, S] = Client(clientConfig)
-    import client._
+    import client.*
     private val apiUrl = s"$apiBaseUrl/api/admin/v$apiVersion"
 
     private def deleteDocument(path: String, apiId: String, token: String): F[Unit] = {

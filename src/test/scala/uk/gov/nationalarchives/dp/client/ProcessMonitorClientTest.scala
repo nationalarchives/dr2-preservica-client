@@ -1,20 +1,23 @@
 package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock._
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.{Assertion, BeforeAndAfterEach}
-import uk.gov.nationalarchives.dp.client.ProcessMonitorClient._
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.*
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MonitorsStatus.*
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MonitorCategory.*
+import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MessageStatus.*
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int)
     extends AnyFlatSpec
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach:
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
@@ -113,22 +116,20 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
   def testClient: ProcessMonitorClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
 
-  override def beforeEach(): Unit = {
+  override def beforeEach(): Unit =
     preservicaServer.start()
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
-  }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     preservicaServer.stop()
     secretsManagerServer.stop()
-  }
 
   def checkServerCall(url: String): Assertion =
     preservicaServer.getAllServeEvents.asScala.count(_.getRequest.getUrl == url) should equal(1)
 
-  private def stubPreservicaMonitorsResponse = {
+  private def stubPreservicaMonitorsResponse =
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(
@@ -140,9 +141,8 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
         )
       ).willReturn(ok(getMonitorsResponse))
     )
-  }
 
-  private def stubPreservicaMessagesResponse(start: Int = 0, messagesResponse: String = getMessagesResponse()) = {
+  private def stubPreservicaMessagesResponse(start: Int = 0, messagesResponse: String = getMessagesResponse()) =
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
       get(
@@ -155,16 +155,14 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
         )
       ).willReturn(ok(messagesResponse))
     )
-  }
 
   "getMonitors" should s"return an exception if the name does not start with 'opex'" in {
-    val getMonitorsRequest = {
+    val getMonitorsRequest =
       GetMonitorsRequest(
         Nil,
         Some("nopex"),
         Nil
       )
-    }
 
     val client = testClient
     val error = intercept[PreservicaClientException] {
@@ -370,10 +368,10 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
             "aacb79d7c91db789ce0f7c5abe02bf7a",
             "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
             "d6676f9cbf9697fb6df629039c3311c8",
-            "open",
-            "entity title",
-            "f66589d2-1040-407e-baf8-1bdeffbecd8b",
-            "TEST"
+            Option("open"),
+            Option("entity title"),
+            Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
+            Option("TEST")
           )
         )
       )
@@ -426,10 +424,10 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
             "aacb79d7c91db789ce0f7c5abe02bf7a",
             "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
             "d6676f9cbf9697fb6df629039c3311c8",
-            "open",
-            "entity title",
-            "f66589d2-1040-407e-baf8-1bdeffbecd8b",
-            "TEST"
+            Option("open"),
+            Option("entity title"),
+            Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
+            Option("TEST")
           ),
           Message(
             1,
@@ -442,10 +440,10 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
             "aacb79d7c91db789ce0f7c5abe02bf7a",
             "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
             "d6676f9cbf9697fb6df629039c3311c8",
-            "",
-            "entity title2",
-            "59fe27b2-e5ce-4b9c-b79d-d81c3647b190",
-            "TEST"
+            None,
+            Option("entity title2"),
+            Option("59fe27b2-e5ce-4b9c-b79d-d81c3647b190"),
+            Option("TEST")
           )
         )
       )
@@ -485,11 +483,9 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
     )
   }
 
-  private def getAllRequests(preservicaServer: WireMockServer): List[ServeEvent] = {
+  private def getAllRequests(preservicaServer: WireMockServer): List[ServeEvent] =
     println(preservicaServer.getAllServeEvents)
     preservicaServer.getServeEvents.getServeEvents.asScala.iterator.toList
-  }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
     getAllRequests(preservicaServer).head.getRequest.getBodyAsString
-}

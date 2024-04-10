@@ -3,21 +3,17 @@ package uk.gov.nationalarchives.dp.client
 import cats.MonadError
 import cats.implicits.toTraverseOps
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers.*
 import uk.gov.nationalarchives.dp.client.Entities.Entity
-import uk.gov.nationalarchives.dp.client.EntityClient.{
-  ContentObject,
-  InformationObject,
-  Open,
-  Original,
-  Preservation,
-  StructuralObject
-}
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
 import java.time.ZonedDateTime
 import java.util.UUID
 
-abstract class DataProcessorTest[F[_]](implicit cme: MonadError[F, Throwable]) extends AnyFlatSpec {
+abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   private val apiVersion = 7.0f
   private val xipVersion = 7.0f
   private val xipUrl = s"http://preservica.com/XIP/v${xipVersion}"

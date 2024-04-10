@@ -2,13 +2,14 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
-import uk.gov.nationalarchives.dp.client.EntityClient._
+import uk.gov.nationalarchives.dp.client.EntityClient.*
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 
 import java.util.UUID
 
 /** The `Entity` case class with helper methods.
   */
-object Entities {
+object Entities:
 
   /** A Preservica entity
     * @param entityType
@@ -69,18 +70,16 @@ object Entities {
       deleted: Boolean,
       securityTag: Option[SecurityTag] = None,
       parent: Option[UUID] = None
-  )(implicit
+  )(using
       me: MonadError[F, Throwable]
-  ): F[Entity] = {
+  ): F[Entity] =
     def entity(entityType: Option[EntityType]) =
       me.pure(Entity(entityType, ref, title, description, deleted, entityType.map(_.entityPath), securityTag, parent))
-    entityType match {
+    entityType match
       case "IO" => entity(InformationObject.some)
       case "CO" => entity(ContentObject.some)
       case "SO" => entity(StructuralObject.some)
       case _    => entity(None)
-    }
-  }
 
   /** Represents an identifier on an Entity
     * @param id
@@ -91,4 +90,3 @@ object Entities {
     *   The identifier value
     */
   case class IdentifierResponse(id: String, identifierName: String, value: String)
-}

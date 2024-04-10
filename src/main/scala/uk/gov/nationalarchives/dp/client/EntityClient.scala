@@ -2,14 +2,15 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
+import cats.implicits.*
 import sttp.capabilities.Streams
-import sttp.client3._
+import sttp.client3.*
 import sttp.model.Method
 import uk.gov.nationalarchives.DynamoFormatters.Identifier
-import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.{
   AddEntityRequest,
   EntityMetadata,
@@ -224,7 +225,7 @@ object EntityClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ): EntityClient[F, S] = new EntityClient[F, S] {
@@ -239,7 +240,7 @@ object EntityClient {
 
     private val client: Client[F, S] = Client(clientConfig)
 
-    import client._
+    import client.*
 
     private def getEntities(
         url: String,
@@ -629,34 +630,33 @@ object EntityClient {
 
   /** Represents a Preservica security tag
     */
-  sealed trait SecurityTag {
-    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
+  enum SecurityTag:
+    override def toString: String = this match
+      case Open   => "open"
+      case Closed => "closed"
+    case Open, Closed
+
+  object SecurityTag {
+
+    def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
+      case "open"   => Option(Open)
+      case "closed" => Option(Closed)
+      case _        => None
+    }
   }
 
   /** Represents an entity type
     */
-  sealed trait EntityType {
-
-    /** The path to be used in the url information-objects, structural-objects or content-objects
-      */
-    val entityPath: String
-
-    /** Either IO, SO or CO
-      */
-    val entityTypeShort: String
-
-    /** A string representing the implementing classes name
-      * @return
-      *   The class name
-      */
-    override def toString: String = getClass.getSimpleName.dropRight(1)
-  }
+  enum EntityType(val entityPath: String, val entityTypeShort: String):
+    case StructuralObject extends EntityType("structural-objects", "SO")
+    case InformationObject extends EntityType("information-objects", "IO")
+    case ContentObject extends EntityType("content-objects", "CO")
 
   /** Represents a Preservica representation tag
     */
-  sealed trait RepresentationType {
-    override def toString: String = getClass.getSimpleName.dropRight(1)
-  }
+
+  enum RepresentationType:
+    case Access, Preservation
 
   /** Represents an entity to add to Preservica
     * @param ref
@@ -704,63 +704,8 @@ object EntityClient {
       parentRef: Option[UUID]
   )
 
-  /** An object providing a method to return a SecurityTag instance from a string
-    */
-  object SecurityTag {
-
-    /** Returns a security tag from a string
-      * @param securityTagString
-      *   The security tag as a string. Either 'open' or 'closed'
-      * @return
-      *   The SecurityTag instance
-      */
-    def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
-      case "open"   => Option(Open)
-      case "closed" => Option(Closed)
-      case _        => None
-    }
-  }
-
-  /** Represents an Open security tag
-    */
-  case object Open extends SecurityTag
-
-  /** Represents a closed security tag
-    */
-  case object Closed extends SecurityTag
-
-  /** A structural object
-    */
-  case object StructuralObject extends EntityType {
-    override val entityPath = "structural-objects"
-    override val entityTypeShort: String = "SO"
-  }
-
-  /** An information object
-    */
-  case object InformationObject extends EntityType {
-    override val entityPath = "information-objects"
-    override val entityTypeShort: String = "IO"
-  }
-
-  /** A content object
-    */
-  case object ContentObject extends EntityType {
-    override val entityPath = "content-objects"
-    override val entityTypeShort: String = "CO"
-  }
-
-  case object Access extends RepresentationType
-
-  case object Preservation extends RepresentationType
-
-  sealed trait GenerationType {
-    override def toString: String = getClass.getSimpleName.dropRight(1).toLowerCase
-  }
-
-  case object Original extends GenerationType
-
-  case object Derived extends GenerationType
+  enum GenerationType:
+    case Original, Derived
 
   case class EntityMetadata(entityNode: Node, identifiersNode: Node, metadataContainerNode: Seq[Node])
 }

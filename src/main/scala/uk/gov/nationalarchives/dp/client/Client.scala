@@ -2,25 +2,27 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.effect.Sync
-import cats.implicits._
-import com.github.benmanes.caffeine.cache.{Caffeine, Cache => CCache}
-import scalacache._
-import scalacache.caffeine._
-import scalacache.memoization._
+import cats.implicits.*
+import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
+import io.circe
+import scalacache.*
+import scalacache.caffeine.*
+import scalacache.memoization.*
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
-import sttp.client3._
-import sttp.client3.upicklejson._
+import sttp.client3.*
+import sttp.client3.circe.*
+import io.circe.Decoder
+import io.circe.generic.auto.*
 import sttp.model.Method
-import uk.gov.nationalarchives.dp.client.Client._
+import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
-import upickle.default._
 
 import java.net.URI
 import java.util.UUID
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.xml.{Elem, XML}
 
 /** A utility class containing methods common to all clients
@@ -35,20 +37,18 @@ import scala.xml.{Elem, XML}
   * @tparam S
   *   The type of the sttp Stream
   */
-private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
     sync: Sync[F]
 ) {
   private val underlying: CCache[String, Entry[F[String]]] =
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
-  implicit val caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
+  given caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
-
-  private implicit val responsePayloadRW: ReadWriter[Token] = macroRW[Token]
 
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
@@ -79,13 +79,13 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       token: String,
       method: Method,
       requestBody: Option[String] = None
-  )(implicit reader: Reader[R]): F[R] = {
+  )(using decoder: Decoder[R]): F[R] = {
     val apiUri = uri"$url"
     val request = basicRequest
       .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
       .method(method, apiUri)
       .response(asJson[R])
-    val requestWithBody: RequestT[Identity, Either[ResponseException[String, Exception], R], Any] =
+    val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
 
     me.flatMap(backend.send(requestWithBody)) { res =>
@@ -107,7 +107,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(implicit
       .build()
 
     val response = secretsManager.getSecretValue(valueRequest)
-    val (username, password) = upickle.default.read[Map[String, String]](response.secretString).head
+    val (username, password) = ("", "")
     me.pure(AuthDetails(username, password))
   }
 
@@ -204,7 +204,7 @@ object Client {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def apply[F[_], S](clientConfig: ClientConfig[F, S])(implicit
+  def apply[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
       sync: Sync[F]
   ) = new Client[F, S](clientConfig)
