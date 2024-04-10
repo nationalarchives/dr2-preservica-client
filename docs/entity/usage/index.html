@@ -38,27 +38,22 @@
 <ul>
   <li><a href="../../entity/usage/index.html" class="active page">Entity Client</a>
   <ul>
-    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
-    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
   <ul>
-    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../processmonitor/usage/index.html" class="page">Process Monitor Client</a>
   <ul>
-    <li><a href="../../processmonitor/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
 </ul>
@@ -99,27 +94,22 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../../entity/usage/index.html" class="active page">Entity Client</a>
   <ul>
-    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
-    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
   <ul>
-    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../processmonitor/usage/index.html" class="page">Process Monitor Client</a>
   <ul>
-    <li><a href="../../processmonitor/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
 </ul>
@@ -155,13 +145,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object EntityClients {
   import cats.effect.IO
   import sttp.capabilities.fs2.Fs2Streams
-  import sttp.capabilities.zio.ZioStreams
   import uk.gov.nationalarchives.dp.client.EntityClient
   import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-  import uk.gov.nationalarchives.dp.client.zio.ZioClient
-  import zio.Task
 
-  import scala.concurrent.duration._
+  import scala.concurrent.duration.*
 
   val preservicaUrl = &quot;https://test.preservica.com&quot;
   val secretName = &quot;nameOfSecretsManagerSecretContainingAPICredentials&quot;
@@ -174,8 +161,6 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     Fs2Client.entityClient(preservicaUrl, secretName, ssmEndpointUri = &quot;https://private.ssm.endpoint&quot;)
   val fs2EntityClientWithCustomProxy: IO[EntityClient[IO, Fs2Streams[IO]]] =
     Fs2Client.entityClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create(&quot;http://proxy.url&quot;)))
-  val zioEntityClientWithDefaults: Task[EntityClient[Task, ZioStreams]] =
-    ZioClient.entityClient(preservicaUrl, secretName)
 }</code></pre>
 <p>The client exposes 15 methods</p>
 <pre class="prettyprint"><code class="language-scala">  def metadataForEntity(entity: Entity): F[Seq[Elem]]
@@ -325,7 +310,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Returns version number found in namespace</li>
 </ul>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../../entity/usage/zio.html">Use with ZIO</a></p>
+<p><strong>Next:</strong> <a href="../../entity/usage/fs2.html">Use with FS2</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>

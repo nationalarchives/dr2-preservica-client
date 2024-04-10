@@ -38,27 +38,22 @@
 <ul>
   <li><a href="../../entity/usage/index.html" class="page">Entity Client</a>
   <ul>
-    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
-    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
   <ul>
-    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../processmonitor/usage/index.html" class="page">Process Monitor Client</a>
   <ul>
-    <li><a href="../../processmonitor/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
 </ul>
@@ -99,27 +94,22 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <ul>
   <li><a href="../../entity/usage/index.html" class="page">Entity Client</a>
   <ul>
-    <li><a href="../../entity/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../entity/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
-    <li><a href="../../admin/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../admin/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../workflow/usage/index.html" class="page">Workflow Client</a>
   <ul>
-    <li><a href="../../workflow/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../workflow/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../processmonitor/usage/index.html" class="page">Process Monitor Client</a>
   <ul>
-    <li><a href="../../processmonitor/usage/zio.html" class="page">Use with ZIO</a></li>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
 </ul>
@@ -150,11 +140,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <h1><a href="#use-with-fs2" name="use-with-fs2" class="anchor"><span class="anchor-link"></span></a>Use with FS2</h1><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "uk.gov.nationalarchives" %% "preservica-client-fs2" % "0.0.63"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
   &lt;dependency&gt;
     &lt;groupId&gt;uk.gov.nationalarchives&lt;/groupId&gt;
-    &lt;artifactId&gt;preservica-client-fs2_2.13&lt;/artifactId&gt;
+    &lt;artifactId&gt;preservica-client-fs2_3&lt;/artifactId&gt;
     &lt;version&gt;0.0.63&lt;/version&gt;
   &lt;/dependency&gt
 &lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  implementation "uk.gov.nationalarchives:preservica-client-fs2_2.13:0.0.63"
+  implementation "uk.gov.nationalarchives:preservica-client-fs2_3:0.0.63"
 }</code></pre></dd></dl>
 <pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object ContentFs2 {
   import cats.effect.IO
