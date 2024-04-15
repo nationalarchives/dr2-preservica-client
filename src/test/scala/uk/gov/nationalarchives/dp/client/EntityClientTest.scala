@@ -724,7 +724,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
-    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
@@ -819,7 +819,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
-    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <InformationObject>
@@ -936,7 +936,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
-    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
 
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
@@ -1001,7 +1001,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
-    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/identifiers"
+    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val entityResponse =
