@@ -118,8 +118,8 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     val metadataContainerObjects =
       (metadataResponseElements \ "MetadataContainer").toList
 
-    val blankMetadataContainerObjects = metadataContainerObjects.filter(_.isEmpty)
-    if (metadataContainerObjects.isEmpty || blankMetadataContainerObjects.nonEmpty || metadataContainerObjects.size != metadataResponseElements.size) && metadataResponseElements.nonEmpty
+    val emptyMetadataContainerObjects = metadataContainerObjects.filter(_.isEmpty)
+    if (metadataContainerObjects.isEmpty || emptyMetadataContainerObjects.nonEmpty || metadataContainerObjects.size != metadataResponseElements.size) && metadataResponseElements.nonEmpty
     then
       me.raiseError(
         PreservicaClientException(
