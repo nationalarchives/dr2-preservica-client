@@ -114,21 +114,19 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of String representing the metadata XML or an error if none are found
     */
-  def fragments(metadataResponseElements: Seq[Elem]): F[Seq[String]] = {
+  def fragments(metadataResponseElements: Seq[Elem]): F[Seq[Node]] = {
     val metadataContainerObjects =
-      metadataResponseElements.map(_.flatMap(_.child).toString())
+      (metadataResponseElements \ "MetadataContainer").toList
 
-    val blankMetadataContainerObjects = metadataContainerObjects.filter(_.isBlank)
-
-    blankMetadataContainerObjects match {
-      case Nil => me.pure(metadataContainerObjects)
-      case _ =>
-        me.raiseError(
-          PreservicaClientException(
-            s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
-          )
+    val emptyMetadataContainerObjects = metadataContainerObjects.filter(_.isEmpty)
+    if (metadataContainerObjects.isEmpty || emptyMetadataContainerObjects.nonEmpty || metadataContainerObjects.size != metadataResponseElements.size) && metadataResponseElements.nonEmpty
+    then
+      me.raiseError(
+        PreservicaClientException(
+          s"Could not be retrieve all 'MetadataContainer' Nodes from:\n${metadataResponseElements.mkString("\n")}"
         )
-    }
+      )
+    else me.pure(metadataContainerObjects)
   }
 
   /** Gets the text of the first generation element

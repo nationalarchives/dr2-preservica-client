@@ -11,19 +11,13 @@ import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
-import uk.gov.nationalarchives.dp.client.EntityClient.{
-  AddEntityRequest,
-  EntityMetadata,
-  EntityType,
-  RepresentationType,
-  UpdateEntityRequest
-}
+import uk.gov.nationalarchives.dp.client.EntityClient.*
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import scala.xml.Node
 import scala.xml.Utility.escape
-import scala.xml.{Node, XML}
 
 /** A client to create, get and update entities in Preservica
   * @tparam F
@@ -489,13 +483,15 @@ object EntityClient {
         entityInfo <- sendXMLApiRequest(s"$apiUrl/$path/${entity.ref}", token, Method.GET)
         entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entity.entityType.get)
 
-        identifiers <- entityIdentifiersXml(Some(s"$apiUrl/$path/identifiers"), token, Nil)
+        identifiers <- entityIdentifiersXml(Some(s"$apiUrl/$path/${entity.ref}/identifiers"), token, Nil)
         identifiersInElem = <xip:Identifiers>{identifiers}</xip:Identifiers>
 
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
-      } yield EntityMetadata(entityNode, identifiersInElem, fragments.map(XML.loadString))
+      } yield {
+        EntityMetadata(entityNode, identifiersInElem, fragments)
+      }
 
     private def entityIdentifiersXml(
         url: Option[String],

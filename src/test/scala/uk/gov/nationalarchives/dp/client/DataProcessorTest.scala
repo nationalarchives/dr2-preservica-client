@@ -127,8 +127,8 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val fragments = valueFromF(fragmentsF)
 
     fragments.size should equal(2)
-    fragments.head.trim should equal(fragmentContainer(1).child(1).toString)
-    fragments.last.trim should equal(fragmentContainer(2).child(1).toString)
+    fragments.head should equal(fragmentContainer(1).child(1))
+    fragments.last should equal(fragmentContainer(2).child(1))
   }
 
   "fragments" should "return an error if there is no content" in {

@@ -5,6 +5,9 @@ import cats.effect.Sync
 import cats.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
+import io.circe.Decoder
+import io.circe.generic.auto.*
+import io.circe.parser.decode
 import scalacache.*
 import scalacache.caffeine.*
 import scalacache.memoization.*
@@ -14,8 +17,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
 import sttp.client3.*
 import sttp.client3.circe.*
-import io.circe.Decoder
-import io.circe.generic.auto.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
@@ -107,8 +108,10 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .build()
 
     val response = secretsManager.getSecretValue(valueRequest)
-    val (username, password) = ("", "")
-    me.pure(AuthDetails(username, password))
+    Sync[F].fromEither(decode[Map[String, String]](response.secretString)).map { secretMap =>
+      val (username, password) = secretMap.head
+      AuthDetails(username, password)
+    }
   }
 
   private[client] def getAuthenticationToken: F[String] =
