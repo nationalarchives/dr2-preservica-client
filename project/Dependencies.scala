@@ -13,7 +13,7 @@ object Dependencies {
   lazy val dynamoFormatters = "uk.gov.nationalarchives" %% "dynamo-formatters" % "0.0.15"
   lazy val sttpCore = "com.softwaremill.sttp.client3" %% "core" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
-  lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
+  lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.7.0"
   lazy val sttpCirce = "com.softwaremill.sttp.client3" %% "circe" % sttpVersion
   lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.25.46"
   lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % s"$scalaTestVersion.0"
