@@ -12,7 +12,7 @@ private[client] class LoggingWrapper[F[_], P](delegate: SttpBackend[F, P])(using
     sync: Sync[F]
 ) extends DelegateSttpBackend[F, P](delegate):
 
-  override def send[T, R >: P with capabilities.Effect[F]](request: Request[T, R]): F[Response[T]] =
+  override def send[T, R >: P & capabilities.Effect[F]](request: Request[T, R]): F[Response[T]] =
     val method = request.method.method
     val url = request.uri.toString
     val ctx = Map("url" -> url, "method" -> method)

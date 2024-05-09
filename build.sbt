@@ -66,7 +66,7 @@ lazy val commonSettings = Seq(
     wireMock % Test
   ),
   version := version.value,
-  scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation"),
+  scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation", "-Xmax-inlines", "50"),
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
 ) ++ releaseSettings
