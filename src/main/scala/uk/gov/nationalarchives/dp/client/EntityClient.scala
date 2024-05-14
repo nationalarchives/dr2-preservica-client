@@ -16,7 +16,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.*
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.xml.Node
+import scala.xml.{Elem, Node}
 import scala.xml.Utility.escape
 
 /** A client to create, get and update entities in Preservica
@@ -484,13 +484,15 @@ object EntityClient {
         entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entity.entityType.get)
 
         identifiers <- entityIdentifiersXml(Some(s"$apiUrl/$path/${entity.ref}/identifiers"), token, Nil)
-        identifiersInElem = <xip:Identifiers>{identifiers}</xip:Identifiers>
 
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
       } yield {
-        EntityMetadata(entityNode, identifiersInElem, fragments)
+        val fragmentsWithMetadataLabel = fragments.map { node =>
+          new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
+        }
+        EntityMetadata(entityNode, identifiers, fragmentsWithMetadataLabel)
       }
 
     private def entityIdentifiersXml(
@@ -703,5 +705,5 @@ object EntityClient {
   enum GenerationType:
     case Original, Derived
 
-  case class EntityMetadata(entityNode: Node, identifiersNode: Node, metadataContainerNode: Seq[Node])
+  case class EntityMetadata(entityNode: Node, identifiers: Seq[Node], metadataNodes: Seq[Elem])
 }

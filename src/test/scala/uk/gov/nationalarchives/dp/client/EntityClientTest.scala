@@ -790,22 +790,22 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata.identifiersNode.toString should equal(
-      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+    metadata.identifiers.head.toString should equal(
+      <xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
             <xip:Value>testValue</xip:Value>
             <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier></xip:Identifiers>.toString
+          </xip:Identifier>.toString
     )
-    metadata.metadataContainerNode.head.toString should equal(
-      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+    metadata.metadataNodes.head.toString should equal(
+      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
         </Content>
-      </MetadataContainer>.toString
+      </Metadata>.toString
     )
 
     checkServerCall(entityUrl)
@@ -899,31 +899,31 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata.identifiersNode.toString should equal(
-      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+    metadata.identifiers.head.toString should equal(
+      <xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
             <xip:Value>testValue</xip:Value>
             <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier></xip:Identifiers>.toString
+          </xip:Identifier>.toString
     )
-    metadata.metadataContainerNode(0).toString should equal(
-      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+    metadata.metadataNodes.head.toString should equal(
+      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
         </Content>
-      </MetadataContainer>.toString
+      </Metadata>.toString
     )
-    metadata.metadataContainerNode.last.toString should equal(
-      <MetadataContainer xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+    metadata.metadataNodes.last.toString should equal(
+      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
           <Test2>
       <Test2Value>Test2Value</Test2Value>
     </Test2>
         </Content>
-      </MetadataContainer>.toString
+      </Metadata>.toString
     )
 
     checkServerCall(entityUrl)
@@ -985,13 +985,13 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
         </InformationObject>.toString
     )
-    metadata.identifiersNode.toString should equal(
-      <xip:Identifiers><xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+    metadata.identifiers.head.toString should equal(
+      <xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>identifier</xip:Type>
             <xip:Value>testValue</xip:Value>
             <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier></xip:Identifiers>.toString
+          </xip:Identifier>.toString
     )
     checkServerCall(entityUrl)
   }
