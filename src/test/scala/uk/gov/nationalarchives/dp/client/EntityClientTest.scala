@@ -719,7 +719,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
-  "metadataForEntityUrl" should "return a single fragment when the object has one fragment" in {
+  "metadataForEntity" should "return a single fragment when the object has one fragment" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
@@ -812,7 +812,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     checkServerCall(fragmentOneUrl)
   }
 
-  "metadataForEntityUrl" should "return a multiple fragments when the object has multiple fragments" in {
+  "metadataForEntity" should "return a multiple fragments when the object has multiple fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
@@ -931,7 +931,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     checkServerCall(fragmentTwoUrl)
   }
 
-  "metadataForEntityUrl" should "return an an empty list when the object has no fragments" in {
+  "metadataForEntity" should "return an an empty list when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
@@ -996,7 +996,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     checkServerCall(entityUrl)
   }
 
-  "metadataForEntityUrl" should "return an error if even one metadata response element is empty" in {
+  "metadataForEntity" should "return an error if even one metadata response element is empty" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
@@ -1083,7 +1083,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     checkServerCall(entityUrl)
   }
 
-  "metadataForEntityUrl" should "return an error if the server is unavailable" in {
+  "metadataForEntity" should "return an error if the server is unavailable" in {
     val tokenUrl = "/api/accesstoken/login"
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
     val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), Option("description"), deleted = false))
@@ -1100,7 +1100,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     })
   }
 
-  "metadataForEntityUrl" should "return an error if the entity path is empty" in {
+  "metadataForEntity" should "return an error if the entity path is empty" in {
     val id = UUID.randomUUID()
     val entity = Entity(None, id, None, None, deleted = true, None)
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
