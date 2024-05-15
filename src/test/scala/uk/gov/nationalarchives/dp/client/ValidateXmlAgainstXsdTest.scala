@@ -1,15 +1,18 @@
-package uk.gov.nationalarchives.dp.client.fs2
+package uk.gov.nationalarchives.dp.client
 
+import cats.Monad
 import org.scalatest.flatspec.AnyFlatSpec
-import uk.gov.nationalarchives.dp.client.testUtils.ValidateXmlAgainstXsd
-import uk.gov.nationalarchives.dp.client.testUtils.ValidateXmlAgainstXsd.xipXsdSchemaV6
 import org.scalatest.matchers.should.Matchers.*
-import cats.effect.unsafe.implicits.global
+import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.xipXsdSchemaV6
 
 import scala.xml.SAXParseException
 
-class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
-  private val xmlValidator = ValidateXmlAgainstXsd(xipXsdSchemaV6)
+abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
+  private val xmlValidator = ValidateXmlAgainstXsd[F](xipXsdSchemaV6)
+
+  def valueFromF[T](value: F[T]): T
+
+  extension [T](result: F[T]) def run(): T = valueFromF(result)
 
   "xmlStringIsValid" should s"return 'true' if the xml string that was passed in was valid" in {
     val xmlToValidate = <XIP xmlns="http://preservica.com/XIP/v6.9">
@@ -22,7 +25,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
       </InformationObject>
     </XIP>
 
-    val xmlIsValidResult = xmlValidator.xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+    val xmlIsValidResult = xmlValidator.xmlStringIsValid(xmlToValidate.toString).run()
     xmlIsValidResult should be(true)
   }
 
@@ -30,7 +33,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     val xmlToValidate = <XIP></XIP>
 
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+      xmlValidator.xmlStringIsValid(xmlToValidate.toString).run()
     }
     error.getMessage should be("cvc-elt.1.a: Cannot find the declaration of element 'XIP'.")
   }
@@ -39,7 +42,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     val xmlToValidate = <XIP xmlns="http://unexpectedNamespace.come/v404"></XIP>
 
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+      xmlValidator.xmlStringIsValid(xmlToValidate.toString).run()
     }
     error.getMessage should be("cvc-elt.1.a: Cannot find the declaration of element 'XIP'.")
   }
@@ -56,7 +59,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     </XIP>
 
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+      xmlValidator.xmlStringIsValid(xmlToValidate.toString).run()
     }
 
     error.getMessage should be(
@@ -78,7 +81,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     </XIP>
 
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+      xmlValidator.xmlStringIsValid(xmlToValidate.toString).run()
     }
 
     error.getMessage should be(
@@ -97,7 +100,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     </XIP>"""
 
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid(xmlWithMissingTagToValidate).unsafeRunSync()
+      xmlValidator.xmlStringIsValid(xmlWithMissingTagToValidate).run()
     }
 
     error.getMessage should be(
@@ -107,7 +110,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
 
   "xmlStringIsValid" should s"throw a 'SAXParseException' if the xml string that was passed in was empty" in {
     val error = intercept[SAXParseException] {
-      xmlValidator.xmlStringIsValid("").unsafeRunSync()
+      xmlValidator.xmlStringIsValid("").run()
     }
     error.getMessage should be("Premature end of file.")
   }
@@ -116,7 +119,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     val xmlToValidate = <XIP xmlns="http://preservica.com/XIP/v6.9"></XIP>
 
     val error = intercept[SAXParseException] {
-      ValidateXmlAgainstXsd("nonExistentXsdFile").xmlStringIsValid(xmlToValidate.toString).unsafeRunSync()
+      ValidateXmlAgainstXsd("nonExistentXsdFile").xmlStringIsValid(xmlToValidate.toString).run()
     }
     error.getMessage.contains("schema_reference.4: Failed to read schema document") should be(true)
   }
@@ -127,7 +130,7 @@ class ValidateXmlAgainstXsdTest extends AnyFlatSpec:
     val error = intercept[SAXParseException] {
       ValidateXmlAgainstXsd("/malformedXIPV6testFile.xsd")
         .xmlStringIsValid(xmlToValidate.toString)
-        .unsafeRunSync()
+        .run()
     }
     error.getMessage should be(
       """The element type "xs:complexType" must be terminated by the matching end-tag "</xs:complexType>"."""
