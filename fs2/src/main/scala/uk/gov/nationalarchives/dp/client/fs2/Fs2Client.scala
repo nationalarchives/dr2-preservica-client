@@ -13,6 +13,7 @@ import uk.gov.nationalarchives.dp.client.{
   EntityClient,
   LoggingWrapper,
   ProcessMonitorClient,
+  ValidateXmlAgainstXsd,
   WorkflowClient
 }
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
@@ -130,6 +131,9 @@ object Fs2Client:
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
+
+  // This bit might not be worth it. We have the other clients because their construction is quite complicated but this is pretty simple.
+  def xmlValidator(pathOfSchemaFile: String): ValidateXmlAgainstXsd[IO] = ValidateXmlAgainstXsd[IO](pathOfSchemaFile)
 
   private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions =
     potentialProxyUrl
