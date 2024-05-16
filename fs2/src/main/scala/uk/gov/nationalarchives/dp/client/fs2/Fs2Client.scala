@@ -132,7 +132,6 @@ object Fs2Client:
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
-  // This bit might not be worth it. We have the other clients because their construction is quite complicated but this is pretty simple.
   def xmlValidator(pathOfSchemaFile: String): ValidateXmlAgainstXsd[IO] = ValidateXmlAgainstXsd[IO](pathOfSchemaFile)
 
   private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions =
