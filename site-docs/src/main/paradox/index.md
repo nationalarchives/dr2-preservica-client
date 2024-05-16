@@ -2,7 +2,7 @@
 
 A Scala client used to interact with Preservica
 
-This library provides four clients.
+This library provides five clients.
 
 An @ref:[entity client](entity/usage/index.md) with methods to create, get and update entities in Preservica.
 
