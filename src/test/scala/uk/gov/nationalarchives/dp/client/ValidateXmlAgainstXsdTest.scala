@@ -3,12 +3,13 @@ package uk.gov.nationalarchives.dp.client
 import cats.Monad
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
-import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.xipXsdSchemaV6
+import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema
+import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.XipXsdSchemaV6
 
 import scala.xml.SAXParseException
 
 abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
-  private val xmlValidator = ValidateXmlAgainstXsd(xipXsdSchemaV6)
+  private def xmlValidator = ValidateXmlAgainstXsd(XipXsdSchemaV6)
 
   def valueFromF[T](value: F[T]): T
 
@@ -113,26 +114,4 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
       xmlValidator.xmlStringIsValid("").run()
     }
     error.getMessage should be("Premature end of file.")
-  }
-
-  "xmlStringIsValid" should s"throw a 'SAXParseException' if the .xsd file does not exist" in {
-    val xmlToValidate = <XIP xmlns="http://preservica.com/XIP/v6.9"></XIP>
-
-    val error = intercept[SAXParseException] {
-      ValidateXmlAgainstXsd("nonExistentXsdFile").xmlStringIsValid(xmlToValidate.toString).run()
-    }
-    error.getMessage.contains("schema_reference.4: Failed to read schema document") should be(true)
-  }
-
-  "xmlStringIsValid" should s"throw a 'SAXParseException' if the .xsd file is malformed" in {
-    val xmlToValidate = <XIP xmlns="http://preservica.com/XIP/v6.9"></XIP>
-
-    val error = intercept[SAXParseException] {
-      ValidateXmlAgainstXsd("/malformedXIPV6testFile.xsd")
-        .xmlStringIsValid(xmlToValidate.toString)
-        .run()
-    }
-    error.getMessage should be(
-      """The element type "xs:complexType" must be terminated by the matching end-tag "</xs:complexType>"."""
-    )
   }
