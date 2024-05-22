@@ -13,10 +13,12 @@ import uk.gov.nationalarchives.dp.client.{
   EntityClient,
   LoggingWrapper,
   ProcessMonitorClient,
+  ValidateXmlAgainstXsd,
   WorkflowClient
 }
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.createProcessMonitorClient
+import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema
 import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
 import java.net.URI
@@ -130,6 +132,8 @@ object Fs2Client:
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
+
+  def xmlValidator(schema: PreservicaSchema): ValidateXmlAgainstXsd[IO] = ValidateXmlAgainstXsd[IO](schema)
 
   private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions =
     potentialProxyUrl
