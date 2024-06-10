@@ -370,6 +370,14 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       version.stripPrefix("v").toFloat
     }
 
+  /** Returns a list of [[scala.xml.Node]] XML objects
+    *
+    * @param elem
+    *   The element containing the Entity's links
+    * @return
+    *   A `Seq` of `Node` containing the links
+    */
+  def getEntityLinksXml(elem: Elem): F[Seq[Node]] = me.pure((elem \ "Links" \ "Link"))
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class

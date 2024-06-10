@@ -766,4 +766,40 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
     version should equal(7.0)
   }
+
+  "getEntityLinksXml" should "extract the links from the 'LinksResponse'" in {
+    val input =
+      <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <Links>
+          <Link>link</Link>
+          <Link>link</Link>
+          <Link>link</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>
+    val links = valueFromF(
+      new DataProcessor[F]().getEntityLinksXml(input)
+    )
+
+    links should equal(
+      <Links><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link><Link xmlns={namespaceUrl} xmlns:xip={
+        xipUrl
+      }>link</Link><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link></Links>.child
+    )
+  }
+
+  "getEntityLinksXml" should "return an empty list if there are no links" in {
+    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+      <Links>
+      </Links>
+      <Paging>
+      </Paging>
+    </LinksResponse>
+    val links = valueFromF(
+      new DataProcessor[F]().getEntityLinksXml(input)
+    )
+
+    links.size should equal(0)
+  }
 }

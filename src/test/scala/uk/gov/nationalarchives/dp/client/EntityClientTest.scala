@@ -725,7 +725,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
+    val linksUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/links"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val eventActionsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/event-actions"
+
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <InformationObject>
@@ -755,6 +758,39 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Identifiers>
       </IdentifiersResponse>.toString
 
+    val linksUrlFirstPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>
+        </Links>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/links?max=1000&amp;start=1000</Next>
+        </Paging>
+      </LinksResponse>.toString
+    val linksUrlSecondPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked asset" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="IO" apiId="aa61c369f543056586779625143d3ca3" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Link>
+          <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>.toString
+
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
@@ -768,11 +804,91 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </MetadataContainer>
     </MetadataResponse>
 
+    val eventActionsFirstPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+    </EventActionsResponse>.toString
+    val eventActionsSecondPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="AddIdentifier">
+            <xip:Event type="Modified">
+              <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+              <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+        </Paging>
+    </EventActionsResponse>.toString
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
     preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlSecondPageResponse))
+    )
+    preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsSecondPageResponse))
     )
 
     val client = testClient
@@ -798,6 +914,20 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entityId}</xip:Entity>
           </xip:Identifier>.toString
     )
+    metadata.links.head.toString should equal(
+      <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>.toString
+    )
+    metadata.links.last.toString should equal(
+      <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
+    )
     metadata.metadataNodes.head.toString should equal(
       <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
@@ -808,8 +938,34 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </Metadata>.toString
     )
 
+    metadata.eventActions.head.toString should equal(
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:9002/api/entity/v7.0/information-objects/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+    </EventActionsResponse>.toString
+    )
+
     checkServerCall(entityUrl)
+    checkServerCall(identifiersUrl)
+    checkServerCall(linksUrl + "?max=1000&start=0")
+    checkServerCall(linksUrl + "?max=1000&start=1000")
     checkServerCall(fragmentOneUrl)
+    checkServerCall(eventActionsUrl + "?max=1000&start=0")
+    checkServerCall(eventActionsUrl + "?max=1000&start=1000")
   }
 
   "metadataForEntity" should "return a multiple fragments when the object has multiple fragments" in {
@@ -817,9 +973,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
+    val linksUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/links"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
+    val eventActionsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/event-actions"
+
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <InformationObject>
@@ -850,6 +1009,39 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Identifiers>
       </IdentifiersResponse>.toString
 
+    val linksUrlFirstPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>
+        </Links>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/links?max=1000&amp;start=1000</Next>
+        </Paging>
+      </LinksResponse>.toString
+    val linksUrlSecondPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked asset" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="IO" apiId="aa61c369f543056586779625143d3ca3" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Link>
+          <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>.toString
+
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
@@ -874,14 +1066,92 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </MetadataContainer>
     </MetadataResponse>
 
+    val eventActionsFirstPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+      </EventActionsResponse>.toString
+    val eventActionsSecondPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="AddIdentifier">
+            <xip:Event type="Modified">
+              <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+              <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+        </Paging>
+      </EventActionsResponse>.toString
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlSecondPageResponse))
+    )
+
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
     )
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentTwoUrl)).willReturn(ok(fragmentTwoResponse.toString))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsSecondPageResponse))
     )
 
     val client = testClient
@@ -907,6 +1177,20 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entityId}</xip:Entity>
           </xip:Identifier>.toString
     )
+    metadata.links.head.toString should equal(
+      <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>.toString
+    )
+    metadata.links.last.toString should equal(
+      <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
+    )
     metadata.metadataNodes.head.toString should equal(
       <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
         <Content>
@@ -926,9 +1210,35 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </Metadata>.toString
     )
 
+    metadata.eventActions.head.toString should equal(
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:9002/api/entity/v7.0/information-objects/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+      </EventActionsResponse>.toString
+    )
+
     checkServerCall(entityUrl)
+    checkServerCall(identifiersUrl)
+    checkServerCall(linksUrl + "?max=1000&start=0")
+    checkServerCall(linksUrl + "?max=1000&start=1000")
     checkServerCall(fragmentOneUrl)
     checkServerCall(fragmentTwoUrl)
+    checkServerCall(eventActionsUrl + "?max=1000&start=0")
+    checkServerCall(eventActionsUrl + "?max=1000&start=1000")
   }
 
   "metadataForEntity" should "return an an empty list when the object has no fragments" in {
@@ -937,6 +1247,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
+    val linksUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/links"
+    val eventActionsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/event-actions"
 
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
@@ -966,9 +1278,119 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Identifiers>
       </IdentifiersResponse>.toString
 
+    val linksUrlFirstPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>
+        </Links>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/links?max=1000&amp;start=1000</Next>
+        </Paging>
+      </LinksResponse>.toString
+    val linksUrlSecondPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked asset" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="IO" apiId="aa61c369f543056586779625143d3ca3" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Link>
+          <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>.toString
+
+    val eventActionsFirstPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+      </EventActionsResponse>.toString
+    val eventActionsSecondPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="AddIdentifier">
+            <xip:Event type="Modified">
+              <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+              <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+        </Paging>
+      </EventActionsResponse>.toString
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlSecondPageResponse))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsSecondPageResponse))
+    )
 
     val client = testClient
 
@@ -993,7 +1415,48 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entityId}</xip:Entity>
           </xip:Identifier>.toString
     )
+    metadata.links.head.toString should equal(
+      <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>.toString
+    )
+    metadata.links.last.toString should equal(
+      <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
+        xipUrl
+      } xmlns={namespaceUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
+    )
+
+    metadata.eventActions.head.toString should equal(
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:9002/api/entity/v7.0/information-objects/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+      </EventActionsResponse>.toString
+    )
+
     checkServerCall(entityUrl)
+    checkServerCall(identifiersUrl)
+    checkServerCall(linksUrl + "?max=1000&start=0")
+    checkServerCall(linksUrl + "?max=1000&start=1000")
+    checkServerCall(eventActionsUrl + "?max=1000&start=0")
+    checkServerCall(eventActionsUrl + "?max=1000&start=1000")
   }
 
   "metadataForEntity" should "return an error if even one metadata response element is empty" in {
@@ -1002,8 +1465,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
     val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
     val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
+    val linksUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/links"
     val fragmentOneUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
     val fragmentTwoUrl = s"/api/entity/v$apiVersion/information-objects/$entityId/metadata/${UUID.randomUUID()}"
+    val eventActionsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/event-actions"
     val entityResponse =
       <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <InformationObject>
@@ -1034,6 +1499,37 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Identifiers>
       </IdentifiersResponse>.toString
 
+    val linksUrlFirstPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>
+        </Links>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/links?max=1000&amp;start=1000</Next>
+        </Paging>
+      </LinksResponse>.toString
+    val linksUrlSecondPageResponse =
+      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        <Links>
+          <Link linkType="VirtualChild" linkDirection="From" title="Linked asset" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="IO" apiId="aa61c369f543056586779625143d3ca3" xmlns={
+        namespaceUrl
+      } xmlns:xip={xipUrl}>http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Link>
+          <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705">http://localhost:{
+        preservicaPort
+      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>.toString
+
     val fragmentOneContent = <Test1>
       <Test1Value>Test1Value</Test1Value>
     </Test1>
@@ -1050,14 +1546,91 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
       </MetadataResponse>
 
+    val eventActionsFirstPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next>http://localhost:{preservicaPort}/api/entity/v{apiVersion}/{entity.path.get}/{
+        entity.ref
+      }/event-actions?max=1000&amp;start=1000</Next>
+        </Paging>
+      </EventActionsResponse>.toString
+    val eventActionsSecondPageResponse =
+      <EventActionsResponse>
+        <EventActions>
+          <xip:EventAction commandType="AddIdentifier">
+            <xip:Event type="Modified">
+              <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
+              <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+        </Paging>
+      </EventActionsResponse>.toString
+
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
     preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(linksUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(linksUrlSecondPageResponse))
+    )
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
     )
     preservicaServer.stubFor(
       get(urlEqualTo(fragmentTwoUrl)).willReturn(ok(fragmentTwoResponse.toString))
+    )
+
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("0")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsFirstPageResponse))
+    )
+    preservicaServer.stubFor(
+      get(urlPathMatching(eventActionsUrl))
+        .withQueryParams(
+          Map(
+            "max" -> equalTo("1000"),
+            "start" -> equalTo("1000")
+          ).asJava
+        )
+        .willReturn(ok(eventActionsSecondPageResponse))
     )
 
     val client = testClient
@@ -1081,6 +1654,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     checkServerCall(entityUrl)
+    checkServerCall(identifiersUrl)
+    checkServerCall(linksUrl + "?max=1000&start=0")
+    checkServerCall(linksUrl + "?max=1000&start=1000")
   }
 
   "metadataForEntity" should "return an error if the server is unavailable" in {

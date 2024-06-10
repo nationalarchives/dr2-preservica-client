@@ -16,7 +16,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.*
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.xml.{Elem, Node}
+import scala.xml.{Elem, Node, NodeSeq}
 import scala.xml.Utility.escape
 
 /** A client to create, get and update entities in Preservica
@@ -245,24 +245,23 @@ object EntityClient {
         entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
       } yield entitiesWithUpdates
 
-    private def eventActions(
+    private def eventActionsXml(
         url: Option[String],
         token: String,
-        currentCollectionOfEventActions: Seq[EventAction]
-    ): F[Seq[EventAction]] = {
+        currentCollectionOfEventActionsXml: Seq[Elem]
+    ): F[Seq[Elem]] = {
       if (url.isEmpty) {
-        me.pure(currentCollectionOfEventActions)
+        me.pure(currentCollectionOfEventActionsXml)
       } else {
         for {
           eventActionsResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
-          eventActionsBatch <- dataProcessor.getEventActions(eventActionsResponseXml)
           nextPageUrl <- dataProcessor.nextPage(eventActionsResponseXml)
-          allEventActions <- eventActions(
+          allEventActionsXml <- eventActionsXml(
             nextPageUrl,
             token,
-            currentCollectionOfEventActions ++ eventActionsBatch
+            currentCollectionOfEventActionsXml :+ eventActionsResponseXml
           )
-        } yield allEventActions
+        } yield allEventActionsXml
       }
     }
 
@@ -474,25 +473,30 @@ object EntityClient {
     override def metadataForEntity(entity: Entity): F[EntityMetadata] =
       for {
         token <- getAuthenticationToken
-
+        queryParams = Map("max" -> 1000, "start" -> 0)
         path <- me.fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
+        entityUrl = s"$apiUrl/$path/${entity.ref}"
 
-        entityInfo <- sendXMLApiRequest(s"$apiUrl/$path/${entity.ref}", token, Method.GET)
+        entityInfo <- sendXMLApiRequest(entityUrl, token, Method.GET)
         entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entity.entityType.get)
 
-        identifiers <- entityIdentifiersXml(Some(s"$apiUrl/$path/${entity.ref}/identifiers"), token, Nil)
+        identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), token, Nil)
+
+        entityLinks <- entityLinksXml(uri"$entityUrl/links?$queryParams".toString.some, token, Nil)
 
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
+
+        eventActions <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, token, Nil)
       } yield {
         val fragmentsWithMetadataLabel = fragments.map { node =>
           new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
         }
-        EntityMetadata(entityNode, identifiers, fragmentsWithMetadataLabel)
+        EntityMetadata(entityNode, identifiers, entityLinks, fragmentsWithMetadataLabel, eventActions)
       }
 
     private def entityIdentifiersXml(
@@ -541,7 +545,10 @@ object EntityClient {
         )
         url = uri"$apiUrl/$path/${entity.ref}/event-actions?$queryParams"
         token <- getAuthenticationToken
-        eventActions <- eventActions(url.toString.some, token, Nil)
+        allEventActionsResponseXml <- eventActionsXml(url.toString.some, token, Nil)
+        eventActions <- allEventActionsResponseXml
+          .map(eventActionsResponseXml => dataProcessor.getEventActions(eventActionsResponseXml))
+          .flatSequence
       } yield eventActions.reverse // most recent event first
     }
 
@@ -624,6 +631,24 @@ object EntityClient {
         version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
       } yield version
     }
+
+    private def entityLinksXml(
+        url: Option[String],
+        token: String,
+        currentCollectionOfEntityLinks: Seq[NodeSeq]
+    ): F[Seq[NodeSeq]] =
+      if (url.isEmpty) me.pure(currentCollectionOfEntityLinks)
+      else
+        for {
+          entityLinksResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
+          entityLinksXmlBatch <- dataProcessor.getEntityLinksXml(entityLinksResponseXml)
+          nextPageUrl <- dataProcessor.nextPage(entityLinksResponseXml)
+          allEntityLinksXml <- entityLinksXml(
+            nextPageUrl,
+            token,
+            currentCollectionOfEntityLinks ++ entityLinksXmlBatch
+          )
+        } yield allEntityLinksXml
   }
 
   /** Represents a Preservica security tag
@@ -705,5 +730,11 @@ object EntityClient {
   enum GenerationType:
     case Original, Derived
 
-  case class EntityMetadata(entityNode: Node, identifiers: Seq[Node], metadataNodes: Seq[Elem])
+  case class EntityMetadata(
+      entityNode: Node,
+      identifiers: Seq[Node],
+      links: Seq[NodeSeq],
+      metadataNodes: Seq[Elem],
+      eventActions: Seq[Elem]
+  )
 }
