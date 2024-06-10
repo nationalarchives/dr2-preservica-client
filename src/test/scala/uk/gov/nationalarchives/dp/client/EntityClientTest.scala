@@ -1241,7 +1241,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     checkServerCall(eventActionsUrl + "?max=1000&start=1000")
   }
 
-  "metadataForEntity" should "return an an empty list when the object has no fragments" in {
+  "metadataForEntity" should "return an empty list when the object has no fragments" in {
     val url = s"http://localhost:$preservicaPort"
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
@@ -1429,6 +1429,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         preservicaPort
       }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
     )
+
+    metadata.metadataNodes should equal(Nil)
 
     metadata.eventActions.head.toString should equal(
       <EventActionsResponse>
@@ -1655,6 +1657,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     checkServerCall(entityUrl)
     checkServerCall(identifiersUrl)
+    checkServerCall(fragmentOneUrl)
+    checkServerCall(fragmentTwoUrl)
     checkServerCall(linksUrl + "?max=1000&start=0")
     checkServerCall(linksUrl + "?max=1000&start=1000")
   }
