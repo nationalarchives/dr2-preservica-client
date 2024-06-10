@@ -42,7 +42,7 @@
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
@@ -58,7 +58,7 @@
   </ul></li>
   <li><a href="../../xmlvalidator/usage/index.html" class="page">XML Validator</a>
   <ul>
-    <li><a href="../../xmlvalidator/usage/fs2.html" class="page">Use with FS2</a></li>
+    <li><a href="../../xmlvalidator/usage/fs2.html" class="active page">Use with FS2</a></li>
   </ul></li>
 </ul>
 </div>
@@ -102,7 +102,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
@@ -118,7 +118,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="../../xmlvalidator/usage/index.html" class="page">XML Validator</a>
   <ul>
-    <li><a href="../../xmlvalidator/usage/fs2.html" class="page">Use with FS2</a></li>
+    <li><a href="../../xmlvalidator/usage/fs2.html" class="active page">Use with FS2</a></li>
   </ul></li>
 </ul>
 </div>
@@ -136,7 +136,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../../index.html">Preservica Client</a></li>
-  <li><a href="../../content/usage/index.html">Content Client</a></li>
+  <li><a href="../../xmlvalidator/usage/index.html">XML Validator</a></li>
   <li>Use with FS2</li>
 </ul>
 </div>
@@ -154,26 +154,24 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 &lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
   implementation "uk.gov.nationalarchives:preservica-client-fs2_3:0.0.73"
 }</code></pre></dd></dl>
-<pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object ContentFs2 {
+<pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object XmlValidatorFs2 {
   import cats.effect.IO
-  import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
+  import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd
+  import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.XipXsdSchemaV6
   import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
 
-  val url = &quot;https://test.preservica.com&quot;
-  val queryString = &quot;&quot;&quot;{&quot;q&quot;:&quot;&quot;,&quot;fields&quot;:[{&quot;name&quot;:&quot;xip.title&quot;,&quot;values&quot;:[&quot;test-title&quot;]}]}&quot;&quot;&quot;
-  val searchQuery: SearchQuery = SearchQuery(queryString, SearchField(&quot;test1&quot;, List(&quot;value1&quot;)) :: Nil)
+  val xmlValidator: ValidateXmlAgainstXsd[IO] = Fs2Client.xmlValidator(XipXsdSchemaV6) // a path to any schema can be passed in
+  val xmlStringToValidate: String = &lt;XIP xmlns=&quot;http://preservica.com/XIP/v6.9&quot;&gt;
+    &lt;InformationObject&gt;
+      &lt;Title&gt;A Test Title&lt;/Title&gt;
+      &lt;Description&gt;&lt;/Description&gt;
+      &lt;SecurityTag&gt;open&lt;/SecurityTag&gt;
+      &lt;Parent&gt;3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761&lt;/Parent&gt;
+    &lt;/InformationObject&gt;
+  &lt;/XIP&gt;.toString
 
-  def searchEntities(): IO[Unit] = {
-    for {
-      client &lt;- Fs2Client.contentClient(url, &quot;secretName&quot;)
-      searchResultAllResults &lt;- client.searchEntities(searchQuery)
-      searchResultWithMax &lt;- client.searchEntities(searchQuery, 1000)
-    } yield ()
-  }
+  def checkIdXmlIsValid(): IO[Boolean] = for (isXmlValid &lt;- xmlValidator.xmlStringIsValid(xmlStringToValidate)) yield isXmlValid
 }</code></pre>
-<div class="nav-next">
-<p><strong>Next:</strong> <a href="../../admin/usage/index.html">Admin Client</a></p>
-</div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
 </div>

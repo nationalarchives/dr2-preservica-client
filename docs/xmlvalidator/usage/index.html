@@ -2,7 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
-<title>Use with FS2 · Preservica Client</title>
+<title>XML Validator · Preservica Client</title>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content='Documentation for the Scala Preservica client'/>
@@ -42,7 +42,7 @@
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
@@ -56,7 +56,7 @@
   <ul>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
-  <li><a href="../../xmlvalidator/usage/index.html" class="page">XML Validator</a>
+  <li><a href="../../xmlvalidator/usage/index.html" class="active page">XML Validator</a>
   <ul>
     <li><a href="../../xmlvalidator/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
@@ -102,7 +102,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   </ul></li>
   <li><a href="../../content/usage/index.html" class="page">Content Client</a>
   <ul>
-    <li><a href="../../content/usage/fs2.html" class="active page">Use with FS2</a></li>
+    <li><a href="../../content/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
   <li><a href="../../admin/usage/index.html" class="page">Admin Client</a>
   <ul>
@@ -116,7 +116,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../../processmonitor/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
-  <li><a href="../../xmlvalidator/usage/index.html" class="page">XML Validator</a>
+  <li><a href="../../xmlvalidator/usage/index.html" class="active page">XML Validator</a>
   <ul>
     <li><a href="../../xmlvalidator/usage/fs2.html" class="page">Use with FS2</a></li>
   </ul></li>
@@ -136,8 +136,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <div class="nav-breadcrumbs">
 <ul>
   <li><a href="../../index.html">Preservica Client</a></li>
-  <li><a href="../../content/usage/index.html">Content Client</a></li>
-  <li>Use with FS2</li>
+  <li>XML Validator</li>
 </ul>
 </div>
 </div>
@@ -145,37 +144,33 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#use-with-fs2" name="use-with-fs2" class="anchor"><span class="anchor-link"></span></a>Use with FS2</h1><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "uk.gov.nationalarchives" %% "preservica-client-fs2" % "0.0.73"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
-  &lt;dependency&gt;
-    &lt;groupId&gt;uk.gov.nationalarchives&lt;/groupId&gt;
-    &lt;artifactId&gt;preservica-client-fs2_3&lt;/artifactId&gt;
-    &lt;version&gt;0.0.73&lt;/version&gt;
-  &lt;/dependency&gt
-&lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  implementation "uk.gov.nationalarchives:preservica-client-fs2_3:0.0.73"
-}</code></pre></dd></dl>
-<pre class="prettyprint"><button class="snippet-button copy-snippet" title="Copy snippet to clipboard">copy</button><code class="language-scala">object ContentFs2 {
-  import cats.effect.IO
-  import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
-  import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-
-  val url = &quot;https://test.preservica.com&quot;
-  val queryString = &quot;&quot;&quot;{&quot;q&quot;:&quot;&quot;,&quot;fields&quot;:[{&quot;name&quot;:&quot;xip.title&quot;,&quot;values&quot;:[&quot;test-title&quot;]}]}&quot;&quot;&quot;
-  val searchQuery: SearchQuery = SearchQuery(queryString, SearchField(&quot;test1&quot;, List(&quot;value1&quot;)) :: Nil)
-
-  def searchEntities(): IO[Unit] = {
-    for {
-      client &lt;- Fs2Client.contentClient(url, &quot;secretName&quot;)
-      searchResultAllResults &lt;- client.searchEntities(searchQuery)
-      searchResultWithMax &lt;- client.searchEntities(searchQuery, 1000)
-    } yield ()
-  }
-}</code></pre>
+<h1><a href="#xml-validator" name="xml-validator" class="anchor"><span class="anchor-link"></span></a>XML Validator</h1>
+<p>The XML validator provides a method that validates XML against an XSD schema.</p>
+<p>The validator&rsquo;s <code>apply</code> method takes a path (of type String) to an XSD schema as an argument. * As well as the <code>apply</code> method, the validator&rsquo;s Companion <code>object</code> also provides paths to Preservica schemas (in the form af vals) that you can use as an argument to <code>apply</code></p>
+<h3><a href="#xmlstringisvalid" name="xmlstringisvalid" class="anchor"><span class="anchor-link"></span></a>xmlStringIsValid</h3>
+<ul>
+  <li>Takes an XML string</li>
+  <li>Validates the XML string against the schema (that was passed into the apply method)</li>
+  <li>Returns <code>true</code> if the XML is valid or an <code>SAXParseException</code> if it&rsquo;s not</li>
+</ul>
 <div class="nav-next">
-<p><strong>Next:</strong> <a href="../../admin/usage/index.html">Admin Client</a></p>
+<p><strong>Next:</strong> <a href="../../xmlvalidator/usage/fs2.html">Use with FS2</a></p>
 </div>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
+<nav class="sidebar sticky" data-sticky data-anchor="docs" data-sticky-on="large">
+<div class="page-nav">
+<div class="nav-title">On this page:</div>
+<div class="nav-toc">
+<ul>
+  <li><a href="../../xmlvalidator/usage/index.html#xml-validator" class="header">XML Validator</a>
+  <ul>
+    <li><a href="../../xmlvalidator/usage/index.html#xmlstringisvalid" class="header">xmlStringIsValid</a></li>
+  </ul></li>
+</ul>
+</div>
+</div>
+</nav>
 </div>
 </div>
 
