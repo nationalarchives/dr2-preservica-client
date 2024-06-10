@@ -53,7 +53,6 @@ lazy val commonSettings = Seq(
     awsSecretsManager,
     catsCore,
     circeGeneric,
-    dynamoFormatters,
     scalaCacheCore,
     scalaCacheCaffeine,
     log4Cats,
