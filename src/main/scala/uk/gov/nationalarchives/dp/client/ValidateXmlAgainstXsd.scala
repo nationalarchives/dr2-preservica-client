@@ -20,7 +20,7 @@ trait ValidateXmlAgainstXsd[F[_]](schema: PreservicaSchema) {
 object ValidateXmlAgainstXsd {
 
   enum PreservicaSchema(val pathOfSchemaFile: String):
-    case XipXsdSchemaV6 extends PreservicaSchema("/XIP-V6.xsd")
+    case XipXsdSchemaV7 extends PreservicaSchema("/XIP-V7.xsd")
     case OpexMetadataSchema extends PreservicaSchema("/OPEX-Metadata.xsd")
 
   def apply[F[_]: Monad](schema: PreservicaSchema): ValidateXmlAgainstXsd[F] =
