@@ -14,7 +14,7 @@ object Dependencies {
   lazy val sttpFs2 = "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.7.0"
   lazy val sttpCirce = "com.softwaremill.sttp.client3" %% "circe" % sttpVersion
-  lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.25.69"
+  lazy val awsSecretsManager = "software.amazon.awssdk" % "secretsmanager" % "2.25.70"
   lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % s"$scalaTestVersion.0"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "2.35.2"
 }
