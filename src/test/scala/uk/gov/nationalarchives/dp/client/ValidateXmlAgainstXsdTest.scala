@@ -3,12 +3,13 @@ package uk.gov.nationalarchives.dp.client
 import cats.Monad
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
 import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema
 import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.*
 
 import scala.xml.SAXParseException
 
-abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
+abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec with TableDrivenPropertyChecks:
   private def xipXmlValidator = ValidateXmlAgainstXsd(XipXsdSchemaV7)
   private def opexXmlValidator = ValidateXmlAgainstXsd(OpexMetadataSchema)
 
@@ -19,7 +20,7 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
   "xmlStringIsValid" should s"return 'true' if the XIP xml string that was passed in was valid" in {
     val xmlToValidate = <XIP xmlns="http://preservica.com/XIP/v7.0">
       <InformationObject>
-        <Ref>v</Ref>
+        <Ref>7cea2ce0-f7da-4132-bbfa-7fc92f3fd4d7</Ref>
         <Title>A Test Title</Title>
         <Description></Description>
         <SecurityTag>open</SecurityTag>
@@ -143,27 +144,36 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec:
     )
   }
 
-  "xmlStringIsValid" should s"throw a 'SAXParseException' if the xml string that was passed in, is missing a matching tag" in {
-    val xmlWithMissingTagToValidate = """<XIP xmlns="http://preservica.com/XIP/v7.0">
-      <InformationObject>
-        <Title>A Test Title</Title>
-        <Description></Description>
-        <SecurityTag>open</SecurityTag>
-        <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
-    </XIP>"""
+  val validatorTable: TableFor2[String, ValidateXmlAgainstXsd[F]] = Table(
+    ("name", "validator"),
+    ("XIP", xipXmlValidator),
+    ("OPEX", opexXmlValidator)
+  )
 
-    val error = intercept[SAXParseException] {
-      xipXmlValidator.xmlStringIsValid(xmlWithMissingTagToValidate).run()
+  forAll(validatorTable) { (name, validator) =>
+    "xmlStringIsValid" should s"throw a 'SAXParseException' if the $name xml string that was passed in, is missing a matching tag" in {
+      val xmlWithMissingTagToValidate =
+        """<XIP xmlns="http://preservica.com/XIP/v7.0">
+          <InformationObject>
+            <Title>A Test Title</Title>
+            <Description></Description>
+            <SecurityTag>open</SecurityTag>
+            <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
+        </XIP>"""
+
+      val error = intercept[SAXParseException] {
+        validator.xmlStringIsValid(xmlWithMissingTagToValidate).run()
+      }
+
+      error.getMessage should be(
+        """The element type "InformationObject" must be terminated by the matching end-tag "</InformationObject>"."""
+      )
     }
 
-    error.getMessage should be(
-      """The element type "InformationObject" must be terminated by the matching end-tag "</InformationObject>"."""
-    )
-  }
-
-  "xmlStringIsValid" should s"throw a 'SAXParseException' if the xml string that was passed in was empty" in {
-    val error = intercept[SAXParseException] {
-      xipXmlValidator.xmlStringIsValid("").run()
+    "xmlStringIsValid" should s"throw a 'SAXParseException' if the $name xml string that was passed in was empty" in {
+      val error = intercept[SAXParseException] {
+        validator.xmlStringIsValid("").run()
+      }
+      error.getMessage should be("Premature end of file.")
     }
-    error.getMessage should be("Premature end of file.")
   }
