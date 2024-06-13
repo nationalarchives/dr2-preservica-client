@@ -782,9 +782,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     metadata.eventActions.head.toString should equal(
-      <EventActionsResponse>
-        <EventActions>
-          <xip:EventAction commandType="command_create">
+      <xip:EventAction commandType="command_create">
             <xip:Event type="Ingest">
               <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
               <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
@@ -792,14 +790,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             </xip:Event>
             <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
             <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-          </xip:EventAction>
-        </EventActions>
-        <Paging>
-          <Next>http://localhost:9002/api/entity/v7.0/content-objects/{
-        entity.ref
-      }/event-actions?max=1000&amp;start=1000</Next>
-        </Paging>
-      </EventActionsResponse>.toString
+          </xip:EventAction>.toString
     )
 
     metadata.generationNodes.head.toString should equal(
@@ -894,9 +885,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     metadata.eventActions.head.toString should equal(
-      <EventActionsResponse>
-        <EventActions>
-          <xip:EventAction commandType="command_create">
+      <xip:EventAction commandType="command_create">
             <xip:Event type="Ingest">
               <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
               <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
@@ -904,14 +893,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             </xip:Event>
             <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
             <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-          </xip:EventAction>
-        </EventActions>
-        <Paging>
-          <Next>http://localhost:9002/api/entity/v7.0/information-objects/{
-        entity.ref
-      }/event-actions?max=1000&amp;start=1000</Next>
-        </Paging>
-      </EventActionsResponse>.toString
+          </xip:EventAction>.toString
     )
 
     metadata.representations.head.toString should equal(

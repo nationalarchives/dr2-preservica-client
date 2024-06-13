@@ -803,6 +803,42 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     links.size should equal(0)
   }
 
+  "getEventActionElements" should "extract the EventActions from the 'EventActionsResponse'" in {
+    val input =
+      <EventActionsResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next/>
+        </Paging>
+      </EventActionsResponse>
+
+    val eventAction = valueFromF(
+      new DataProcessor[F]().getEventActionElements(input)
+    )
+
+    eventAction.toString should equal(
+      <xip:EventAction commandType="command_create" xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>.toString
+    )
+  }
+
   "getRepresentationElement" should "extract the Representation from the 'RepresentationResponse'" in {
     val id = UUID.randomUUID()
     val input =

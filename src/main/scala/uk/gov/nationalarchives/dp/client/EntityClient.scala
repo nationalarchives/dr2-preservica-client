@@ -519,7 +519,8 @@ object EntityClient {
           new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
         }
 
-        eventActions <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, token, Nil)
+        eventActionResponseXmls <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, token, Nil)
+        eventActions <- eventActionResponseXmls.map(dataProcessor.getEventActionElements).flatSequence
         entityMetadata <-
           if (entityType.entityTypeShort == "CO")
             for {
@@ -700,8 +701,8 @@ object EntityClient {
     private def entityLinksXml(
         url: Option[String],
         token: String,
-        currentCollectionOfEntityLinks: Seq[NodeSeq]
-    ): F[Seq[NodeSeq]] =
+        currentCollectionOfEntityLinks: Seq[Node]
+    ): F[Seq[Node]] =
       if (url.isEmpty) me.pure(currentCollectionOfEntityLinks)
       else
         for {
@@ -798,25 +799,25 @@ object EntityClient {
   sealed trait EntityMetadata:
     val entityNode: Node
     val identifiers: Seq[Node]
-    val links: Seq[NodeSeq]
-    val metadataNodes: Seq[Elem]
-    val eventActions: Seq[Elem]
+    val links: Seq[Node]
+    val metadataNodes: Seq[Node]
+    val eventActions: Seq[Node]
 
   case class StandardEntityMetadata(
       entityNode: Node,
       identifiers: Seq[Node],
-      links: Seq[NodeSeq],
-      metadataNodes: Seq[Elem],
-      eventActions: Seq[Elem]
+      links: Seq[Node],
+      metadataNodes: Seq[Node],
+      eventActions: Seq[Node]
   ) extends EntityMetadata
 
   case class IoMetadata(
       entityNode: Node,
       representations: Seq[Node],
       identifiers: Seq[Node],
-      links: Seq[NodeSeq],
-      metadataNodes: Seq[Elem],
-      eventActions: Seq[Elem]
+      links: Seq[Node],
+      metadataNodes: Seq[Node],
+      eventActions: Seq[Node]
   ) extends EntityMetadata
 
   case class CoMetadata(
@@ -824,9 +825,9 @@ object EntityClient {
       generationNodes: Seq[Node],
       bitstreamNodes: Seq[Node],
       identifiers: Seq[Node],
-      links: Seq[NodeSeq],
-      metadataNodes: Seq[Elem],
-      eventActions: Seq[Elem]
+      links: Seq[Node],
+      metadataNodes: Seq[Node],
+      eventActions: Seq[Node]
   ) extends EntityMetadata
 
 }
