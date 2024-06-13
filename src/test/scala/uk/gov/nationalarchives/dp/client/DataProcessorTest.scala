@@ -802,4 +802,58 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
     links.size should equal(0)
   }
+
+  "getRepresentationElement" should "extract the Representation from the 'RepresentationResponse'" in {
+    val id = UUID.randomUUID()
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <xip:Representation>
+          <xip:InformationObject>{id}</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects/>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>
+        <ContentObjects/>
+        <AdditionalInformation>
+        </AdditionalInformation>
+      </RepresentationResponse>
+
+    val representation = valueFromF(
+      new DataProcessor[F]().getRepresentationElement(input)
+    )
+
+    representation.toString should equal(
+      <xip:Representation xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+          <xip:InformationObject>{id}</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects/>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>.toString
+    )
+  }
+
+  "getGenerationElement" should "extract the Generation from the 'GenerationsResponse'" in {
+    val input =
+      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <xip:Generation original="true" active="true">
+        </xip:Generation>
+        <Bitstreams>
+        </Bitstreams>
+        <AdditionalInformation>
+        </AdditionalInformation>
+      </GenerationResponse>
+
+    val generation = valueFromF(
+      new DataProcessor[F]().getGenerationElement(input)
+    )
+
+    generation.toString should equal(
+      <xip:Generation original="true" active="true" xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        </xip:Generation>.toString
+    )
+  }
 }

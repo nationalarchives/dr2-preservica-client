@@ -298,6 +298,18 @@ object EntityClient {
         )
       } yield urlsOfRepresentations
 
+    private def ioRepresentations(
+        ioEntityRef: UUID,
+        representationType: RepresentationType,
+        repTypeIndex: Int,
+        token: String
+    ): F[Elem] =
+      for {
+        token <- getAuthenticationToken
+        url = uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex"
+        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+      } yield representationsResponse
+
     override def getContentObjectsFromRepresentation(
         ioEntityRef: UUID,
         representationType: RepresentationType,
@@ -305,9 +317,7 @@ object EntityClient {
     ): F[Seq[Entity]] =
       for {
         token <- getAuthenticationToken
-        url =
-          uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex"
-        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        representationsResponse <- ioRepresentations(ioEntityRef, representationType, repTypeIndex, token)
         contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
           representationsResponse,
           representationType,
@@ -442,6 +452,25 @@ object EntityClient {
       } yield response
     }
 
+    private def generationElements(
+        generationsEndpointUrl: String,
+        contentObjectRef: UUID,
+        token: String
+    ): F[Seq[Elem]] =
+      for {
+        generationsElement <- sendXMLApiRequest(generationsEndpointUrl, token, Method.GET)
+        allGenerationUrls <- dataProcessor.allGenerationUrls(generationsElement, contentObjectRef)
+        allGenerationElements <- allGenerationUrls
+          .map(url => sendXMLApiRequest(url, token, Method.GET))
+          .sequence
+      } yield allGenerationElements
+
+    private def bitstreamElements(generationResponseElement: Elem, token: String) =
+      for {
+        allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationResponseElement)
+        bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+      } yield bitstreamElements
+
     override def getBitstreamInfo(
         contentObjectRef: UUID
     ): F[Seq[BitStreamInfo]] =
@@ -453,16 +482,11 @@ object EntityClient {
           Method.GET
         )
         generationsEndpointUrl <- dataProcessor.generationUrlFromEntity(contentObjectElement)
-        generationsElement <- sendXMLApiRequest(generationsEndpointUrl, token, Method.GET)
-        allGenerationUrls <- dataProcessor.allGenerationUrls(generationsElement, contentObjectRef)
-        allGenerationElements <- allGenerationUrls
-          .map(url => sendXMLApiRequest(url, token, Method.GET))
-          .sequence
+        allGenerationElements <- generationElements(generationsEndpointUrl, contentObjectRef, token)
         allBitstreamInfo <- allGenerationElements.map { generationElement =>
           for {
             generationType <- dataProcessor.generationType(generationElement, contentObjectRef)
-            allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationElement)
-            bitstreamElements <- allBitstreamUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
+            bitstreamElements <- bitstreamElements(generationElement, token)
             contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
             allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject)
           } yield allBitstreamInfo
@@ -479,9 +503,10 @@ object EntityClient {
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         entityUrl = s"$apiUrl/$path/${entity.ref}"
+        entityType = entity.entityType.get
 
         entityInfo <- sendXMLApiRequest(entityUrl, token, Method.GET)
-        entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entity.entityType.get)
+        entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entityType)
 
         identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), token, Nil)
 
@@ -490,14 +515,54 @@ object EntityClient {
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
         fragments <- dataProcessor.fragments(fragmentResponses)
-
-        eventActions <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, token, Nil)
-      } yield {
-        val fragmentsWithMetadataLabel = fragments.map { node =>
+        fragmentsWithMetadataLabel = fragments.map { node =>
           new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
         }
-        EntityMetadata(entityNode, identifiers, entityLinks, fragmentsWithMetadataLabel, eventActions)
-      }
+
+        eventActions <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, token, Nil)
+        entityMetadata <-
+          if (entityType.entityTypeShort == "CO")
+            for {
+              generationsEndpointUrl <- me.pure(s"$entityUrl/generations")
+              allGenerationsResponseElements <- generationElements(generationsEndpointUrl, entity.ref, token)
+              allGenerationElements <- allGenerationsResponseElements
+                .map(dataProcessor.getGenerationElement)
+                .flatSequence
+              bitstreamElements <- allGenerationsResponseElements.map(bitstreamElements(_, token)).flatSequence
+            } yield CoMetadata(
+              entityNode,
+              allGenerationElements,
+              bitstreamElements,
+              identifiers,
+              entityLinks,
+              fragmentsWithMetadataLabel,
+              eventActions
+            )
+          else if (entityType.entityTypeShort == "IO")
+            for {
+              urlsToIoRepresentations <- getUrlsToIoRepresentations(entity.ref, None)
+              representations <- urlsToIoRepresentations.map { urlToIoRepresentation =>
+                val urlSplitOnForwardSlash = urlToIoRepresentation.split('/').reverse
+                val generationVersion = urlSplitOnForwardSlash.head.toInt
+                val representationType = RepresentationType.valueOf(urlSplitOnForwardSlash(1))
+
+                ioRepresentations(entity.ref, representationType, generationVersion, token).flatMap {
+                  dataProcessor.getRepresentationElement
+                }
+              }.flatSequence
+            } yield IoMetadata(
+              entityNode,
+              representations,
+              identifiers,
+              entityLinks,
+              fragmentsWithMetadataLabel,
+              eventActions
+            )
+          else
+            me.pure(
+              StandardEntityMetadata(entityNode, identifiers, entityLinks, fragmentsWithMetadataLabel, eventActions)
+            )
+      } yield entityMetadata
 
     private def entityIdentifiersXml(
         url: Option[String],
@@ -730,11 +795,38 @@ object EntityClient {
   enum GenerationType:
     case Original, Derived
 
-  case class EntityMetadata(
+  sealed trait EntityMetadata:
+    val entityNode: Node
+    val identifiers: Seq[Node]
+    val links: Seq[NodeSeq]
+    val metadataNodes: Seq[Elem]
+    val eventActions: Seq[Elem]
+
+  case class StandardEntityMetadata(
       entityNode: Node,
       identifiers: Seq[Node],
       links: Seq[NodeSeq],
       metadataNodes: Seq[Elem],
       eventActions: Seq[Elem]
-  )
+  ) extends EntityMetadata
+
+  case class IoMetadata(
+      entityNode: Node,
+      representations: Seq[Node],
+      identifiers: Seq[Node],
+      links: Seq[NodeSeq],
+      metadataNodes: Seq[Elem],
+      eventActions: Seq[Elem]
+  ) extends EntityMetadata
+
+  case class CoMetadata(
+      entityNode: Node,
+      generationNodes: Seq[Node],
+      bitstreamNodes: Seq[Node],
+      identifiers: Seq[Node],
+      links: Seq[NodeSeq],
+      metadataNodes: Seq[Elem],
+      eventActions: Seq[Elem]
+  ) extends EntityMetadata
+
 }

@@ -378,6 +378,26 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     *   A `Seq` of `Node` containing the links
     */
   def getEntityLinksXml(elem: Elem): F[Seq[Node]] = me.pure((elem \ "Links" \ "Link"))
+
+  /** Returns a Seq containing one Representation [[scala.xml.Node]] XML object
+    *
+    * @param representationResponseElement
+    *   The element containing the information for the Representation
+    * @return
+    *   A `Seq` of `Node` containing the links
+    */
+  def getRepresentationElement(representationResponseElement: Elem): F[Seq[Node]] =
+    me.pure((representationResponseElement \ "Representation"))
+
+  /** Returns a Seq containing one Generation [[scala.xml.Node]] XML object
+    *
+    * @param generationResponseElement
+    *   The element containing the information for the Generation
+    * @return
+    *   A `Seq` of `Node` containing the links
+    */
+  def getGenerationElement(generationResponseElement: Elem): F[Seq[Node]] =
+    me.pure((generationResponseElement \ "Generation"))
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class
