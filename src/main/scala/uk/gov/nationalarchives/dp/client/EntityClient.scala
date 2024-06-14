@@ -806,6 +806,8 @@ object EntityClient {
     val metadataNodes: Seq[Node]
     val eventActions: Seq[Node]
 
+  /* The non-specific (generic) metadata that is common for all Entity types; default for current/future Entities
+  that don't have an EntityMetadata implementation. */
   case class StandardEntityMetadata(
       entityNode: Node,
       identifiers: Seq[Node],

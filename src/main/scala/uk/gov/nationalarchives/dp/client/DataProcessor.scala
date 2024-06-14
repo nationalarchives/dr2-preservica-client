@@ -384,7 +384,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     * @param eventActionsResponseElement
     *   The element containing the Event actions
     * @return
-    *   A `Seq` of `EventAction` XML objects
+    *   A `Seq` of Node, representing Event actions
     */
   def getEventActionElements(eventActionsResponseElement: Elem): F[Seq[Node]] =
     me.pure((eventActionsResponseElement \ "EventActions" \ "EventAction"))
