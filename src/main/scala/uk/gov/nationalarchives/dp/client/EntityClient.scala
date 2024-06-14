@@ -6,7 +6,6 @@ import cats.implicits.*
 import sttp.capabilities.Streams
 import sttp.client3.*
 import sttp.model.Method
-import uk.gov.nationalarchives.DynamoFormatters.Identifier
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
@@ -740,6 +739,10 @@ object EntityClient {
     case StructuralObject extends EntityType("structural-objects", "SO")
     case InformationObject extends EntityType("information-objects", "IO")
     case ContentObject extends EntityType("content-objects", "CO")
+
+  /** Represents a Preservica identifier
+    */
+  case class Identifier(identifierName: String, value: String)
 
   /** Represents a Preservica representation tag
     */
