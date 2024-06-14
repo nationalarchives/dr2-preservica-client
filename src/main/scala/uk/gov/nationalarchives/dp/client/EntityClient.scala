@@ -235,6 +235,12 @@ object EntityClient {
 
     import client.*
 
+    private def getEntityType(entity: Entity): F[EntityType] =
+      me.fromOption(
+        entity.entityType,
+        PreservicaClientException(s"No entity type found for entity ${entity.ref}")
+      )
+
     private def getEntities(
         url: String,
         token: String
@@ -502,7 +508,7 @@ object EntityClient {
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
         entityUrl = s"$apiUrl/$path/${entity.ref}"
-        entityType = entity.entityType.get
+        entityType <- getEntityType(entity)
 
         entityInfo <- sendXMLApiRequest(entityUrl, token, Method.GET)
         entityNode <- dataProcessor.getEntityXml(entity.ref, entityInfo, entityType)
@@ -627,10 +633,7 @@ object EntityClient {
         entitiesWithIdentifier <- getEntities(url.toString, token)
         entities <- entitiesWithIdentifier.map { entity =>
           for {
-            entityType <- me.fromOption(
-              entity.entityType,
-              PreservicaClientException(s"No entity type found for entity ${entity.ref}")
-            )
+            entityType <- getEntityType(entity)
             entity <- getEntity(entity.ref, entityType)
           } yield entity
         }.sequence
