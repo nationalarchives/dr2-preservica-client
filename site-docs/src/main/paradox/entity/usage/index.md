@@ -64,10 +64,37 @@ The client exposes 15 methods
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
 ### metadataForEntity
-* Get the entity for the provided reference
-* Get the fragment urls from `"AdditionalInformation" \ "Metadata" \ "Fragment"`
+* Call the API to get the `entityInfo` (XML) for the provided reference
+* Call the API to get the `Identifiers` XML for the entity
+  * Parse XML for the url to the next page of `Identifier` results
+  * if there is a URL, return to step above and keep on until there are not more next page urls
+  * Return the XML for all the `Identifiers` found
+* Get the `Links` for the entity
+  * Parse XML for the url to the next page of `Links` results
+  * If there is a URL, return to step above and keep on until there are not more next page urls
+  * Return the XML for all the `Links` found
+* Use the `entityInfo` to get the fragment urls from `"AdditionalInformation" \ "Metadata" \ "Fragment"`
 * For each fragment url, get the response
 * Return a list of the XML elements found at `"MetadataContainer" \ "Content"` in each response
+* Call the API to get the `EventActions` XML for the entity
+    * Parse XML for the url to the next page of event action results
+    * if there is a URL, return to step above and keep on until there are not more next page urls
+    * Return the XML for all the event actions found
+* Check for type of entity passed into this method
+  * If `CO`
+    * Call the API to get the `Generations` XML for the entity
+      * Parse XML for the URLs to each `Generation`
+      * Use the URLs to get all the `Generations` elements
+    * Parse Generations XML for the URLs to each `Generation`'s bitstream urls
+      * Use the URLs to get all the `Bitstream` elements
+    * Return all metadata in a `CoMetadata` case class
+  * If `IO`
+    * Call the API to get the URLs of the `Representations`
+      * Extract the `representationType` and `generationVersion` from each URL
+      * For each group of `representationType` and `generationVersion`, pass them into the `ioRepresentations` method to get the XML for each representation
+    * Return all metadata in an `IoMetadata` case class
+  * If neither `IO`, nor `CO`
+    * Return all metadata in an `StandardMetadata` case class
 
 ### getBitstreamInfo
 * Get the entity for the provided reference
