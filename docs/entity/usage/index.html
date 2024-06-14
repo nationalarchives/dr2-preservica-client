@@ -226,10 +226,49 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <p>These are descriptions of the steps taken by each method. All methods get an authentication token first, either from the API or the cache.</p>
 <h3><a href="#metadataforentity" name="metadataforentity" class="anchor"><span class="anchor-link"></span></a>metadataForEntity</h3>
 <ul>
-  <li>Get the entity for the provided reference</li>
-  <li>Get the fragment urls from <code>&quot;AdditionalInformation&quot; \ &quot;Metadata&quot; \ &quot;Fragment&quot;</code></li>
+  <li>Call the API to get the <code>entityInfo</code> (XML) for the provided reference</li>
+  <li>Call the API to get the <code>Identifiers</code> XML for the entity</li>
+  <li>Parse XML for the url to the next page of <code>Identifier</code> results</li>
+  <li>if there is a URL, return to step above and keep on until there are not more next page urls</li>
+  <li>Return the XML for all the <code>Identifiers</code> found</li>
+  <li>Get the <code>Links</code> for the entity</li>
+  <li>Parse XML for the url to the next page of <code>Links</code> results</li>
+  <li>If there is a URL, return to step above and keep on until there are not more next page urls</li>
+  <li>Return the XML for all the <code>Links</code> found</li>
+  <li>Use the <code>entityInfo</code> to get the fragment urls from <code>&quot;AdditionalInformation&quot; \ &quot;Metadata&quot; \ &quot;Fragment&quot;</code></li>
   <li>For each fragment url, get the response</li>
   <li>Return a list of the XML elements found at <code>&quot;MetadataContainer&quot; \ &quot;Content&quot;</code> in each response</li>
+  <li>Call the API to get the <code>EventActions</code> XML for the entity
+    <ul>
+      <li>Parse XML for the url to the next page of event action results</li>
+      <li>if there is a URL, return to step above and keep on until there are not more next page urls</li>
+      <li>Return the XML for all the event actions found</li>
+    </ul>
+  </li>
+  <li>Check for type of entity passed into this method</li>
+  <li>If <code>CO</code>
+    <ul>
+      <li>Call the API to get the <code>Generations</code> XML for the entity</li>
+      <li>Parse XML for the URLs to each <code>Generation</code></li>
+      <li>Use the URLs to get all the <code>Generations</code> elements</li>
+      <li>Parse Generations XML for the URLs to each <code>Generation</code>&rsquo;s bitstream urls</li>
+      <li>Use the URLs to get all the <code>Bitstream</code> elements</li>
+      <li>Return all metadata in a <code>CoMetadata</code> case class</li>
+    </ul>
+  </li>
+  <li>If <code>IO</code>
+    <ul>
+      <li>Call the API to get the URLs of the <code>Representations</code></li>
+      <li>Extract the <code>representationType</code> and <code>generationVersion</code> from each URL</li>
+      <li>For each group of <code>representationType</code> and <code>generationVersion</code>, pass them into the <code>ioRepresentations</code> method to get the XML for each representation</li>
+      <li>Return all metadata in an <code>IoMetadata</code> case class</li>
+    </ul>
+  </li>
+  <li>If neither <code>IO</code>, nor <code>CO</code>
+    <ul>
+      <li>Return all metadata in an <code>StandardMetadata</code> case class</li>
+    </ul>
+  </li>
 </ul>
 <h3><a href="#getbitstreaminfo" name="getbitstreaminfo" class="anchor"><span class="anchor-link"></span></a>getBitstreamInfo</h3>
 <ul>
