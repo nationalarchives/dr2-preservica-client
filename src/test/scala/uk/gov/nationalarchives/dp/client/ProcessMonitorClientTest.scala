@@ -484,7 +484,6 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
   }
 
   private def getAllRequests(preservicaServer: WireMockServer): List[ServeEvent] =
-    println(preservicaServer.getAllServeEvents)
     preservicaServer.getServeEvents.getServeEvents.asScala.iterator.toList
 
   private def getRequestMade(preservicaServer: WireMockServer) =
