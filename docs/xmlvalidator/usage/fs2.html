@@ -160,7 +160,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.XipXsdSchemaV7
   import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
 
-  val xmlValidator: ValidateXmlAgainstXsd[IO] = Fs2Client.xmlValidator(XipXsdSchemaV7) // a path to any schema can be passed in
+  val xmlValidator: ValidateXmlAgainstXsd[IO] =
+    Fs2Client.xmlValidator(XipXsdSchemaV7) // a path to any schema can be passed in
   val xmlStringToValidate: String = &lt;XIP xmlns=&quot;http://preservica.com/XIP/v7.0&quot;&gt;
     &lt;InformationObject&gt;
       &lt;Title&gt;A Test Title&lt;/Title&gt;
@@ -170,7 +171,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
     &lt;/InformationObject&gt;
   &lt;/XIP&gt;.toString
 
-  def checkIdXmlIsValid(): IO[Boolean] = for (isXmlValid &lt;- xmlValidator.xmlStringIsValid(xmlStringToValidate)) yield isXmlValid
+  def checkIdXmlIsValid(): IO[Boolean] = for (isXmlValid &lt;- xmlValidator.xmlStringIsValid(xmlStringToValidate))
+    yield isXmlValid
 }</code></pre>
 </div>
 <div class="large-3 show-for-large column" data-sticky-container>
