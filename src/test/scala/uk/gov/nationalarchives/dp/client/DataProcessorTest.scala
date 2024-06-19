@@ -766,4 +766,130 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
     version should equal(7.0)
   }
+
+  "getEntityLinksXml" should "extract the links from the 'LinksResponse'" in {
+    val input =
+      <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <Links>
+          <Link>link</Link>
+          <Link>link</Link>
+          <Link>link</Link>
+        </Links>
+        <Paging>
+        </Paging>
+      </LinksResponse>
+    val links = valueFromF(
+      new DataProcessor[F]().getEntityLinksXml(input)
+    )
+
+    links should equal(
+      <Links><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link><Link xmlns={namespaceUrl} xmlns:xip={
+        xipUrl
+      }>link</Link><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link></Links>.child
+    )
+  }
+
+  "getEntityLinksXml" should "return an empty list if there are no links" in {
+    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+      <Links>
+      </Links>
+      <Paging>
+      </Paging>
+    </LinksResponse>
+    val links = valueFromF(
+      new DataProcessor[F]().getEntityLinksXml(input)
+    )
+
+    links.size should equal(0)
+  }
+
+  "getEventActionElements" should "extract the EventActions from the 'EventActionsResponse'" in {
+    val input =
+      <EventActionsResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <EventActions>
+          <xip:EventAction commandType="command_create">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>
+        </EventActions>
+        <Paging>
+          <Next/>
+        </Paging>
+      </EventActionsResponse>
+
+    val eventAction = valueFromF(
+      new DataProcessor[F]().getEventActionElements(input)
+    )
+
+    eventAction.toString should equal(
+      <xip:EventAction commandType="command_create" xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+            <xip:Event type="Ingest">
+              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
+              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
+              <xip:User>test user</xip:User>
+            </xip:Event>
+            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
+            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+          </xip:EventAction>.toString
+    )
+  }
+
+  "getRepresentationElement" should "extract the Representation from the 'RepresentationResponse'" in {
+    val id = UUID.randomUUID()
+    val input =
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <xip:Representation>
+          <xip:InformationObject>{id}</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects/>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>
+        <ContentObjects/>
+        <AdditionalInformation>
+        </AdditionalInformation>
+      </RepresentationResponse>
+
+    val representation = valueFromF(
+      new DataProcessor[F]().getRepresentationElement(input)
+    )
+
+    representation.toString should equal(
+      <xip:Representation xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+          <xip:InformationObject>{id}</xip:InformationObject>
+          <xip:Name>Preservation</xip:Name>
+          <xip:Type>Preservation</xip:Type>
+          <xip:ContentObjects/>
+          <xip:RepresentationFormats/>
+          <xip:RepresentationProperties/>
+        </xip:Representation>.toString
+    )
+  }
+
+  "getGenerationElement" should "extract the Generation from the 'GenerationsResponse'" in {
+    val input =
+      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+        <xip:Generation original="true" active="true">
+        </xip:Generation>
+        <Bitstreams>
+        </Bitstreams>
+        <AdditionalInformation>
+        </AdditionalInformation>
+      </GenerationResponse>
+
+    val generation = valueFromF(
+      new DataProcessor[F]().getGenerationElement(input)
+    )
+
+    generation.toString should equal(
+      <xip:Generation original="true" active="true" xmlns={namespaceUrl} xmlns:xip={xipUrl}>
+        </xip:Generation>.toString
+    )
+  }
 }
