@@ -8,7 +8,8 @@ object XmlValidator {
     import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.XipXsdSchemaV7
     import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
 
-    val xmlValidator: ValidateXmlAgainstXsd[IO] = Fs2Client.xmlValidator(XipXsdSchemaV7) // a path to any schema can be passed in
+    val xmlValidator: ValidateXmlAgainstXsd[IO] =
+      Fs2Client.xmlValidator(XipXsdSchemaV7) // a path to any schema can be passed in
     val xmlStringToValidate: String = <XIP xmlns="http://preservica.com/XIP/v7.0">
       <InformationObject>
         <Title>A Test Title</Title>
@@ -18,7 +19,8 @@ object XmlValidator {
       </InformationObject>
     </XIP>.toString
 
-    def checkIdXmlIsValid(): IO[Boolean] = for (isXmlValid <- xmlValidator.xmlStringIsValid(xmlStringToValidate)) yield isXmlValid
+    def checkIdXmlIsValid(): IO[Boolean] = for (isXmlValid <- xmlValidator.xmlStringIsValid(xmlStringToValidate))
+      yield isXmlValid
   }
   // #fs2
 }
