@@ -10,7 +10,7 @@ import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MessageStatus.*
 import io.circe.parser.decode
 import io.circe.generic.auto.*
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
-import uk.gov.nationalarchives.dp.client.UserClient.ChangePasswordRequest
+import uk.gov.nationalarchives.dp.client.UserClient.ResetPasswordRequest
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
@@ -64,7 +64,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     preservicaServer.stubFor(put(urlEqualTo("/api/user/password")).willReturn(serverError()))
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.resetPassword(ChangePasswordRequest("old", "new")))
+      valueFromF(client.resetPassword(ResetPasswordRequest("old", "new")))
     }
     error.getMessage should equal(
       "Status code 500 calling http://localhost:9010/api/user/password with method PUT statusCode: 500, response: "
@@ -74,13 +74,27 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   "resetPassword" should s"pass the correct credentials to the API" in {
     preservicaServer.stubFor(put(urlEqualTo("/api/user/password")).willReturn(ok()))
 
-    valueFromF(testClient.resetPassword(ChangePasswordRequest("oldPassword", "newPassword")))
+    valueFromF(testClient.resetPassword(ResetPasswordRequest("oldPassword", "newPassword")))
 
     val bodyString = preservicaServer.getAllServeEvents.asScala.head.getRequest.getBodyAsString
-    val request = decode[ChangePasswordRequest](bodyString).value
+    val request = decode[ResetPasswordRequest](bodyString).value
 
     request.password should equal("oldPassword")
     request.newPassword should equal("newPassword")
+  }
+
+  "resetPassword" should "return an error if the old and new password are equal" in {
+    val error = intercept[PreservicaClientException] {
+      valueFromF(testClient.resetPassword(ResetPasswordRequest("password", "password")))
+    }
+    error.getMessage should equal("New password is equal to the old password")
+  }
+
+  "resetPassword" should "return an error if the new password is empty" in {
+    val error = intercept[PreservicaClientException] {
+      valueFromF(testClient.resetPassword(ResetPasswordRequest("password", "")))
+    }
+    error.getMessage should equal("New password is empty")
   }
 
   "testNewPassword" should "call secrets manager for the pending secret" in {
