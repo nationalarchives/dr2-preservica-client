@@ -1,7 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits.*
 import io.circe.generic.auto.*
 import sttp.client3.*
@@ -53,7 +53,7 @@ object ProcessMonitorClient:
     */
   def createProcessMonitorClient[F[_]](clientConfig: ClientConfig[F, ?])(using
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): ProcessMonitorClient[F] = new ProcessMonitorClient[F]:
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, ?] = Client(clientConfig)

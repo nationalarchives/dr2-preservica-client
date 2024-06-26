@@ -1,23 +1,25 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import io.circe.parser.decode
 import scalacache.*
 import scalacache.caffeine.*
 import scalacache.memoization.*
-import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerAsyncClient
 import sttp.client3.*
 import sttp.client3.circe.*
 import sttp.model.Method
+import uk.gov.nationalarchives.DASecretsManagerClient
+import uk.gov.nationalarchives.DASecretsManagerClient.Stage
+import uk.gov.nationalarchives.DASecretsManagerClient.Stage.*
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
 
@@ -31,8 +33,8 @@ import scala.xml.{Elem, XML}
   *   The [[ClientConfig]] instance with the config details
   * @param me
   *   An implicit `MonadError` instance
-  * @param sync
-  *   An implicit `Sync` instance
+  * @param async
+  *   An implicit `Async` instance
   * @tparam F
   *   The type of Monad wrapper
   * @tparam S
@@ -40,7 +42,7 @@ import scala.xml.{Elem, XML}
   */
 private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
-    sync: Sync[F]
+    async: Async[F]
 ) {
   private val underlying: CCache[String, Entry[F[String]]] =
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
@@ -54,6 +56,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
   private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
+  private val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
   private[client] def sendXMLApiRequest(
@@ -75,7 +78,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
   }
 
-  private[client] def sendJsonApiRequest[R](
+  private[client] def sendJsonApiRequest[R: IsOption](
       url: String,
       token: String,
       method: Method,
@@ -96,40 +99,42 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
   }
 
-  private def getAuthDetails: F[AuthDetails] = {
-    val valueRequest = GetSecretValueRequest
-      .builder()
-      .secretId(secretName)
-      .build()
-    val secretsManager = SecretsManagerClient.builder
-      .httpClient(ApacheHttpClient.builder.build())
-      .endpointOverride(URI.create(secretsManagerEndpointUri))
+  private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] = {
+    val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
+    val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
       .region(Region.EU_WEST_2)
+      .endpointOverride(URI.create(secretsManagerEndpointUri))
+      .httpClient(httpClient)
       .build()
-
-    val response = secretsManager.getSecretValue(valueRequest)
-    Sync[F].fromEither(decode[Map[String, String]](response.secretString)).map { secretMap =>
-      val (username, password) = secretMap.head
-      AuthDetails(username, password)
+    for {
+      secretMap <- DASecretsManagerClient[F](secretsManagerAsyncClient, secretName)
+        .getSecretValue[Map[String, String]](stage)
+    } yield {
+      secretMap.map { case (username, password) =>
+        AuthDetails(username, password)
+      }.head
     }
   }
 
+  private[client] def generateToken(authDetails: AuthDetails): F[String] = for {
+    res <- basicRequest
+      .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
+      .post(apiUri)
+      .response(asJson[Token])
+      .send(backend)
+    token <- {
+      val responseOrError = res.body.left
+        .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
+        .map(_.token)
+      me.fromEither(responseOrError)
+    }
+  } yield token
+
   private[client] def getAuthenticationToken: F[String] =
     memoize[F, F[String]](Some(duration)) {
-      val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
       for {
-        authDetails <- getAuthDetails
-        res <- basicRequest
-          .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-          .post(apiUri)
-          .response(asJson[Token])
-          .send(backend)
-        token <- {
-          val responseOrError = res.body.left
-            .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
-            .map(_.token)
-          me.fromEither(responseOrError)
-        }
+        authDetails <- getAuthDetails()
+        token <- generateToken(authDetails)
       } yield token
     }.flatten
 }
@@ -199,8 +204,8 @@ object Client {
     *   Configuration parameters needed to create the client
     * @param me
     *   An implicit instance of cats.MonadError
-    * @param sync
-    *   An implicit instance of cats.Sync
+    * @param async
+    *   An implicit instance of cats.effect.Async
     * @tparam F
     *   The type of the effect
     * @tparam S
@@ -209,6 +214,6 @@ object Client {
     */
   def apply[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      async: Async[F]
   ) = new Client[F, S](clientConfig)
 }

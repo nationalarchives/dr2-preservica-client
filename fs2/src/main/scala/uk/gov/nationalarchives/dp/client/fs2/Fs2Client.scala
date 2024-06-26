@@ -13,11 +13,13 @@ import uk.gov.nationalarchives.dp.client.{
   EntityClient,
   LoggingWrapper,
   ProcessMonitorClient,
+  UserClient,
   ValidateXmlAgainstXsd,
   WorkflowClient
 }
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.createProcessMonitorClient
+import uk.gov.nationalarchives.dp.client.UserClient.createUserClient
 import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema
 import uk.gov.nationalarchives.dp.client.WorkflowClient.createWorkflowClient
 
@@ -131,6 +133,17 @@ object Fs2Client:
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createProcessMonitorClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
+    }
+
+  def userClient(
+      url: String,
+      secretName: String,
+      duration: FiniteDuration = 15.minutes,
+      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
+      potentialProxyUrl: Option[URI] = None
+  ): IO[UserClient[IO]] =
+    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
+      IO(createUserClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
   def xmlValidator(schema: PreservicaSchema): ValidateXmlAgainstXsd[IO] = ValidateXmlAgainstXsd[IO](schema)
