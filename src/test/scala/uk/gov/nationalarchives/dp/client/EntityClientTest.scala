@@ -13,13 +13,15 @@ import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.Client.*
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
-import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
-import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
+import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI
+import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI.*
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
@@ -33,24 +35,45 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 ) extends AnyFlatSpec
     with BeforeAndAfterEach {
 
+  val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
+  val secretsManagerServer = new WireMockServer(secretsManagerPort)
+  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
+  val preservicaServer = new WireMockServer(preservicaPort)
+
+  val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
+    ("title", "description"),
+    ("page1File&Correction.txt", Some("A new description")),
+    ("page1File&Correction.txt", None)
+  )
+
+  private val entityShortNameToLong =
+    Map("SO" -> "StructuralObject", "IO" -> "InformationObject", "CO" -> "ContentObject")
+  private val identifier = Identifier(
+    "TestIdentifierName",
+    "TestIdentifierValue"
+  )
+  private val defaultAddEntityRequest = AddEntityRequest(
+    Some(UUID.randomUUID()),
+    "page1File&Correction.txt",
+    Some("A description"),
+    StructuralObject,
+    Open,
+    Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
+  )
+  private val defaultUpdateEntityRequest = UpdateEntityRequest(
+    UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
+    "page1File&Correction.txt",
+    Some("A new description"),
+    StructuralObject,
+    Open,
+    Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
+  )
+
   def valueFromF[T](value: F[T]): T
 
   def createClient(url: String): F[EntityClient[F, S]]
 
   def testClient: EntityClient[F, S] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
-
-  private val apiVersion = 7.0f
-  private val xipVersion = 7.0f
-  private val xipUrl = s"http://preservica.com/XIP/v$xipVersion"
-  private val namespaceUrl = s"http://preservica.com/EntityAPI/v$apiVersion"
-  private val entityShortNameToLong =
-    Map("SO" -> "StructuralObject", "IO" -> "InformationObject", "CO" -> "ContentObject")
-
-  val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
-
-  val secretsManagerServer = new WireMockServer(secretsManagerPort)
-
-  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
 
   override def beforeEach(): Unit = {
     preservicaServer.start()
@@ -64,61 +87,31 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     secretsManagerServer.stop()
   }
 
-  val preservicaServer = new WireMockServer(preservicaPort)
+  private def serverRequestUrls =
+    preservicaServer.getAllServeEvents.asScala.map(_.getRequest.getUrl).toList
 
-  def checkServerCall(url: String): Assertion =
-    preservicaServer.getAllServeEvents.asScala.count(_.getRequest.getUrl == url) should equal(1)
+  private def verifyServerRequests(additionalExpectedRequestUrls: List[List[String] | String]) = {
+    val expectedRequestUrlsFlattened: List[String] = additionalExpectedRequestUrls.flatMap {
+      case requests: List[String] => requests
+      case request: String        => List(request)
+    }
+    serverRequestUrls.sorted should equal((expectedRequestUrlsFlattened :+ tokenUrl).sorted)
+  }
 
-  val tokenResponse: String = """{"token": "abcde"}"""
-  val tokenUrl = "/api/accesstoken/login"
+  private def verifyZeroServerRequests = serverRequestUrls.length should be(0)
 
-  val ref: UUID = UUID.randomUUID()
-  val entityUrl = s"/api/entity/v$apiVersion/content-objects/$ref"
-  val ioRef: UUID = UUID.randomUUID()
-
-  private val identifier = Identifier(
-    "TestIdentifierName",
-    "TestIdentifierValue"
-  )
-
-  val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
-    ("title", "description"),
-    ("page1File&Correction.txt", Some("A new description")),
-    ("page1File&Correction.txt", None)
-  )
-
-  List((Some(ref), "with"), (None, "without")).foreach { case (reference, withOrWithout) =>
+  List((Some(createEntity()), "with"), (None, "without")).foreach { case (potentialEntity, withOrWithout) =>
     "addEntity" should s"make a correct request $withOrWithout a predefined reference to add an entity" in {
-      val entityResponse =
-        <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-          <xip:StructuralObject>
-            <xip:Ref>
-              {ref}
-            </xip:Ref>
-            <xip:Title>page1File.txt</xip:Title>
-            <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
-            <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-          </xip:StructuralObject>
-          <AdditionalInformation>
-            <Generations>
-            </Generations>
-          </AdditionalInformation>
-        </EntityResponse>.toString()
-
-      preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-      preservicaServer.stubFor(
-        post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(ok(entityResponse))
-      )
-
-      val addEntityRequest = AddEntityRequest(
-        reference,
-        "page1File&Correction.txt",
-        Some("A new description"),
-        StructuralObject,
-        Open,
-        Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-      )
+      val (addEntityRequest, addEntityUrl) =
+        potentialEntity match {
+          case None =>
+            (defaultAddEntityRequest.copy(ref = None), EntityClientEndpoints(preservicaServer).stubAddEntity())
+          case Some(entity) =>
+            (
+              defaultAddEntityRequest.copy(ref = Some(entity.ref)),
+              EntityClientEndpoints(preservicaServer, potentialEntity).stubAddEntity()
+            )
+        }
 
       val client = testClient
       val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
@@ -126,52 +119,25 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       val _ = valueFromF(addEntityResponse)
 
       val requestMade = getRequestMade(preservicaServer)
-
       requestMade should be(
         s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
             <StructuralObject xmlns="http://preservica.com/XIP/v$xipVersion">
-              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref.get}</Ref>" else ""}
+              ${addEntityRequest.ref.map(ref => s"<Ref>$ref</Ref>").getOrElse("")}
               <Title>page1File&amp;Correction.txt</Title>
-              <Description>A new description</Description>
+              <Description>A description</Description>
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
       )
+      verifyServerRequests(List(addEntityUrl))
     }
   }
 
   "addEntity" should s"make a correct request with the object details inside a XIP node if entity path to add is an 'information object'" in {
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <xip:InformationObject>
-        <xip:Ref>
-          {ref}
-        </xip:Ref>
-        <xip:Title>page1File.txt</xip:Title>
-        <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
-        <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:InformationObject>
-      <AdditionalInformation>
-        <Generations>
-        </Generations>
-      </AdditionalInformation>
-    </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/v$apiVersion/information-objects")).willReturn(ok(entityResponse))
-    )
-
-    val addEntityRequest = AddEntityRequest(
-      None,
-      "page1File&Correction.txt",
-      Some("A new description"),
-      InformationObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+    val informationObject = createEntity(InformationObject)
+    val addEntityRequest = defaultAddEntityRequest.copy(entityType = informationObject.entityType.get)
+    val addEntityUrl = EntityClientEndpoints(preservicaServer, Some(informationObject)).stubAddEntity()
 
     val client = testClient
     val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
@@ -179,30 +145,23 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val _ = valueFromF(addEntityResponse)
 
     val requestMade = getRequestMade(preservicaServer)
-
     requestMade should be(
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <XIP xmlns="http://preservica.com/XIP/v$xipVersion">
             <InformationObject xmlns="http://preservica.com/XIP/v$xipVersion">
-              ${if (addEntityRequest.ref.nonEmpty) s"<Ref>${addEntityRequest.ref}</Ref>" else ""}
+              <Ref>${addEntityRequest.ref.get}</Ref>
               <Title>page1File&amp;Correction.txt</Title>
-              <Description>A new description</Description>
+              <Description>A description</Description>
               <SecurityTag>open</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </InformationObject>
             </XIP>"""
     )
+    verifyServerRequests(List(addEntityUrl))
   }
 
   "addEntity" should "return an error if a content-object entity path was passed in" in {
-    val addEntityRequest = AddEntityRequest(
-      None,
-      "page1File&Correction.txt",
-      Some("A new description"),
-      ContentObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+    val addEntityRequest = defaultAddEntityRequest.copy(entityType = ContentObject)
 
     val client = testClient
     val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
@@ -212,19 +171,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
 
     error.getMessage should be("You currently cannot create a content object via the API.")
+    verifyZeroServerRequests
   }
 
   "addEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient
-    val addEntityRequest = AddEntityRequest(
-      Some(ref),
-      "page1File&Correction.txt",
-      Some("A new description"),
-      InformationObject,
-      Open,
-      None
-    )
-
+    val addEntityRequest = defaultAddEntityRequest.copy(entityType = InformationObject, parentRef = None)
     val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val error = intercept[PreservicaClientException] {
@@ -234,70 +186,35 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     error.getMessage should be(
       "You must pass in the parent ref if you would like to add/update a non-structural object."
     )
+    verifyZeroServerRequests
   }
 
-  "addEntity" should s"return a message confirmation if the object got updated" in {
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <xip:StructuralObject>
-        <xip:Ref>
-          {ref}
-        </xip:Ref>
-        <xip:Title>page1File.txt</xip:Title>
-        <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
-        <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:StructuralObject>
-      <AdditionalInformation>
-        <Generations>
-        </Generations>
-      </AdditionalInformation>
-    </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(ok(entityResponse))
-    )
-
-    val addEntityRequest = AddEntityRequest(
-      Some(ref),
-      "page1File&Correction.txt",
-      Some("A new description"),
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+  "addEntity" should s"return a message confirmation if the object got added" in {
+    val structuralObject = createEntity()
+    val addEntityRequest = defaultAddEntityRequest.copy(ref = Some(structuralObject.ref))
+    val addEntityUrl = EntityClientEndpoints(preservicaServer, Some(structuralObject)).stubAddEntity()
 
     val client = testClient
     val addEntityResponse: F[UUID] = client.addEntity(addEntityRequest)
 
     val response = valueFromF(addEntityResponse)
-
-    response should be(ref)
+    response should be(addEntityRequest.ref.get)
+    verifyServerRequests(List(addEntityUrl))
   }
 
   "addEntity" should s"return an exception if the API call does" in {
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects")).willReturn(badRequest()))
-
-    val updateEntityRequest = AddEntityRequest(
-      Some(UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f")),
-      "page1File&Correction.txt",
-      Some("A new description"),
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+    val addEntityUrl = EntityClientEndpoints(preservicaServer).stubAddEntity(false)
 
     val client = testClient
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.addEntity(updateEntityRequest))
+      valueFromF(client.addEntity(defaultAddEntityRequest))
     }
 
     error.getMessage should equal(
       s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects with method POST "
     )
+    verifyServerRequests(List(addEntityUrl))
   }
 
   forAll(updateRequestPermutations) { (title, potentialDescription) =>
@@ -306,36 +223,15 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       val nodesToUpdate = indexesOfChanges.map(index => updateRequestPermutations.heading.productElement(index))
 
       "updateEntity" should s"make a correct request to update the ${nodesToUpdate.mkString(" and ")}" in {
-        val entityResponse =
-          <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-          <xip:StructuralObject>
-            <xip:Ref>
-              {ref}
-            </xip:Ref>
-            <xip:Title>page1File.txt</xip:Title>
-            <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
-            <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-          </xip:StructuralObject>
-          <AdditionalInformation>
-            <Generations>
-            </Generations>
-          </AdditionalInformation>
-        </EntityResponse>.toString()
+        val structuralObject = createEntity()
+        val updateEntityRequest =
+          defaultUpdateEntityRequest.copy(
+            ref = structuralObject.ref,
+            title = title,
+            descriptionToChange = potentialDescription
+          )
 
-        preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-        preservicaServer.stubFor(
-          put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref")).willReturn(ok(entityResponse))
-        )
-
-        val updateEntityRequest = UpdateEntityRequest(
-          ref,
-          title,
-          potentialDescription,
-          StructuralObject,
-          Open,
-          Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-        )
+        val updateEntityUrl = EntityClientEndpoints(preservicaServer, Some(structuralObject)).stubUpdateEntity()
 
         val client = testClient
         val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
@@ -343,7 +239,6 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         val _ = valueFromF(updateEntityResponse)
 
         val requestMade = getRequestMade(preservicaServer)
-
         requestMade should be(
           s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 ++++++++++++
@@ -359,271 +254,72 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
         )
+        verifyServerRequests(List(updateEntityUrl))
       }
     }
   }
 
   "updateEntity" should "return an error if a non-structural object was passed in without a parent" in {
     val client = testClient
-    val updateEntityRequest = UpdateEntityRequest(
-      ref,
-      "page1File&Correction.txt",
-      Some("A new description"),
-      InformationObject,
-      Open,
-      None
-    )
+    val updateEntityRequest = defaultUpdateEntityRequest.copy(entityType = InformationObject, parentRef = None)
 
     val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(updateEntityResponse)
     }
-
     error.getMessage should be(
       "You must pass in the parent ref if you would like to add/update a non-structural object."
     )
+    verifyZeroServerRequests
   }
 
   "updateEntity" should s"return a message confirmation if the object got updated" in {
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <xip:StructuralObject>
-        <xip:Ref>
-          {ref}
-        </xip:Ref>
-        <xip:Title>page1File.txt</xip:Title>
-        <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
-        <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
-      </xip:StructuralObject>
-      <AdditionalInformation>
-        <Generations>
-        </Generations>
-      </AdditionalInformation>
-    </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref")).willReturn(ok(entityResponse))
-    )
-
-    val updateEntityRequest = UpdateEntityRequest(
-      ref,
-      "page1File&Correction.txt",
-      Some("A new description"),
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+    val structuralObject = createEntity()
+    val updateEntityUrl = EntityClientEndpoints(preservicaServer, Some(structuralObject)).stubUpdateEntity()
 
     val client = testClient
-    val updateEntityResponse: F[String] = client.updateEntity(updateEntityRequest)
+    val updateEntityResponse: F[String] =
+      client.updateEntity(defaultUpdateEntityRequest.copy(ref = structuralObject.ref))
 
     val response = valueFromF(updateEntityResponse)
-
     response should be("Entity was updated")
+    verifyServerRequests(List(updateEntityUrl))
   }
 
   "updateEntity" should s"return an exception if the API call does" in {
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f"))
-        .willReturn(badRequest())
-    )
-
-    val updateEntityRequest = UpdateEntityRequest(
-      UUID.fromString("6380a397-294b-4b02-990f-db5fc20b113f"),
-      "page1File&Correction.txt",
-      Some("A new description"),
-      StructuralObject,
-      Open,
-      Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
-    )
+    val structuralObject = createEntity()
+    val updateEntityUrl = EntityClientEndpoints(preservicaServer, Some(structuralObject)).stubUpdateEntity(false)
 
     val client = testClient
 
     val error = intercept[PreservicaClientException] {
-      valueFromF(client.updateEntity(updateEntityRequest))
+      valueFromF(client.updateEntity(defaultUpdateEntityRequest.copy(ref = structuralObject.ref)))
     }
-
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/6380a397-294b-4b02-990f-db5fc20b113f with method PUT "
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c with method PUT "
     )
+    verifyServerRequests(List(updateEntityUrl))
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
-    val fileName = "test.txt"
-    val generationsUrl = s"/api/entity/v$apiVersion/content-objects/$ref/generations"
-    val generationUrl = s"$generationsUrl/1"
-    val bitstreamUrl = s"$generationUrl/bitstreams/1"
+    val entity = createEntity(ContentObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
 
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <xip:ContentObject>
-          <xip:Ref>b2f07829-e167-499a-9f3e-727cf3f64468</xip:Ref>
-          <xip:Title>page1File.txt</xip:Title>
-          <xip:Description>A description</xip:Description>
-          <xip:SecurityTag>open</xip:SecurityTag>
-          <xip:Parent>a6771bd9-a4df-47fb-bcc1-982f0b42f7cb</xip:Parent>
-        </xip:ContentObject>
-      <AdditionalInformation>
-        <Generations>http://localhost:{preservicaPort}{generationsUrl}</Generations>
-      </AdditionalInformation>
-    </EntityResponse>.toString()
-    val generationsResponse =
-      <GenerationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Generations>
-          <Generation active="true">http://localhost:{preservicaPort}{generationUrl}</Generation>
-        </Generations>
-      </GenerationsResponse>.toString()
-    val generationResponse =
-      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Generation original="false" active="true">
-        </Generation>
-        <Bitstreams>
-          <Bitstream filename="test.txt">http://localhost:{preservicaPort}{bitstreamUrl}</Bitstream>
-        </Bitstreams>
-      </GenerationResponse>.toString()
-    val bitstreamResponse = <BitstreamResponse>
-      <xip:Bitstream>
-        <xip:Filename>{fileName}</xip:Filename>
-        <xip:FileSize>1234</xip:FileSize>
-        <xip:Fixities>
-          <xip:Fixity>
-            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
-            <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
-          </xip:Fixity>
-        </xip:Fixities>
-      </xip:Bitstream>
-      <AdditionalInformation>
-        <Self>http://test/generations/1/bitstreams/1</Self>
-        <Content>http://test</Content>
-      </AdditionalInformation>
-    </BitstreamResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(generationsUrl)).willReturn(ok(generationsResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(generationUrl)).willReturn(ok(generationResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(bitstreamUrl)).willReturn(ok(bitstreamResponse)))
+    val requestUrls: List[List[String] | String] = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubCoGenerations(),
+      endpoints.stubCoGeneration(),
+      endpoints.stubCoBitstreamInfo()
+    )
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
-
-    val bitStreamInfo = valueFromF(response).head
-    bitStreamInfo.url should equal(s"http://test")
-    bitStreamInfo.name should equal(fileName)
-    bitStreamInfo.fileSize should equal(1234)
-    bitStreamInfo.fixity.algorithm should equal("SHA1")
-    bitStreamInfo.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
-    bitStreamInfo.generationVersion should equal(1)
-    bitStreamInfo.generationType should equal(Derived)
-    bitStreamInfo.potentialCoTitle should equal(Some("page1File.txt"))
-    bitStreamInfo.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
-
-    checkServerCall(entityUrl)
-    checkServerCall(generationsUrl)
-    checkServerCall(generationUrl)
-  }
-
-  "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info for multiple generations" in {
-    val generationsUrl = s"/api/entity/v$apiVersion/content-objects/$ref/generations"
-    val generationOneUrl = s"$generationsUrl/1"
-    val generationTwoUrl = s"$generationsUrl/2"
-    val bitstreamOneUrl = s"$generationOneUrl/bitstreams/1"
-    val bitstreamTwoUrl = s"$generationTwoUrl/bitstreams/1"
-
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <xip:ContentObject>
-          <xip:Ref>b2f07829-e167-499a-9f3e-727cf3f64468</xip:Ref>
-          <xip:Title>page1File.txt</xip:Title>
-          <xip:Description>A description</xip:Description>
-          <xip:SecurityTag>open</xip:SecurityTag>
-          <xip:Parent>a6771bd9-a4df-47fb-bcc1-982f0b42f7cb</xip:Parent>
-        </xip:ContentObject>
-        <AdditionalInformation>
-          <Generations>http://localhost:{preservicaPort}{generationsUrl}</Generations>
-        </AdditionalInformation>
-      </EntityResponse>.toString()
-    val generationsResponse =
-      <GenerationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Generations>
-        <Generation active="true">http://localhost:{preservicaPort}{generationOneUrl}</Generation>
-        <Generation active="true">http://localhost:{preservicaPort}{generationTwoUrl}</Generation>
-      </Generations>
-    </GenerationsResponse>.toString()
-    val generationOneResponse =
-      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Generation original="true" active="true">
-        </Generation>
-        <Bitstreams>
-          <Bitstream filename="test1.txt">http://localhost:{preservicaPort}{bitstreamOneUrl}</Bitstream>
-        </Bitstreams>
-      </GenerationResponse>.toString()
-
-    val generationTwoResponse =
-      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Generation original="false" active="true">
-        </Generation>
-        <Bitstreams>
-          <Bitstream filename="test2.txt">http://localhost:{preservicaPort}{bitstreamTwoUrl}</Bitstream>
-        </Bitstreams>
-      </GenerationResponse>.toString()
-
-    val bitstreamOneResponse = <BitstreamResponse>
-      <xip:Bitstream>
-        <xip:Filename>test1.txt</xip:Filename>
-        <xip:FileSize>1234</xip:FileSize>
-        <xip:Fixities>
-          <xip:Fixity>
-            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
-            <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
-          </xip:Fixity>
-        </xip:Fixities>
-      </xip:Bitstream>
-      <AdditionalInformation>
-        <Self>http://test/generations/1/bitstreams/1</Self>
-        <Content>http://test</Content>
-      </AdditionalInformation>
-    </BitstreamResponse>.toString()
-
-    val bitstreamTwoResponse = <BitstreamResponse>
-      <xip:Bitstream>
-        <xip:Filename>test2.txt</xip:Filename>
-        <xip:FileSize>1234</xip:FileSize>
-        <xip:Fixities>
-          <xip:Fixity>
-            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
-            <xip:FixityValue>5e0a0af2f597bf6b06c5295fea11be74cf89e1c1</xip:FixityValue>
-          </xip:Fixity>
-        </xip:Fixities>
-      </xip:Bitstream>
-      <AdditionalInformation>
-        <Self>http://test/generations/2/bitstreams/1</Self>
-        <Content>http://test</Content>
-      </AdditionalInformation>
-    </BitstreamResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(generationsUrl)).willReturn(ok(generationsResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(generationOneUrl)).willReturn(ok(generationOneResponse))
-    )
-    preservicaServer.stubFor(
-      get(urlEqualTo(generationTwoUrl)).willReturn(ok(generationTwoResponse))
-    )
-    preservicaServer.stubFor(get(urlEqualTo(bitstreamOneUrl)).willReturn(ok(bitstreamOneResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(bitstreamTwoUrl)).willReturn(ok(bitstreamTwoResponse)))
-
-    val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val bitStreamInfo = valueFromF(response)
-    bitStreamInfo.size should equal(2)
-    bitStreamInfo.head.url should equal(s"http://test")
+    bitStreamInfo.head.url should equal(
+      s"http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content"
+    )
     bitStreamInfo.head.name should equal("test1.txt")
     bitStreamInfo.head.fileSize should equal(1234)
     bitStreamInfo.head.fixity.algorithm should equal("SHA1")
@@ -631,48 +327,43 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.head.generationVersion should equal(1)
     bitStreamInfo.head.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
-    bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
+    bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
-    bitStreamInfo.last.url should equal(s"http://test")
-    bitStreamInfo.last.name should equal("test2.txt")
+    bitStreamInfo.last.url should equal(
+      s"http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
+    )
+    bitStreamInfo.last.name should equal("test1.txt")
     bitStreamInfo.last.fileSize should equal(1234)
     bitStreamInfo.last.fixity.algorithm should equal("SHA1")
-    bitStreamInfo.last.fixity.value should equal("5e0a0af2f597bf6b06c5295fea11be74cf89e1c1")
+    bitStreamInfo.last.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
     bitStreamInfo.last.generationVersion should equal(2)
     bitStreamInfo.last.generationType should equal(Derived)
     bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
-    bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("a6771bd9-a4df-47fb-bcc1-982f0b42f7cb")))
+    bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
-    checkServerCall(entityUrl)
-    checkServerCall(generationsUrl)
-    checkServerCall(generationOneUrl)
-    checkServerCall(generationTwoUrl)
+    verifyServerRequests(requestUrls)
   }
 
   "getBitstreamInfo" should "return an error if no generations are available" in {
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <AdditionalInformation>
-      </AdditionalInformation>
-    </EntityResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
+    val entity = createEntity(ContentObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val getEntityUrl = endpoints.stubGetEntity(emptyResponse = true)
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(ref)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map { err =>
       err.getMessage should equal("Generation not found")
-    })
+    }
+    verifyServerRequests(List(getEntityUrl))
   }
 
   "getBitstreamInfo" should "return an error if the server is unavailable" in {
-    val tokenUrl = "/api/accesstoken/login"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    endpoints.serverErrorStub(MockPreservicaAPI.tokenUrl)
 
     val client = testClient
     val response = client.getBitstreamInfo(UUID.randomUUID())
@@ -680,102 +371,114 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map { err =>
       err.getMessage should equal(
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
-    })
+    }
+    verifyServerRequests(Nil)
   }
 
   "streamBitstreamContent" should "stream content to the provided function" in {
-    val url = s"http://localhost:$preservicaPort"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo("/bitstream/1")).willReturn(ok("test")))
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val bitstreamUrl = endpoints.bitstreamOneContentUrl
+    endpoints.stubStreamBitstreamContent()
+    val bitstreamUrlToStreamFrom = endpoints.preservicaUrl + bitstreamUrl
+
     val client = testClient
 
-    val response = client.streamBitstreamContent[String](stream)(
-      s"$url/bitstream/1",
-      _ => cme.pure(s"Test return value")
-    )
+    val response =
+      client.streamBitstreamContent[String](stream)(bitstreamUrlToStreamFrom, _ => cme.pure(s"Test return value"))
     val responseValue = valueFromF(response)
     responseValue should equal("Test return value")
+    verifyServerRequests(List(bitstreamUrl))
   }
 
   "streamBitstreamContent" should "return an error if the server is unavailable" in {
-    val url = s"http://localhost:$preservicaPort"
-    val tokenUrl = "/api/accesstoken/login"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    endpoints.serverErrorStub(MockPreservicaAPI.tokenUrl)
 
     val client = testClient
     val response =
-      client.streamBitstreamContent[Unit](stream)(s"$url/bitstream/1", _ => cme.unit)
+      client.streamBitstreamContent[Unit](stream)(s"https://unusedTestUrl.com", _ => cme.unit)
 
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
-    expectedError.left.map(err => {
+    expectedError.left.map { err =>
       err.getMessage should equal(
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
-    })
+    }
+    verifyServerRequests(Nil)
   }
 
   "metadataForEntity" should "return the correct metadata for a CO" in {
-    val entityId = UUID.randomUUID()
-    val entity = valueFromF(fromType("CO", entityId, Option("title"), Option("description"), deleted = false))
-    val urls = metadataForEntitySetUp(entity)
+    val entity = createEntity(ContentObject)
     val client = testClient
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+
+    val requestUrls = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubGetIdentifierForEntity(),
+      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
+      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubLinks(),
+      endpoints.stubCoGenerations(),
+      endpoints.stubCoGeneration(),
+      endpoints.stubCoBitstreamInfo(),
+      endpoints.stubEventActions()
+    )
 
     val res = client.metadataForEntity(entity)
     val metadata: CoMetadata = valueFromF(res).asInstanceOf[CoMetadata]
 
     metadata.entityNode.toString should equal(
-      <ContentObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
-            <Ref>{entityId}</Ref>
-            <Title>Title</Title>
-            <Description>A description</Description>
-            <SecurityTag>open</SecurityTag>
-            <Deleted>true</Deleted>
-            <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
-          </ContentObject>.toString
+      <xip:ContentObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+              <xip:Ref>{entity.ref}</xip:Ref>
+            <xip:Title>page1File.txt</xip:Title>
+            <xip:Description>A description</xip:Description>
+            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
+            </xip:ContentObject>.toString
     )
     metadata.identifiers.head.toString should equal(
-      <xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+      <Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
-            <xip:Type>identifier</xip:Type>
-            <xip:Value>testValue</xip:Value>
-            <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier>.toString
+            <xip:Type>Test Type 1</xip:Type>
+            <xip:Value>Test Value 1</xip:Value>
+            <xip:Entity>{entity.ref}</xip:Entity>
+          </Identifier>.toString
     )
     metadata.links.head.toString should equal(
       <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
         xipUrl
       } xmlns={namespaceUrl}>http://localhost:{
         preservicaPort
-      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>.toString
+      }/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Link>.toString
     )
     metadata.links.last.toString should equal(
       <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
         xipUrl
       } xmlns={namespaceUrl}>http://localhost:{
         preservicaPort
-      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
+      }/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Link>.toString
     )
     metadata.metadataNodes.head.toString should equal(
-      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
-          <Content>
-            <Test1>
-        <Test1Value>Test1Value</Test1Value>
-      </Test1>
-          </Content>
-        </Metadata>.toString
+      <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+            <Content>
+              <Test1>
+                <Test1Value>Test1Value</Test1Value>
+              </Test1>
+            </Content>
+          </Metadata>.toString
     )
     metadata.metadataNodes.last.toString should equal(
-      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+      <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
             <Content>
               <Test2>
-        <Test2Value>Test2Value</Test2Value>
-      </Test2>
+                <Test2Value>Test2Value</Test2Value>
+              </Test2>
             </Content>
           </Metadata>.toString
     )
@@ -803,82 +506,91 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <xip:Filename>test1.txt</xip:Filename>
           <xip:FileSize>1234</xip:FileSize>
           <xip:Fixities>
+            <xip:Fixity>
+              <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+              <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
+            </xip:Fixity>
           </xip:Fixities>
         </xip:Bitstream>
         <AdditionalInformation>
+          <Self>http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1</Self>
+          <Content>http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content</Content>
         </AdditionalInformation>
       </BitstreamResponse>.toString
     )
 
-    checkServerCall(urls.entityUrl)
-    checkServerCall(urls.identifiersUrl)
-    checkServerCall(urls.linksUrl + "?max=1000&start=0")
-    checkServerCall(urls.linksUrl + "?max=1000&start=1000")
-    checkServerCall(urls.fragmentOneUrl)
-    checkServerCall(urls.fragmentTwoUrl)
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=0")
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=1000")
-    checkServerCall(urls.generationsUrl)
-    checkServerCall(urls.generationOneUrl)
-    checkServerCall(urls.bitstreamOneUrl)
+    verifyServerRequests(requestUrls)
   }
 
   "metadataForEntity" should "return the correct metadata for an IO" in {
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val urls = metadataForEntitySetUp(entity)
     val client = testClient
+
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+
+    val requestUrls = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubGetIdentifierForEntity(),
+      endpoints.stubIoRepresentationUrls(),
+      endpoints.stubIoRepresentations(Preservation),
+      endpoints.stubIoRepresentations(Access),
+      endpoints.stubIoRepresentations(Access, 2),
+      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
+      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubLinks(),
+      endpoints.stubEventActions()
+    )
 
     val res = client.metadataForEntity(entity)
     val metadata: IoMetadata = valueFromF(res).asInstanceOf[IoMetadata]
 
     metadata.entityNode.toString should equal(
-      <InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
-            <Ref>{entityId}</Ref>
-            <Title>Title</Title>
-            <Description>A description</Description>
-            <SecurityTag>open</SecurityTag>
-            <Deleted>true</Deleted>
-            <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
-          </InformationObject>.toString
+      <xip:InformationObject xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+              <xip:Ref>{entity.ref}</xip:Ref>
+            <xip:Title>page1File.txt</xip:Title>
+            <xip:Description>A description</xip:Description>
+            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
+            </xip:InformationObject>.toString
     )
     metadata.identifiers.head.toString should equal(
-      <xip:Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+      <Identifier xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
-            <xip:Type>identifier</xip:Type>
-            <xip:Value>testValue</xip:Value>
-            <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier>.toString
+            <xip:Type>Test Type 1</xip:Type>
+            <xip:Value>Test Value 1</xip:Value>
+            <xip:Entity>{entity.ref}</xip:Entity>
+          </Identifier>.toString
     )
     metadata.links.head.toString should equal(
       <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
         xipUrl
       } xmlns={namespaceUrl}>http://localhost:{
         preservicaPort
-      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>.toString
+      }/api/entity/v7.0/information-objects/{entityId}</Link>.toString
     )
     metadata.links.last.toString should equal(
       <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
         xipUrl
       } xmlns={namespaceUrl}>http://localhost:{
         preservicaPort
-      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>.toString
+      }/api/entity/v7.0/information-objects/{entityId}</Link>.toString
     )
     metadata.metadataNodes.head.toString should equal(
-      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
-          <Content>
-            <Test1>
-        <Test1Value>Test1Value</Test1Value>
-      </Test1>
-          </Content>
-        </Metadata>.toString
+      <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
+            <Content>
+              <Test1>
+                <Test1Value>Test1Value</Test1Value>
+              </Test1>
+            </Content>
+          </Metadata>.toString
     )
     metadata.metadataNodes.last.toString should equal(
-      <Metadata xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0" >
+      <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
             <Content>
               <Test2>
-        <Test2Value>Test2Value</Test2Value>
-      </Test2>
+                <Test2Value>Test2Value</Test2Value>
+              </Test2>
             </Content>
           </Metadata>.toString
     )
@@ -891,7 +603,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
               <xip:User>test user</xip:User>
             </xip:Event>
             <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
-            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
+            <xip:Entity>{entityId}</xip:Entity>
           </xip:EventAction>.toString
     )
 
@@ -900,100 +612,107 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <xip:InformationObject>{entityId}</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>
           <xip:Type>Preservation</xip:Type>
-          <xip:ContentObjects/>
+          <xip:ContentObjects>
+            <xip:ContentObject>ad30d41e-b75c-4195-b569-91e820f430ac</xip:ContentObject>
+            <xip:ContentObject>354f47cf-3ca2-4a4e-8181-81b714334f00</xip:ContentObject>
+          </xip:ContentObjects>
           <xip:RepresentationFormats/>
           <xip:RepresentationProperties/>
         </xip:Representation>.toString
     )
 
-    checkServerCall(urls.entityUrl)
-    checkServerCall(urls.identifiersUrl)
-    checkServerCall(urls.linksUrl + "?max=1000&start=0")
-    checkServerCall(urls.linksUrl + "?max=1000&start=1000")
-    checkServerCall(urls.fragmentOneUrl)
-    checkServerCall(urls.fragmentTwoUrl)
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=0")
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=1000")
-    checkServerCall(urls.urlsToRepresentationsUrl)
-    checkServerCall(urls.preservationOneRepUrl)
+    verifyServerRequests(requestUrls)
   }
 
-  "metadataForEntity" should "return standard metadata for if the Entity type in the request is not an IO nor CO" in {
+  "metadataForEntity" should "return 'standard' metadata if the Entity type in the request is not an IO nor CO" in {
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("SO", entityId, Option("title"), Option("description"), deleted = false))
-    val urls = metadataForEntitySetUp(entity)
     val client = testClient
+
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+
+    val requestUrls = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubGetIdentifierForEntity(),
+      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
+      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubLinks(),
+      endpoints.stubEventActions()
+    )
 
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
     metadata.getClass.getSimpleName should equal("StandardEntityMetadata")
 
-    checkServerCall(urls.entityUrl)
-    checkServerCall(urls.identifiersUrl)
-    checkServerCall(urls.linksUrl + "?max=1000&start=0")
-    checkServerCall(urls.linksUrl + "?max=1000&start=1000")
-    checkServerCall(urls.fragmentOneUrl)
-    checkServerCall(urls.fragmentTwoUrl)
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=0")
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=1000")
+    verifyServerRequests(requestUrls)
   }
 
   "metadataForEntity" should "return an empty list when the object has no fragments" in {
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val urls = metadataForEntitySetUp(entity, returnMetadataFragmentUrls = false)
     val client = testClient
+
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+
+    val requestUrls = List(
+      endpoints.stubGetEntity(returnMetadataFragmentUrls = false),
+      endpoints.stubGetIdentifierForEntity(),
+      endpoints.stubIoRepresentationUrls(),
+      endpoints.stubIoRepresentations(Preservation),
+      endpoints.stubIoRepresentations(Access),
+      endpoints.stubIoRepresentations(Access, 2),
+      endpoints.stubLinks(),
+      endpoints.stubEventActions()
+    )
 
     val res = client.metadataForEntity(entity)
     val metadata = valueFromF(res)
 
     metadata.metadataNodes should equal(Nil)
 
-    checkServerCall(urls.entityUrl)
-    checkServerCall(urls.identifiersUrl)
-    checkServerCall(urls.linksUrl + "?max=1000&start=0")
-    checkServerCall(urls.linksUrl + "?max=1000&start=1000")
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=0")
-    checkServerCall(urls.eventActionsUrl + "?max=1000&start=1000")
+    verifyServerRequests(requestUrls)
   }
 
   "metadataForEntity" should "return an error if even one metadata response element is empty" in {
     val entityId = UUID.randomUUID()
     val entity = valueFromF(fromType("IO", entityId, Option("title"), Option("description"), deleted = false))
-    val urls = metadataForEntitySetUp(entity, returnFragmentTwoResponse = false)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
     val client = testClient
+
+    val requestUrls = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubGetIdentifierForEntity(),
+      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
+      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a"), false),
+      endpoints.stubLinks()
+    )
 
     val res = client.metadataForEntity(entity)
     val error = intercept[PreservicaClientException] {
       valueFromF(res)
     }
     error.getMessage should equal(
-      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
-                                                                        |        <MetadataContainer>
-                                                                        |          <Content>
-                                                                        |            <Test1>
-                                                                        |        <Test1Value>Test1Value</Test1Value>
-                                                                        |      </Test1>
-                                                                        |          </Content>
-                                                                        |        </MetadataContainer>
-                                                                        |      </MetadataResponse>
+      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+                                                                        |          <MetadataContainer>
+                                                                        |            <Content>
+                                                                        |              <Test1>
+                                                                        |                <Test1Value>Test1Value</Test1Value>
+                                                                        |              </Test1>
+                                                                        |            </Content>
+                                                                        |          </MetadataContainer>
+                                                                        |        </MetadataResponse>
                                                                         |<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
                                                                         |        </MetadataResponse>""".stripMargin
     )
 
-    checkServerCall(urls.entityUrl)
-    checkServerCall(urls.identifiersUrl)
-    checkServerCall(urls.fragmentOneUrl)
-    checkServerCall(urls.fragmentTwoUrl)
-    checkServerCall(urls.linksUrl + "?max=1000&start=0")
-    checkServerCall(urls.linksUrl + "?max=1000&start=1000")
+    verifyServerRequests(requestUrls)
   }
 
   "metadataForEntity" should "return an error if the server is unavailable" in {
-    val tokenUrl = "/api/accesstoken/login"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(serverError()))
     val entity = valueFromF(fromType("IO", UUID.randomUUID(), Option("title"), Option("description"), deleted = false))
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    endpoints.serverErrorStub(MockPreservicaAPI.tokenUrl)
     val client = testClient
     val response = client.metadataForEntity(entity)
 
@@ -1005,48 +724,24 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         s"Status code 500 calling http://localhost:$preservicaPort/api/accesstoken/login with method POST statusCode: 500, response: "
       )
     })
+    verifyServerRequests(Nil)
   }
 
   "metadataForEntity" should "return an error if the entity path is empty" in {
     val id = UUID.randomUUID()
     val entity = Entity(None, id, None, None, deleted = true, None)
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
+    EntityClientEndpoints(preservicaServer)
     val client = testClient
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.metadataForEntity(entity))
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
+    verifyServerRequests(Nil)
   }
 
   "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
-    val pageResult = <EntitiesResponse>
-      <Entities>
-        <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/page1/object</Entity>
-      </Entities>
-      <Paging>
-        <Next>http://localhost:{
-      preservicaPort
-    }/api/entity/v$apiVersion/entities/updated-since?date=2023-04-25T00%3A00%3A00.000Z
-          &amp;
-          start=100
-          &amp;
-          max=1000</Next>
-      </Paging>
-    </EntitiesResponse>
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
-        .withQueryParams(
-          Map(
-            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(ok(pageResult.toString()))
-    )
+    val entitiesUpdatedSinceUrl = EntityClientEndpoints(preservicaServer).stubEntitiesUpdatedSince(date)
 
     val client = testClient
     val response = valueFromF(client.entitiesUpdatedSince(date, 0))
@@ -1057,133 +752,49 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     expectedEntity.path.get should equal("information-objects")
     expectedEntity.title.get should be("page1File.txt")
     expectedEntity.deleted should be(false)
+
+    verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
   "entitiesUpdatedSince" should "return an empty list if none have been updated" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
-    val input = <EntitiesResponse>
-      <Entities></Entities>
-    </EntitiesResponse>
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
-        .withQueryParams(
-          Map(
-            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(ok(input.toString()))
-    )
+    val entitiesUpdatedSinceUrl =
+      EntityClientEndpoints(preservicaServer).stubEntitiesUpdatedSince(date, emptyResponse = true)
 
     val client = testClient
     val response = valueFromF(client.entitiesUpdatedSince(date, 0))
 
     response.size should equal(0)
+    verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
   "entitiesUpdatedSince" should "return an error if the request is malformed" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/updated-since"))
-        .withQueryParams(
-          Map(
-            "date" -> equalTo("2023-04-25T00:00:00.000Z"),
-            "max" -> equalTo("100"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(badRequest())
-    )
+    val entitiesUpdatedSinceUrl = EntityClientEndpoints(preservicaServer).stubEntitiesUpdatedSince(date, false)
 
     val client = testClient
     val response = valueFromF(cme.attempt(client.entitiesUpdatedSince(date, 0)))
 
-    response.left.map(err => {
+    response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
-    })
+    }
+    verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
   "entityEventActions" should "return all paginated values in reverse chronological order (most recent EventAction first)" in {
-    val firstPage = <EventActionsResponse>
-      <EventActions>
-        <xip:EventAction commandType="command_create">
-          <xip:Event type="Ingest">
-            <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
-            <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
-            <xip:User>test user</xip:User>
-          </xip:Event>
-          <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
-          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-        </xip:EventAction>
-      </EventActions>
-      <Paging>
-        <Next>http://localhost:{
-      preservicaPort
-    }/api/entity/v{
-      apiVersion
-    }/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions?max=1000&amp;start=1000</Next>
-      </Paging>
-    </EventActionsResponse>
-    val secondPage = <EventActionsResponse>
-      <EventActions>
-        <xip:EventAction commandType="AddIdentifier">
-          <xip:Event type="Modified">
-            <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
-            <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
-            <xip:User>test user</xip:User>
-          </xip:Event>
-          <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
-          <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-        </xip:EventAction>
-      </EventActions>
-      <Paging>
-      </Paging>
-    </EventActionsResponse>
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(
-        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
-      )
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(ok(firstPage.toString()))
+    val contentObject = Entities.Entity(
+      ContentObject.some,
+      UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+      None,
+      None,
+      deleted = false,
+      ContentObject.entityPath.some
     )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(contentObject))
+    val eventActionsUrl = endpoints.stubEventActions()
 
-    preservicaServer.stubFor(
-      get(
-        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
-      )
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("1000")
-          ).asJava
-        )
-        .willReturn(ok(secondPage.toString()))
-    )
     val client = testClient
-    val response = valueFromF(
-      client.entityEventActions(
-        Entities.Entity(
-          ContentObject.some,
-          UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
-          None,
-          None,
-          deleted = false,
-          ContentObject.entityPath.some
-        )
-      )
-    )
+    val response = valueFromF(client.entityEventActions(contentObject))
 
     val firstResult = response.head
     val secondResult = response.last
@@ -1195,42 +806,22 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     secondResult.dateOfEvent.toString should equal("2023-06-26T08:14:08.441Z")
     secondResult.eventRef should equal(UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"))
     secondResult.eventType should be("Ingest")
+
+    verifyServerRequests(List(eventActionsUrl))
   }
 
   "entityEventActions" should "return an error if the request is malformed" in {
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(
-        urlPathMatching(s"/api/entity/v$apiVersion/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/event-actions")
-      )
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(badRequest())
-    )
+    val contentObject = createEntity(ContentObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(contentObject))
+    val eventActionsUrl = endpoints.stubEventActions(false).head
 
     val client = testClient
-    val response = valueFromF(
-      cme.attempt(
-        client.entityEventActions(
-          Entities.Entity(
-            ContentObject.some,
-            UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
-            None,
-            None,
-            deleted = false,
-            ContentObject.entityPath.some
-          )
-        )
-      )
-    )
+    val response = valueFromF(cme.attempt(client.entityEventActions(contentObject)))
 
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
+    verifyServerRequests(List(eventActionsUrl))
   }
 
   "entityEventActions" should "return an error if the entity path is empty" in {
@@ -1251,78 +842,42 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       )
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
+    verifyZeroServerRequests
   }
 
   "entitiesByIdentifier" should "return a complete entity if it has the identifier specified" in {
-    val id = "8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91"
-    val pageResult = <EntitiesResponse>
-      <Entities>
-        <Entity title="page1File.txt" ref={id} type="SO">http://localhost/page1/object</Entity>
-      </Entities>
-      <Paging>
-        <Next>http://localhost:{
-      preservicaPort
-    }/api/entity/v$apiVersion/entities/by-identifier?type=testIdentifier&amp;value=testValue
-        </Next>
-      </Paging>
-    </EntitiesResponse>
+    val identifier = Identifier("testIdentifier", "testValue")
+    val structuralObject = createEntity()
 
-    val fullEntityResponse = <EntityResponse>
-      <xip:StructuralObject>
-        <xip:Ref>{id}</xip:Ref>
-        <xip:Title>page1File.txt</xip:Title>
-        <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
-      </xip:StructuralObject>
-    </EntityResponse>
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
 
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
-        .withQueryParams(
-          Map(
-            "type" -> equalTo("testIdentifier"),
-            "value" -> equalTo("testValue")
-          ).asJava
-        )
-        .willReturn(ok(pageResult.toString()))
-    )
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$id"))
-        .willReturn(ok(fullEntityResponse.toString))
+    val requestUrls = List(
+      endpoints.stubGetEntity(),
+      endpoints.stubEntitiesByIdentifier(identifier)
     )
 
     val client = testClient
-    val response = valueFromF(
-      client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"))
-    )
+    val response = valueFromF(client.entitiesByIdentifier(identifier))
 
     val expectedEntity = response.head
 
-    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.ref.toString should equal("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
     expectedEntity.path.get should equal("structural-objects")
     expectedEntity.title.get should be("page1File.txt")
     expectedEntity.description.get should be("A description")
     expectedEntity.securityTag.get should be(Open)
     expectedEntity.deleted should be(false)
+
+    verifyServerRequests(List(requestUrls))
   }
 
   "entitiesByIdentifier" should "return an empty list if no entities have the identifier specified" in {
-    val pageResult = <EntitiesResponse>
-      <Entities></Entities>
-    </EntitiesResponse>
+    val identifier = Identifier("testIdentifier", "testValueDoesNotExist")
+    val structuralObject = createEntity()
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
 
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
-        .withQueryParams(
-          Map(
-            "type" -> equalTo("testIdentifier"),
-            "value" -> equalTo("testValueDoesNotExist")
-          ).asJava
-        )
-        .willReturn(ok(pageResult.toString()))
-    )
+    val entitiesByIdentifierUrl =
+      endpoints.stubEntitiesByIdentifier(identifier, emptyResponse = true)
 
     val client = testClient
     val response = valueFromF(
@@ -1330,60 +885,34 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
 
     response.size should equal(0)
+    verifyServerRequests(List(entitiesByIdentifierUrl))
   }
 
   "entitiesByIdentifier" should "return an error if the request is malformed" in {
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(s"/api/entity/v$apiVersion/entities/by-identifier"))
-        .withQueryParams(
-          Map(
-            "type" -> equalTo("testIdentifier"),
-            "value" -> equalTo("testValue")
-          ).asJava
-        )
-        .willReturn(badRequest())
-    )
+    val identifier = Identifier("testIdentifier", "testValue")
+    val structuralObject = createEntity()
+
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
+    val entitiesByIdentifierUrl =
+      endpoints.stubEntitiesByIdentifier(identifier, false)
 
     val client = testClient
-    val response = valueFromF(
-      cme.attempt(
-        client.entitiesByIdentifier(Identifier("testIdentifier", "testValue"))
-      )
-    )
+    val response = valueFromF(cme.attempt(client.entitiesByIdentifier(identifier)))
 
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
+    verifyServerRequests(List(entitiesByIdentifierUrl))
   }
 
   "addIdentifierForEntity" should s"make a correct request to add an identifier to an Entity" in {
-    val entityResponse =
-      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Identifiers>
-          <xip:Identifier>
-            <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
-            <xip:Type>TestIdentifierName</xip:Type>
-            <xip:Value>TestIdentifierValue</xip:Value>
-            <xip:Entity>{ref}</xip:Entity>
-          </xip:Identifier>
-        </Identifiers>
-        <Paging>
-          <TotalResults>1</TotalResults>
-        </Paging>
-        <AdditionalInformation>
-          <Self>http://mockapi.com/api/entity/v$apiVersion/structural-objects/$ref/identifiers</Self>
-        </AdditionalInformation>
-      </IdentifiersResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
-    )
+    val structuralObject = createEntity()
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
+    val addEntityUrl = endpoints.stubAddIdentifierForEntity(identifier)
 
     val client = testClient
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier)
+      client.addIdentifierForEntity(structuralObject.ref, StructuralObject, identifier)
 
     val _ = valueFromF(addIdentifierForEntityResponse)
 
@@ -1396,91 +925,65 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Identifier>.toString()
 
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
+    verifyServerRequests(List(addEntityUrl))
   }
 
   "addIdentifierForEntity" should s"return an exception if the API call does" in {
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(badRequest())
-    )
+    val structuralObject = createEntity()
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
+    val addEntityUrl = endpoints.stubAddIdentifierForEntity(identifier, false)
 
     val client = testClient
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier)
+      client.addIdentifierForEntity(structuralObject.ref, StructuralObject, identifier)
 
     val error = intercept[PreservicaClientException] {
       valueFromF(addIdentifierForEntityResponse)
     }
 
     error.getMessage should equal(
-      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/$ref/identifiers with method POST "
+      s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/${structuralObject.ref}/identifiers with method POST "
     )
+    verifyServerRequests(List(addEntityUrl))
   }
 
   "addIdentifierForEntity" should s"return a message confirmation if the Identifier was added" in {
-    val entityResponse =
-      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-      <Identifiers>
-        <xip:Identifier>
-          <xip:ApiId>65862d40f40440de14c1b75e5f342e99</xip:ApiId>
-          <xip:Type>TestIdentifierName</xip:Type>
-          <xip:Value>TestIdentifierValue</xip:Value>
-          <xip:Entity>
-            {ref}
-          </xip:Entity>
-        </xip:Identifier>
-      </Identifiers>
-      <Paging>
-        <TotalResults>1</TotalResults>
-      </Paging>
-      <AdditionalInformation>
-        <Self>http://mockapi.com/api/entity/v$apiVersion/structural-objects/$ref/identifiers</Self>
-      </AdditionalInformation>
-    </IdentifiersResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      post(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$ref/identifiers")).willReturn(ok(entityResponse))
-    )
+    val structuralObject = createEntity()
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
+    val addEntityUrl = endpoints.stubAddIdentifierForEntity(identifier)
 
     val client = testClient
     val addIdentifierForEntityResponse: F[String] =
-      client.addIdentifierForEntity(ref, StructuralObject, identifier)
+      client.addIdentifierForEntity(structuralObject.ref, StructuralObject, identifier)
 
     val response = valueFromF(addIdentifierForEntityResponse)
 
     response should be("The Identifier was added")
+    verifyServerRequests(List(addEntityUrl))
   }
 
   "getEntity" should "return the requested entity" in {
     val client = testClient
-    val id = UUID.randomUUID()
-    val fullEntityResponse = <EntityResponse>
-      <xip:StructuralObject>
-        <xip:Ref>{id}</xip:Ref>
-        <xip:Title>title.txt</xip:Title>
-        <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
-      </xip:StructuralObject>
-    </EntityResponse>
+    val structuralObject = createEntity()
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
+    val getEntityUrl = endpoints.stubGetEntity()
 
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/$id"))
-        .willReturn(ok(fullEntityResponse.toString))
-    )
-    val entity = valueFromF(client.getEntity(id, StructuralObject))
+    val entity = valueFromF(client.getEntity(structuralObject.ref, structuralObject.entityType.get))
 
-    entity.entityType.get should be(StructuralObject)
-    entity.ref should be(id)
-    entity.title.get should be("title.txt")
+    entity.entityType.get should be(structuralObject.entityType.get)
+    entity.ref should be(structuralObject.ref)
+    entity.title.get should be("page1File.txt")
     entity.description.get should be("A description")
     entity.securityTag.get should be(Open)
+    verifyServerRequests(List(getEntityUrl))
   }
 
   "getEntity" should "return an error if the returned entity has a different entity type" in {
     val client = testClient
     val id = UUID.randomUUID()
+    EntityClientEndpoints(preservicaServer)
+    val getEntityUrl = s"/api/entity/v$apiVersion/information-objects/$id"
+
     val fullEntityResponse = <EntityResponse>
       <xip:StructuralObject>
         <xip:Ref>
@@ -1492,56 +995,55 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       </xip:StructuralObject>
     </EntityResponse>
 
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/$id"))
+      get(urlEqualTo(getEntityUrl))
         .willReturn(ok(fullEntityResponse.toString))
     )
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getEntity(id, InformationObject))
     }
     ex.getMessage should be(s"Entity type 'InformationObject' not found for id $id")
+    verifyServerRequests(List(getEntityUrl))
   }
 
   "getEntity" should "return an error if the entity is not found" in {
     val host = s"http://localhost:$preservicaPort"
     val client = testClient
     val id = UUID.randomUUID()
-    val getUrl = s"/api/entity/v$apiVersion/information-objects/$id"
+    val getEntitiesUrl = s"/api/entity/v$apiVersion/information-objects/$id"
+    EntityClientEndpoints(preservicaServer)
 
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
     preservicaServer.stubFor(
-      get(urlEqualTo(getUrl))
+      get(urlEqualTo(getEntitiesUrl))
         .willReturn(notFound())
     )
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getEntity(id, InformationObject))
     }
-    ex.getMessage should be(s"Status code 404 calling $host$getUrl with method GET ")
+    ex.getMessage should be(s"Status code 404 calling $host$getEntitiesUrl with method GET ")
+    verifyServerRequests(List(getEntitiesUrl))
   }
 
   "updateEntityIdentifiers" should "not send a request if no identifiers are passed" in {
     val client = testClient
     val entity = createEntity()
+    EntityClientEndpoints(preservicaServer, Some(entity))
     valueFromF(client.updateEntityIdentifiers(entity, Nil))
-    preservicaServer.getAllServeEvents.size() should equal(0)
+    verifyServerRequests(Nil)
   }
 
   "updateEntityIdentifiers" should "send a request to Preservica for each identifier" in {
-    val response = <IdentifierResponse></IdentifierResponse>
     val entity: Entity = createEntity()
     val client = testClient
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
     val identifiers = List(
       IdentifierResponse("1", "Name1", "Value1"),
       IdentifierResponse("2", "Name2", "Value2")
     )
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    identifiers.foreach { identifier =>
-      preservicaServer.stubFor(
-        put(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers/${identifier.id}"))
-          .willReturn(ok(response.toString))
-      )
-    }
+
+    val updateEntityIdentifiersUrls =
+      identifiers.map(identifierResponse => endpoints.stubUpdateEntityIdentifiers(identifierResponse))
+
     valueFromF(client.updateEntityIdentifiers(entity, identifiers))
 
     val putEvents = preservicaServer.getAllServeEvents.asScala
@@ -1562,93 +1064,65 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     }
     checkEvent(putEvents.head, "2")
     checkEvent(putEvents.last, "1")
+    verifyServerRequests(List(updateEntityIdentifiersUrls))
   }
 
   "updateEntityIdentifiers" should "return an error if the entity path is missing" in {
     val client = testClient
     val entity = createEntity().copy(path = None)
+    EntityClientEndpoints(preservicaServer, Some(entity))
     val identifiers = List(IdentifierResponse("1", "Name1", "Value1"))
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.updateEntityIdentifiers(entity, identifiers))
     }
     ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
+    verifyServerRequests(Nil)
   }
 
   "updateEntityIdentifiers" should "return an error if the update request returns an error" in {
     val client = testClient
     val entity = createEntity()
-    val identifiers = List(IdentifierResponse("1", "Name1", "Value1"))
-    val url = s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers/1"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      put(urlEqualTo(url))
-        .willReturn(serverError())
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val identifierResponse = IdentifierResponse("1", "Name1", "Value1")
+    val updateEntityIdentifiersUrl = endpoints.stubUpdateEntityIdentifiers(identifierResponse, false)
+
     val ex = intercept[PreservicaClientException] {
-      valueFromF(client.updateEntityIdentifiers(entity, identifiers))
+      valueFromF(client.updateEntityIdentifiers(entity, List(identifierResponse)))
     }
-    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method PUT ")
+    ex.getMessage should equal(
+      s"Status code 500 calling http://localhost:$preservicaPort$updateEntityIdentifiersUrl with method PUT "
+    )
+    verifyServerRequests(List(updateEntityIdentifiersUrl))
   }
 
   "getEntityIdentifiers" should "return an empty list if there are no identifiers" in {
     val client = testClient
     val entity = createEntity()
-    val response = <IdentifiersResponse></IdentifiersResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"))
-        .willReturn(ok(response.toString))
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val getEntityIdentifiersUrl = endpoints.stubGetIdentifierForEntity(emptyResponse = true)
+
     val identifiers = valueFromF(client.getEntityIdentifiers(entity))
     identifiers.size should equal(0)
+    verifyServerRequests(List(getEntityIdentifiersUrl))
   }
 
   "getEntityIdentifiers" should "return the identifiers for an entity" in {
     val client = testClient
     val entity = createEntity()
-    val response =
-      <IdentifiersResponse>
-      <Identifiers>
-        <Identifier>
-          <xip:ApiId>1</xip:ApiId>
-          <xip:Type>Test Type 1</xip:Type>
-          <xip:Value>Test Value 1</xip:Value>
-          <xip:Entity>{entity.ref.toString}</xip:Entity>
-        </Identifier>
-        <Identifier>
-          <xip:ApiId>2</xip:ApiId>
-          <xip:Type>Test Type 2</xip:Type>
-          <xip:Value>Test Value 2</xip:Value>
-          <xip:Entity>{entity.ref.toString}</xip:Entity>
-        </Identifier>
-      </Identifiers>
-    </IdentifiersResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"))
-        .willReturn(ok(response.toString))
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val getEntityIdentifiersUrl = endpoints.stubGetIdentifierForEntity()
+
     val identifiers = valueFromF(client.getEntityIdentifiers(entity)).sortBy(_.id)
     identifiers.size should equal(2)
 
-    def checkIdentifier(identifier: IdentifierResponse, id: String) = {
+    def checkIdentifier(identifier: IdentifierResponse, id: String, apiId: String) = {
       identifier.identifierName should equal(s"Test Type $id")
       identifier.value should equal(s"Test Value $id")
-      identifier.id should equal(id)
+      identifier.id should equal(apiId)
     }
-    checkIdentifier(identifiers.head, "1")
-    checkIdentifier(identifiers.last, "2")
-  }
-
-  private def createEntity(entityType: EntityType = StructuralObject): Entity = {
-    Entities.Entity(
-      entityType.some,
-      UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
-      None,
-      None,
-      deleted = false,
-      entityType.entityPath.some
-    )
+    checkIdentifier(identifiers.head, "2", "65862d40f40440de14c1b75e5f342e99")
+    checkIdentifier(identifiers.last, "1", "acb1e74b1ad5c4bfc360ef5d44228c9f")
+    verifyServerRequests(List(getEntityIdentifiersUrl))
   }
 
   "getEntityIdentifiers" should "return an error if the entity path is missing" in {
@@ -1658,554 +1132,157 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       valueFromF(client.getEntityIdentifiers(entity))
     }
     ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
+    verifyZeroServerRequests
   }
 
   "getEntityIdentifiers" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity()
-    val url = s"/api/entity/v$apiVersion/structural-objects/${entity.ref}/identifiers"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(url))
-        .willReturn(serverError())
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val getEntityIdentifiersUrl = endpoints.stubGetIdentifierForEntity(successfulResponse = false)
+
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getEntityIdentifiers(entity))
     }
-    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
+    ex.getMessage should equal(
+      s"Status code 500 calling http://localhost:$preservicaPort${endpoints.identifiersUrl} with method GET "
+    )
+    verifyServerRequests(List(getEntityIdentifiersUrl))
   }
 
   "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val response = <RepresentationResponse></RepresentationResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
-        .willReturn(ok(response.toString))
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val ioRepresentationUrls = endpoints.stubIoRepresentationUrls(emptyResponse = true)
+
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
     urls.size should equal(0)
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getUrlsToIoRepresentations" should "return the url of a Preservation representation" in {
     val client = testClient
     val entity = createEntity(InformationObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val ioRepresentationUrls = endpoints.stubIoRepresentationUrls()
 
-    val response =
-      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Representations>
-          <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Preservation/1</Representation>
-          <Representation type="Access" name="Access name1">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Access/1</Representation>
-          <Representation type="Access" name="Access name2">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Access/2</Representation>
-        </Representations>
-        <Paging>
-          <TotalResults>3</TotalResults>
-        </Paging>
-        <AdditionalInformation>
-          <Self>http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
-        </AdditionalInformation>
-      </RepresentationsResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
-        .willReturn(ok(response.toString))
-    )
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, Some(Preservation)))
 
     urls.size should equal(1)
     urls should equal(
       Seq(
-        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1"
+        s"http://localhost:$preservicaPort/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1"
       )
     )
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getUrlsToIoRepresentations" should "return a url for each representation if 'representationType' filter passed in, was 'None'" in {
     val client = testClient
     val entity = createEntity(InformationObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val ioRepresentationUrls = endpoints.stubIoRepresentationUrls()
 
-    val response =
-      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Representations>
-          <Representation type="Preservation">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Preservation/1</Representation>
-          <Representation type="Access" name="Access name1">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Access/1</Representation>
-          <Representation type="Access" name="Access name2">http://localhost/api/entity/v$apiVersion/information-objects/{
-        entity.ref
-      }/representations/Access/2</Representation>
-        </Representations>
-        <Paging>
-          <TotalResults>3</TotalResults>
-        </Paging>
-        <AdditionalInformation>
-          <Self>http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations</Self>
-        </AdditionalInformation>
-      </RepresentationsResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"))
-        .willReturn(ok(response.toString))
-    )
     val urls = valueFromF(client.getUrlsToIoRepresentations(entity.ref, None))
 
     urls.size should equal(3)
     urls should equal(
       Seq(
-        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1",
-        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/1",
-        "http://localhost/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/2"
+        s"http://localhost:$preservicaPort/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Preservation/1",
+        s"http://localhost:$preservicaPort/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/1",
+        s"http://localhost:$preservicaPort/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/representations/Access/2"
       )
     )
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getUrlsToIoRepresentations" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val url = s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(url))
-        .willReturn(serverError())
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val ioRepresentationUrls = endpoints.stubIoRepresentationUrls(false)
+
     val ex = intercept[PreservicaClientException] {
       valueFromF(client.getUrlsToIoRepresentations(entity.ref, None))
     }
-    ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
+    ex.getMessage should equal(
+      s"Status code 500 calling http://localhost:$preservicaPort${endpoints.representationsUrl} with method GET "
+    )
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getContentObjectsFromRepresentation" should "return an empty list if there are no representations" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val response =
-      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <xip:Representation>
-          <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
-          <xip:Name>Preservation</xip:Name>
-          <xip:Type>Preservation</xip:Type>
-          <xip:ContentObjects/>
-          <xip:RepresentationFormats/>
-          <xip:RepresentationProperties/>
-        </xip:Representation>
-        <ContentObjects/>
-        <AdditionalInformation>
-          <Self>http://localhost/api/entity/v$apiVersion/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
-        </AdditionalInformation>
-      </RepresentationResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"))
-        .willReturn(ok(response.toString))
-    )
-    val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, 1))
+    val repType = Preservation
+    val repCount = 1
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val ioRepresentationUrls = endpoints.stubIoRepresentations(repType, repCount, emptyResponse = true)
+
+    val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, repType, repCount))
     contentObjects.size should equal(0)
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getContentObjectsFromRepresentation" should "return the Content Objects of a Preservation Representation" in {
     val client = testClient
     val entity = createEntity(InformationObject)
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val repType = Preservation
+    val repCount = 1
+    val ioRepresentationUrls = endpoints.stubIoRepresentations(repType, repCount)
+    val expectedEntity =
+      Entity(
+        Some(ContentObject),
+        UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"),
+        None,
+        None,
+        false,
+        Some(ContentObject.entityPath),
+        None,
+        Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
+      )
 
-    val response =
-      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <xip:Representation>
-          <xip:InformationObject>14e54a24-db26-4c00-852c-f28045e51828</xip:InformationObject>
-          <xip:Name>Preservation</xip:Name>
-          <xip:Type>Preservation</xip:Type>
-          <xip:ContentObjects>
-            <xip:ContentObject>ad30d41e-b75c-4195-b569-91e820f430ac</xip:ContentObject>
-            <xip:ContentObject>354f47cf-3ca2-4a4e-8181-81b714334f00</xip:ContentObject>
-          </xip:ContentObjects>
-          <xip:RepresentationFormats/>
-          <xip:RepresentationProperties/>
-        </xip:Representation>
-        <ContentObjects/>
-        <AdditionalInformation>
-          <Self>http://localhost/api/entity/v$apiVersion/information-objects/14e54a24-db26-4c00-852c-f28045e51828/representations/Preservation/1</Self>
-        </AdditionalInformation>
-      </RepresentationResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"))
-        .willReturn(ok(response.toString))
-    )
-    val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, 1))
+    val contentObjects = valueFromF(client.getContentObjectsFromRepresentation(entity.ref, repType, repCount))
 
     contentObjects.size should equal(2)
     contentObjects should equal(
       List(
-        Entity(
-          Some(ContentObject),
-          UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"),
-          None,
-          None,
-          false,
-          Some(ContentObject.entityPath),
-          None,
-          Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
-        ),
-        Entity(
-          Some(ContentObject),
-          UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"),
-          None,
-          None,
-          false,
-          Some(ContentObject.entityPath),
-          None,
-          Some(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
-        )
+        expectedEntity,
+        expectedEntity.copy(ref = UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"))
       )
     )
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getContentObjectsFromRepresentation" should "return an error if the get request returns an error" in {
     val client = testClient
     val entity = createEntity(InformationObject)
-    val url = s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(
-      get(urlEqualTo(url))
-        .willReturn(serverError())
-    )
+    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
+    val repType = Preservation
+    val repCount = 1
+    val ioRepresentationUrls = endpoints.stubIoRepresentations(repType, repCount, false)
+    val url = endpoints.representationTypeUrl(repType, repCount)
+
     val ex = intercept[PreservicaClientException] {
-      valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, 1))
+      valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, repCount))
     }
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
+    verifyServerRequests(List(ioRepresentationUrls))
   }
 
   "getPreservicaNamespaceVersion" should "extract and return the version, as a float, from a namespace" in {
     val client = testClient
+    val endpoints = EntityClientEndpoints(preservicaServer)
     val endpoint = "retention-policies"
-    val response =
-      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
-      </RetentionPoliciesResponse>
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(s"/api/entity/retention-policies")).willReturn(ok(response.toString)))
+    val retentionPoliciesUrl = endpoints.stubRetentionPolicies()
 
     val version = valueFromF(client.getPreservicaNamespaceVersion(endpoint))
     version should equal(7.0)
+    verifyServerRequests(List(retentionPoliciesUrl))
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
     preservicaServer.getServeEvents.getServeEvents.get(0).getRequest.getBodyAsString
-
-  private def metadataForEntitySetUp(
-      entity: Entity,
-      returnMetadataFragmentUrls: Boolean = true,
-      returnFragmentTwoResponse: Boolean = true
-  ): MetadataUrls = {
-    val url = s"http://localhost:$preservicaPort"
-    val entityId = entity.ref
-
-    val entityUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}"
-    val identifiersUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/identifiers"
-    val linksUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/links"
-    val fragmentOneUrl = s"/api/entity/v$apiVersion/${entity.path.get}/$entityId/metadata/${UUID.randomUUID()}"
-    val fragmentTwoUrl = s"/api/entity/v$apiVersion/${entity.path.get}/$entityId/metadata/${UUID.randomUUID()}"
-    val eventActionsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/event-actions"
-    val urlsToRepresentationsUrl = s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations"
-    val preservationOneRepUrl =
-      s"/api/entity/v$apiVersion/information-objects/${entity.ref}/representations/Preservation/1"
-    val generationsUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/generations"
-    val generationOneUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/generations/1"
-    val bitstreamOneUrl = s"/api/entity/v$apiVersion/${entity.path.get}/${entity.ref}/generations/1/bitstreams/1"
-
-    val metadataResponse =
-      if (returnMetadataFragmentUrls)
-        <Metadata>
-          <Fragment>{s"$url$fragmentOneUrl"}</Fragment>
-          <Fragment>{s"$url$fragmentTwoUrl"}</Fragment>
-        </Metadata>
-      else
-        <Metadata>
-        </Metadata>
-
-    val entityTypeShort = entity.entityType.get.entityTypeShort
-    val entityTypeLong = entityShortNameToLong(entityTypeShort)
-    val entityNode: Seq[Node] =
-      XML.loadString(
-        s"""<${entityTypeLong}>
-            <Ref>${entityId}</Ref>
-            <Title>Title</Title>
-            <Description>A description</Description>
-            <SecurityTag>open</SecurityTag>
-            <Deleted>true</Deleted>
-            <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
-          </${entityTypeLong}>"""
-      )
-
-    val entityResponse =
-      <EntityResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        {entityNode}
-        <AdditionalInformation>
-          {metadataResponse}
-        </AdditionalInformation>
-      </EntityResponse>.toString
-
-    val identifiersResponse =
-      <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Identifiers>
-          <xip:Identifier>
-            <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
-            <xip:Type>identifier</xip:Type>
-            <xip:Value>testValue</xip:Value>
-            <xip:Entity>{entityId}</xip:Entity>
-          </xip:Identifier>
-        </Identifiers>
-      </IdentifiersResponse>.toString
-
-    val linksUrlFirstPageResponse =
-      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Links>
-          <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns={
-        namespaceUrl
-      } xmlns:xip={xipUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/structural-objects/758ef5c5-a364-40e5-bd78-e40f72f5a1f0</Link>
-        </Links>
-        <Paging>
-          <Next>{s"$url$linksUrl"}?max=1000&amp;start=1000</Next>
-        </Paging>
-      </LinksResponse>.toString
-    val linksUrlSecondPageResponse =
-      <LinksResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Links>
-          <Link linkType="VirtualChild" linkDirection="From" title="Linked asset" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="IO" apiId="aa61c369f543056586779625143d3ca3" xmlns={
-        namespaceUrl
-      } xmlns:xip={xipUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Link>
-          <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns={
-        namespaceUrl
-      } xmlns:xip={xipUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/structural-objects/866d4c6e-ee51-467a-b7a3-e4b65709cf95</Link>
-        </Links>
-        <Paging>
-        </Paging>
-      </LinksResponse>.toString
-
-    val fragmentOneContent =
-      <Test1>
-        <Test1Value>Test1Value</Test1Value>
-      </Test1>
-
-    val fragmentOneResponse =
-      <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <MetadataContainer>
-          <Content>
-            {fragmentOneContent}
-          </Content>
-        </MetadataContainer>
-      </MetadataResponse>
-
-    val fragmentTwoContent =
-      <Test2>
-        <Test2Value>Test2Value</Test2Value>
-      </Test2>
-    val fragmentTwoResponse =
-      if (returnFragmentTwoResponse)
-        <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-          <MetadataContainer>
-            <Content>
-              {fragmentTwoContent}
-            </Content>
-          </MetadataContainer>
-        </MetadataResponse>
-      else
-        <MetadataResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        </MetadataResponse>
-
-    val eventActionsFirstPageResponse =
-      <EventActionsResponse>
-        <EventActions>
-          <xip:EventAction commandType="command_create">
-            <xip:Event type="Ingest">
-              <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
-              <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
-              <xip:User>test user</xip:User>
-            </xip:Event>
-            <xip:Date>2023-06-26T08:14:07.441Z</xip:Date>
-            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-          </xip:EventAction>
-        </EventActions>
-        <Paging>
-          <Next>{s"$url$eventActionsUrl"}?max=1000&amp;start=1000</Next>
-        </Paging>
-      </EventActionsResponse>.toString
-    val eventActionsSecondPageResponse =
-      <EventActionsResponse>
-        <EventActions>
-          <xip:EventAction commandType="AddIdentifier">
-            <xip:Event type="Modified">
-              <xip:Ref>efe9b25d-c3b4-476a-8ff1-d52fb01ad96b</xip:Ref>
-              <xip:Date>2023-06-27T08:14:08.442Z</xip:Date>
-              <xip:User>test user</xip:User>
-            </xip:Event>
-            <xip:Date>2023-06-27T08:14:07.442Z</xip:Date>
-            <xip:Entity>a9e1cae8-ea06-4157-8dd4-82d0525b031c</xip:Entity>
-          </xip:EventAction>
-        </EventActions>
-        <Paging>
-        </Paging>
-      </EventActionsResponse>.toString
-
-    val urlsToRepresentationsResponse =
-      <RepresentationsResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Representations>
-          <Representation type="Preservation">{s"$url$preservationOneRepUrl"}</Representation>
-        </Representations>
-      </RepresentationsResponse>
-
-    val preservationOneRepResponse =
-      <RepresentationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <xip:Representation>
-          <xip:InformationObject>{entityId}</xip:InformationObject>
-          <xip:Name>Preservation</xip:Name>
-          <xip:Type>Preservation</xip:Type>
-          <xip:ContentObjects/>
-          <xip:RepresentationFormats/>
-          <xip:RepresentationProperties/>
-        </xip:Representation>
-        <ContentObjects/>
-        <AdditionalInformation>
-        </AdditionalInformation>
-      </RepresentationResponse>
-
-    val generationsResponse =
-      <GenerationsResponse>
-        <Generations>
-          <Generation>{s"$url$generationOneUrl"}</Generation>
-        </Generations>
-      </GenerationsResponse>
-
-    val generationOneResponse =
-      <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
-        <Generation original="true" active="true">
-        </Generation>
-        <Bitstreams>
-          <Bitstream filename="test1.txt">{s"$url$bitstreamOneUrl"}</Bitstream>
-        </Bitstreams>
-      </GenerationResponse>
-
-    val bitstreamOneResponse =
-      <BitstreamResponse>
-        <xip:Bitstream>
-          <xip:Filename>test1.txt</xip:Filename>
-          <xip:FileSize>1234</xip:FileSize>
-          <xip:Fixities>
-          </xip:Fixities>
-        </xip:Bitstream>
-        <AdditionalInformation>
-        </AdditionalInformation>
-      </BitstreamResponse>.toString()
-
-    preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(entityUrl)).willReturn(ok(entityResponse)))
-    preservicaServer.stubFor(get(urlEqualTo(identifiersUrl)).willReturn(ok(identifiersResponse)))
-    preservicaServer.stubFor(
-      get(urlPathMatching(linksUrl))
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(ok(linksUrlFirstPageResponse))
-    )
-    preservicaServer.stubFor(
-      get(urlPathMatching(linksUrl))
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("1000")
-          ).asJava
-        )
-        .willReturn(ok(linksUrlSecondPageResponse))
-    )
-    preservicaServer.stubFor(
-      get(urlEqualTo(fragmentOneUrl)).willReturn(ok(fragmentOneResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(fragmentTwoUrl)).willReturn(ok(fragmentTwoResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlPathMatching(eventActionsUrl))
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("0")
-          ).asJava
-        )
-        .willReturn(ok(eventActionsFirstPageResponse))
-    )
-    preservicaServer.stubFor(
-      get(urlPathMatching(eventActionsUrl))
-        .withQueryParams(
-          Map(
-            "max" -> equalTo("1000"),
-            "start" -> equalTo("1000")
-          ).asJava
-        )
-        .willReturn(ok(eventActionsSecondPageResponse))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(urlsToRepresentationsUrl)).willReturn(ok(urlsToRepresentationsResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(preservationOneRepUrl)).willReturn(ok(preservationOneRepResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(generationsUrl)).willReturn(ok(generationsResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(generationOneUrl)).willReturn(ok(generationOneResponse.toString))
-    )
-
-    preservicaServer.stubFor(
-      get(urlEqualTo(bitstreamOneUrl)).willReturn(ok(bitstreamOneResponse.toString))
-    )
-
-    MetadataUrls(
-      entityUrl,
-      identifiersUrl,
-      linksUrl,
-      fragmentOneUrl,
-      fragmentTwoUrl,
-      eventActionsUrl,
-      urlsToRepresentationsUrl,
-      preservationOneRepUrl,
-      generationsUrl,
-      generationOneUrl,
-      bitstreamOneUrl
-    )
-  }
-
-  case class MetadataUrls(
-      entityUrl: String,
-      identifiersUrl: String,
-      linksUrl: String,
-      fragmentOneUrl: String,
-      fragmentTwoUrl: String,
-      eventActionsUrl: String,
-      urlsToRepresentationsUrl: String,
-      preservationOneRepUrl: String,
-      generationsUrl: String,
-      generationOneUrl: String,
-      bitstreamOneUrl: String
-  )
 }
