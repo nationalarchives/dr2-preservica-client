@@ -235,14 +235,11 @@ object EntityClient {
 
     import client.*
 
-    override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] = {
-      val url = uri"$apiUrl/${entityType.entityPath}/$entityRef"
+    override def getEntity(entityRef: UUID, entityType: EntityType): F[Entity] =
       for {
         token <- getAuthenticationToken
-        entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
-        entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
+        entity <- getEntityWithRef(entityRef, entityType, token)
       } yield entity
-    }
 
     override def getUrlsToIoRepresentations(
         entityRef: UUID,
@@ -250,13 +247,8 @@ object EntityClient {
     ): F[Seq[String]] =
       for {
         token <- getAuthenticationToken
-        url = uri"$apiUrl/information-objects/$entityRef/representations"
-        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
-        urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
-          representationsResponse,
-          representationType
-        )
-      } yield urlsOfRepresentations
+        urlsOfReps <- urlsToIoRepresentations(entityRef, representationType, token)
+      } yield urlsOfReps
 
     override def getContentObjectsFromRepresentation(
         ioEntityRef: UUID,
@@ -412,8 +404,8 @@ object EntityClient {
             )
           else if (entityType.entityTypeShort == "IO")
             for {
-              urlsToIoRepresentations <- getUrlsToIoRepresentations(entity.ref, None)
-              representations <- urlsToIoRepresentations.map { urlToIoRepresentation =>
+              urlsToIoReps <- urlsToIoRepresentations(entity.ref, None, token)
+              representations <- urlsToIoReps.map { urlToIoRepresentation =>
                 val urlSplitOnForwardSlash = urlToIoRepresentation.split('/').reverse
                 val generationVersion = urlSplitOnForwardSlash.head.toInt
                 val representationType = RepresentationType.valueOf(urlSplitOnForwardSlash(1))
@@ -478,10 +470,10 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         entitiesWithIdentifier <- getEntities(url.toString, token)
-        entities <- entitiesWithIdentifier.map { entity =>
+        entities <- entitiesWithIdentifier.map { entityWithId =>
           for {
-            entityType <- getEntityType(entity)
-            entity <- getEntity(entity.ref, entityType)
+            entityType <- getEntityType(entityWithId)
+            entity <- getEntityWithRef(entityWithId.ref, entityType, token)
           } yield entity
         }.sequence
       } yield entities
@@ -524,20 +516,21 @@ object EntityClient {
     override def updateEntityIdentifiers(
         entity: Entity,
         identifiers: Seq[IdentifierResponse]
-    ): F[Seq[IdentifierResponse]] = {
-      identifiers.map { identifier =>
-        val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
-        for {
-          path <- me.fromOption(
-            entity.path,
-            PreservicaClientException(missingPathExceptionMessage(entity.ref))
-          )
-          token <- getAuthenticationToken
-          url = uri"$apiUrl/$path/${entity.ref}/identifiers/${identifier.id}"
-          _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
-        } yield identifier
-      }.sequence
-    }
+    ): F[Seq[IdentifierResponse]] =
+      for {
+        token <- getAuthenticationToken
+        updateResponse <- identifiers.map { identifier =>
+          val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
+          for {
+            path <- me.fromOption(
+              entity.path,
+              PreservicaClientException(missingPathExceptionMessage(entity.ref))
+            )
+            url = uri"$apiUrl/$path/${entity.ref}/identifiers/${identifier.id}"
+            _ <- sendXMLApiRequest(url.toString, token, Method.PUT, requestBody)
+          } yield identifier
+        }.sequence
+      } yield updateResponse
 
     override def getPreservicaNamespaceVersion(endpoint: String): F[Float] = {
       for {
@@ -546,6 +539,27 @@ object EntityClient {
         version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
       } yield version
     }
+
+    private def getEntityWithRef(entityRef: UUID, entityType: EntityType, token: String) =
+      for {
+        url <- me.pure(uri"$apiUrl/${entityType.entityPath}/$entityRef")
+        entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
+      } yield entity
+
+    private def urlsToIoRepresentations(
+        entityRef: UUID,
+        representationType: Option[RepresentationType],
+        token: String
+    ) =
+      for {
+        url <- me.pure(uri"$apiUrl/information-objects/$entityRef/representations")
+        representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
+        urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
+          representationsResponse,
+          representationType
+        )
+      } yield urlsOfRepresentations
 
     private def getEntityType(entity: Entity): F[EntityType] =
       me.fromOption(
@@ -596,8 +610,7 @@ object EntityClient {
         token: String
     ): F[Elem] =
       for {
-        token <- getAuthenticationToken
-        url = uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex"
+        url <- me.pure(uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex")
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
       } yield representationsResponse
 
@@ -663,12 +676,11 @@ object EntityClient {
         token: String
     ): F[Seq[Elem]] =
       for {
-        _ <- me.pure(print("\n\n\ngenerationsEndpointUrl", generationsEndpointUrl))
         generationsElement <- sendXMLApiRequest(generationsEndpointUrl, token, Method.GET)
         allGenerationUrls <- dataProcessor.allGenerationUrls(generationsElement, contentObjectRef)
 
         allGenerationElements <- allGenerationUrls.map { url =>
-          print("\n\nallGenerationUrls", url); sendXMLApiRequest(url, token, Method.GET)
+          sendXMLApiRequest(url, token, Method.GET)
         }.sequence
       } yield allGenerationElements
 
@@ -676,7 +688,7 @@ object EntityClient {
       for {
         allBitstreamUrls <- dataProcessor.allBitstreamUrls(generationResponseElement)
         bitstreamElements <- allBitstreamUrls.map { url =>
-          print("\n\nallBitstreamUrls", url); sendXMLApiRequest(url, token, Method.GET)
+          sendXMLApiRequest(url, token, Method.GET)
         }.sequence
       } yield bitstreamElements
 
