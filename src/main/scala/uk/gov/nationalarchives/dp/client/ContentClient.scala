@@ -1,7 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits.*
 import io.circe.{Decoder, Printer}
 import io.circe.generic.auto.*
@@ -65,7 +65,7 @@ object ContentClient:
     */
   def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): ContentClient[F] = new ContentClient[F]:
     case class SearchResponseValue(objectIds: List[String], totalHits: Int)
 

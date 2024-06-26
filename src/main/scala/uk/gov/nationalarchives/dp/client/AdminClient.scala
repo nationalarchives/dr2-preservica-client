@@ -66,7 +66,7 @@ object AdminClient {
     */
   def createAdminClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): AdminClient[F] = new AdminClient[F] {
     private val apiVersion = 7.0f
     private val client: Client[F, S] = Client(clientConfig)

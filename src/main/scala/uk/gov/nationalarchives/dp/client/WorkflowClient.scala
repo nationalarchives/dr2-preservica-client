@@ -1,7 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits.*
 import sttp.client3.*
 import sttp.model.Method
@@ -43,7 +43,7 @@ object WorkflowClient {
     */
   def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
       me: MonadError[F, Throwable],
-      sync: Sync[F]
+      sync: Async[F]
   ): WorkflowClient[F] = new WorkflowClient[F] {
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, S] = Client(clientConfig)
