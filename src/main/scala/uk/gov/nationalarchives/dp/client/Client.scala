@@ -44,9 +44,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
     async: Async[F]
 ) {
-  private val underlying: CCache[String, Entry[F[String]]] =
-    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
-  given caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
+  private val underlying: CCache[String, Entry[String]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[String]]
+  given caffeineCache: Cache[F, String, String] = CaffeineCache[F, String, String](underlying)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
@@ -131,12 +131,12 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   } yield token
 
   private[client] def getAuthenticationToken: F[String] =
-    memoize[F, F[String]](Some(duration)) {
+    memoizeF[F, String](Some(duration)) {
       for {
         authDetails <- getAuthDetails()
         token <- generateToken(authDetails)
       } yield token
-    }.flatten
+    }
 }
 
 /** Case classes common to several clients
