@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, Node, NodeSeq}
 import scala.xml.Utility.escape
+import scala.util.Try
 
 /** A client to create, get and update entities in Preservica
   * @tparam F
@@ -840,11 +841,8 @@ object EntityClient {
       eventActions: Seq[Node]
   ) extends EntityMetadata
 
-  object SecurityTag {
-    def fromString(securityTagString: String): Option[SecurityTag] = securityTagString match {
-      case "open"   => Option(Open)
-      case "closed" => Option(Closed)
-      case _        => None
-    }
-  }
+  object SecurityTag:
+    def fromString(securityTagString: String): Option[SecurityTag] = Try(
+      SecurityTag.valueOf(securityTagString.capitalize)
+    ).toOption
 }
