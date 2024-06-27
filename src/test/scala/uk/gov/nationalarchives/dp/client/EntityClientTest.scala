@@ -421,8 +421,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val requestUrls = List(
       endpoints.stubGetEntity(),
       endpoints.stubGetIdentifierForEntity(),
-      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
-      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubMetadataFragment(1, endpoints.metadataFragmentOneUrl),
+      endpoints.stubMetadataFragment(2, endpoints.metadataFragmentTwoUrl),
       endpoints.stubLinks(),
       endpoints.stubCoGenerations(),
       endpoints.stubCoGeneration(),
@@ -536,8 +536,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       endpoints.stubIoRepresentations(Preservation),
       endpoints.stubIoRepresentations(Access),
       endpoints.stubIoRepresentations(Access, 2),
-      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
-      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubMetadataFragment(1, endpoints.metadataFragmentOneUrl),
+      endpoints.stubMetadataFragment(2, endpoints.metadataFragmentTwoUrl),
       endpoints.stubLinks(),
       endpoints.stubEventActions()
     )
@@ -634,8 +634,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val requestUrls = List(
       endpoints.stubGetEntity(),
       endpoints.stubGetIdentifierForEntity(),
-      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
-      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a")),
+      endpoints.stubMetadataFragment(1, endpoints.metadataFragmentOneUrl),
+      endpoints.stubMetadataFragment(2, endpoints.metadataFragmentTwoUrl),
       endpoints.stubLinks(),
       endpoints.stubEventActions()
     )
@@ -683,8 +683,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val requestUrls = List(
       endpoints.stubGetEntity(),
       endpoints.stubGetIdentifierForEntity(),
-      endpoints.stubMetadataFragment(1, UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66")),
-      endpoints.stubMetadataFragment(2, UUID.fromString("63e50476-3387-451a-814b-354b5969407a"), false),
+      endpoints.stubMetadataFragment(1, endpoints.metadataFragmentOneUrl),
+      endpoints.stubMetadataFragment(2, endpoints.metadataFragmentTwoUrl, false),
       endpoints.stubLinks()
     )
 

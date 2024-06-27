@@ -50,6 +50,8 @@ object MockPreservicaAPI {
     lazy val bitstreamTwoInfoUrl = s"$generationTwoUrl/bitstreams/1"
     lazy val bitstreamOneContentUrl = s"$bitstreamOneInfoUrl/content"
     lazy val bitstreamTwoContentUrl = s"$bitstreamTwoInfoUrl/content"
+    lazy val metadataFragmentOneUrl = s"$specificEntityUrl/metadata/28d79967-24f8-4bfd-b420-a29be8694d66"
+    lazy val metadataFragmentTwoUrl = s"$specificEntityUrl/metadata/63e50476-3387-451a-814b-354b5969407a"
     lazy val identifiersUrl = s"$specificEntityUrl/identifiers"
     lazy val linksUrl = s"$specificEntityUrl/links"
     lazy val eventActionsUrl = s"$specificEntityUrl/event-actions"
@@ -58,7 +60,7 @@ object MockPreservicaAPI {
     lazy private val preservicaPort = preservicaServer.port()
 
     def specificIdentifierUrl(id: String) = s"$identifiersUrl/$id"
-    def metadataFragmentUrl(metadataRef: UUID) = s"$specificEntityUrl/metadata/$metadataRef"
+
     def representationTypeUrl(repType: RepresentationType, count: Int = 1) =
       s"$representationsUrl/${repType.toString}/$count"
     def entitiesByIdentifierUrl(identifier: Identifier) =
@@ -184,15 +186,15 @@ object MockPreservicaAPI {
 
     def stubMetadataFragment(
         fragmentNum: Int,
-        metadataRef: UUID,
+        metadataFragmentUrl: String,
         returnFragmentResponse: Boolean = true,
         successfulResponse: Boolean = true
     ): String = {
       val response: ResponseDefinitionBuilder =
         if (successfulResponse) ok(metadataFragmentResponse(fragmentNum, returnFragmentResponse)) else badRequest()
-      val metadataFragUrl = metadataFragmentUrl(metadataRef)
-      preservicaServer.stubFor(get(urlEqualTo(metadataFragUrl)).willReturn(response))
-      metadataFragUrl
+
+      preservicaServer.stubFor(get(urlEqualTo(metadataFragmentUrl)).willReturn(response))
+      metadataFragmentUrl
     }
 
     def stubEventActions(successfulResponse: Boolean = true): List[String] = {
@@ -480,12 +482,8 @@ object MockPreservicaAPI {
       val metadata =
         if (returnMetadataFragmentUrls)
           <Metadata>
-            <Fragment>{
-            preservicaUrl + metadataFragmentUrl(UUID.fromString("28d79967-24f8-4bfd-b420-a29be8694d66"))
-          }</Fragment>
-            <Fragment>{
-            preservicaUrl + metadataFragmentUrl(UUID.fromString("63e50476-3387-451a-814b-354b5969407a"))
-          }</Fragment>
+            <Fragment>{preservicaUrl + metadataFragmentOneUrl}</Fragment>
+            <Fragment>{preservicaUrl + metadataFragmentTwoUrl}</Fragment>
           </Metadata>
         else
           <Metadata></Metadata>
