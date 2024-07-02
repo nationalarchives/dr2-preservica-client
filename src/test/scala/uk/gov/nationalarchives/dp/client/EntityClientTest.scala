@@ -394,13 +394,59 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     verifyServerRequests(List(bitstreamUrl))
   }
 
+  "streamBitstreamContent" should "return an error if URL does not contain 'content-objects'" in {
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val bitstreamUrl = endpoints.bitstreamOneContentUrl
+
+    val bitstreamUrlToStreamFrom = endpoints.preservicaUrl + "/api/entity/v7.0/information-objects"
+
+    val client = testClient
+    val response =
+      client.streamBitstreamContent[Unit](stream)(bitstreamUrlToStreamFrom, _ => cme.unit)
+
+    val expectedError = valueFromF(cme.attempt(response))
+
+    expectedError.isLeft should be(true)
+    expectedError.left.map { err =>
+      err.getMessage should equal(
+        s"The URL 'http://localhost:9002/api/entity/v7.0/information-objects' is not a valid bitstream URL"
+      )
+    }
+    verifyZeroServerRequests
+  }
+
+  "streamBitstreamContent" should "return an error if URL does not end with '/content'" in {
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val bitstreamUrl = endpoints.bitstreamOneContentUrl
+
+    val bitstreamUrlToStreamFrom = endpoints.preservicaUrl +
+      "/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/contents"
+
+    val client = testClient
+    val response =
+      client.streamBitstreamContent[Unit](stream)(bitstreamUrlToStreamFrom, _ => cme.unit)
+
+    val expectedError = valueFromF(cme.attempt(response))
+
+    expectedError.isLeft should be(true)
+    expectedError.left.map { err =>
+      err.getMessage should equal(
+        s"The URL 'http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/contents' is not a valid bitstream URL"
+      )
+    }
+    verifyZeroServerRequests
+  }
+
   "streamBitstreamContent" should "return an error if the server is unavailable" in {
     val endpoints = EntityClientEndpoints(preservicaServer)
     endpoints.serverErrorStub(MockPreservicaAPI.tokenUrl)
 
+    val bitstreamUrl = endpoints.bitstreamOneContentUrl
+    val bitstreamUrlToStreamFrom = endpoints.preservicaUrl + bitstreamUrl
+
     val client = testClient
     val response =
-      client.streamBitstreamContent[Unit](stream)(s"https://unusedTestUrl.com", _ => cme.unit)
+      client.streamBitstreamContent[Unit](stream)(bitstreamUrlToStreamFrom, _ => cme.unit)
 
     val expectedError = valueFromF(cme.attempt(response))
 

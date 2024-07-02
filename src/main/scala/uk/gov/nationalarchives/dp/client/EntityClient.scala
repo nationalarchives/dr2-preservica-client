@@ -506,6 +506,9 @@ object EntityClient {
         .response(asStream(stream)(streamFn))
 
       for {
+        _ <- me.raiseWhen(!url.endsWith("/content") || !url.contains("content-objects"))(
+          PreservicaClientException(s"The URL '$url' is not a valid bitstream URL")
+        )
         token <- getAuthenticationToken
         res <- backend.send(request(token))
         body <- me.fromEither {
