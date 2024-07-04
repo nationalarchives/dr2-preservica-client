@@ -44,9 +44,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     me: MonadError[F, Throwable],
     async: Async[F]
 ) {
-  private val underlying: CCache[String, Entry[F[String]]] =
-    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[F[String]]]
-  given caffeineCache: Cache[F, String, F[String]] = CaffeineCache[F, String, F[String]](underlying)
+  private val underlying: CCache[String, Entry[String]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[String]]
+  given caffeineCache: Cache[F, String, String] = CaffeineCache[F, String, String](underlying)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
@@ -56,7 +56,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
   private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
-  private val apiUri = uri"$apiBaseUrl/api/accesstoken/login"
+  private val loginEndpointUri = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
   private[client] def sendXMLApiRequest(
@@ -119,24 +119,24 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] def generateToken(authDetails: AuthDetails): F[String] = for {
     res <- basicRequest
       .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-      .post(apiUri)
+      .post(loginEndpointUri)
       .response(asJson[Token])
       .send(backend)
     token <- {
       val responseOrError = res.body.left
-        .map(e => PreservicaClientException(Method.POST, apiUri, res.code, e.getMessage))
+        .map(e => PreservicaClientException(Method.POST, loginEndpointUri, res.code, e.getMessage))
         .map(_.token)
       me.fromEither(responseOrError)
     }
   } yield token
 
   private[client] def getAuthenticationToken: F[String] =
-    memoize[F, F[String]](Some(duration)) {
+    memoizeF[F, String](Some(duration)) {
       for {
         authDetails <- getAuthDetails()
         token <- generateToken(authDetails)
       } yield token
-    }.flatten
+    }
 }
 
 /** Case classes common to several clients
