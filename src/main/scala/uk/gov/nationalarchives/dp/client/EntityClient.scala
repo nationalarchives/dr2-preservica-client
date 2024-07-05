@@ -397,7 +397,7 @@ object EntityClient {
             } yield CoMetadata(
               entityNode,
               allGenerationElements,
-              bitstreamElements,
+              bitstreamElements.flatMap(_ \ "Bitstream"),
               identifiers,
               entityLinks,
               fragmentsWithMetadataLabel,
