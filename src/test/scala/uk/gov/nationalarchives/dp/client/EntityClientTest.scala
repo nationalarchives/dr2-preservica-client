@@ -500,23 +500,19 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         </Generation>.toString
     )
 
-    metadata.bitstreamNodes.head.toString should equal(
-      <BitstreamResponse>
-        <xip:Bitstream>
-          <xip:Filename>test1.txt</xip:Filename>
-          <xip:FileSize>1234</xip:FileSize>
-          <xip:Fixities>
-            <xip:Fixity>
-              <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
-              <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
-            </xip:Fixity>
-          </xip:Fixities>
-        </xip:Bitstream>
-        <AdditionalInformation>
-          <Self>http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1</Self>
-          <Content>http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content</Content>
-        </AdditionalInformation>
-      </BitstreamResponse>.toString
+    Utility.trim(metadata.bitstreamNodes.head).toString should equal(
+      Utility
+        .trim(<xip:Bitstream>
+        <xip:Filename>test1.txt</xip:Filename>
+        <xip:FileSize>1234</xip:FileSize>
+        <xip:Fixities>
+          <xip:Fixity>
+            <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
+            <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
+          </xip:Fixity>
+        </xip:Fixities>
+      </xip:Bitstream>)
+        .toString
     )
 
     verifyServerRequests(requestUrls)
