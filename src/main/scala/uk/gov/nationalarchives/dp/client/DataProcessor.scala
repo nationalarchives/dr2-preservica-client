@@ -383,18 +383,18 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       for {
         linkType <- link.attribute("linkType").flatMap(_.headOption)
         linkDirection <- link.attribute("linkDirection").flatMap(_.headOption)
-        linkRef <- link.attribute("ref").flatMap(_.headOption)
+        refLinks <- link.attribute("ref").flatMap(_.headOption.map(_.toString))
       } yield {
         val entities =
           if linkDirection.text == "To" then
             List(
-              <xip:ToEntity>{linkRef.toString}</xip:ToEntity>
+              <xip:ToEntity>{refLinks}</xip:ToEntity>
           <xip:FromEntity>{ref.toString}</xip:FromEntity>
             )
           else
             List(
               <xip:ToEntity>{ref.toString}</xip:ToEntity>
-            <xip:FromEntity>{linkRef.toString}</xip:FromEntity>
+            <xip:FromEntity>{refLinks}</xip:FromEntity>
             )
 
         <xip:Link xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
