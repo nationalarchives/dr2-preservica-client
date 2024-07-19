@@ -38,12 +38,12 @@ trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity): F[EntityMetadata]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
-    * @param contentRef
-    *   The reference of the content object
+    * @param contentObject
+    *   A Content Object to obtain the bitstream info of
     * @return
     *   A `Seq` of [[Client.BitStreamInfo]] containing the bitstream details
     */
-  def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
+  def getBitstreamInfo(contentObject: Entity): F[Seq[BitStreamInfo]]
 
   /** Returns an [[Entities.Entity]] for the given ref and type
     * @param entityRef
@@ -334,28 +334,22 @@ object EntityClient {
       } yield response
     }
 
-    override def getBitstreamInfo(
-        contentObjectRef: UUID
-    ): F[Seq[BitStreamInfo]] =
+    override def getBitstreamInfo(contentObject: Entity): F[Seq[BitStreamInfo]] =
       for {
-        token <- getAuthenticationToken
-        contentObjectElement <- sendXMLApiRequest(
-          s"$apiUrl/${ContentObject.entityPath}/$contentObjectRef",
-          token,
-          Method.GET
+        _ <- me.raiseWhen(contentObject.entityType.exists(_.entityTypeShort != "CO"))(
+          PreservicaClientException(s"Entity type is not a ContentObject")
         )
-
-        generationsEndpointUrl <- dataProcessor.generationUrlFromEntity(contentObjectElement)
+        token <- getAuthenticationToken
+        contentObjectRef = contentObject.ref
+        generationsEndpointUrl = s"$apiUrl/${ContentObject.entityPath}/$contentObjectRef/generations"
         allGenerationElements <- generationElements(generationsEndpointUrl, contentObjectRef, token)
         allBitstreamInfo <- allGenerationElements.map { generationElement =>
           for {
             generationType <- dataProcessor.generationType(generationElement, contentObjectRef)
             bitstreamElements <- bitstreamElements(generationElement, token)
-            contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
             allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject)
           } yield allBitstreamInfo
         }.flatSequence
-
       } yield allBitstreamInfo
 
     override def metadataForEntity(entity: Entity): F[EntityMetadata] =
