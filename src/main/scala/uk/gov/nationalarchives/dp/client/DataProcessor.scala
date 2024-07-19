@@ -377,7 +377,33 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     * @return
     *   A `Seq` of `Node` containing the links
     */
-  def getEntityLinksXml(elem: Elem): F[Seq[Node]] = me.pure((elem \ "Links" \ "Link"))
+  def getEntityLinksXml(ref: UUID, elem: Elem): F[Seq[Node]] = me.pure {
+    val links = elem \ "Links" \ "Link"
+    links.flatMap { link =>
+      for {
+        linkType <- link.attribute("linkType").flatMap(_.headOption)
+        linkDirection <- link.attribute("linkDirection").flatMap(_.headOption)
+        refLinks <- link.attribute("ref").flatMap(_.headOption.map(_.toString))
+      } yield {
+        val entities =
+          if linkDirection.text == "To" then
+            List(
+              <xip:ToEntity>{refLinks}</xip:ToEntity>
+          <xip:FromEntity>{ref.toString}</xip:FromEntity>
+            )
+          else
+            List(
+              <xip:ToEntity>{ref.toString}</xip:ToEntity>
+            <xip:FromEntity>{refLinks}</xip:FromEntity>
+            )
+
+        <xip:Link xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+          <xip:Type>{linkType.text}</xip:Type>
+          {entities}
+        </xip:Link>
+      }
+    }
+  }
 
   /** Returns a Seq containing multiple [[scala.xml.Node]] XML object objects representing an `EventAction`
     *

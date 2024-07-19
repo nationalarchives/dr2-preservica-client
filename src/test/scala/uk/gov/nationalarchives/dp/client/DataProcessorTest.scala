@@ -10,8 +10,10 @@ import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
 
+import scala.xml.Utility.trim
 import java.time.ZonedDateTime
 import java.util.UUID
+import scala.xml.NodeBuffer
 
 abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) extends AnyFlatSpec {
   private val apiVersion = 7.0f
@@ -771,22 +773,47 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val input =
       <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
         <Links>
-          <Link>link</Link>
-          <Link>link</Link>
-          <Link>link</Link>
+          <Link linkDirection="From" ref="link-ref-from" linkType="Cited">link</Link>
+          <Link linkDirection="To" ref="link-ref-to" linkType="Child">link</Link>
         </Links>
         <Paging>
         </Paging>
       </LinksResponse>
+    val entityId = UUID.randomUUID
+    val id = entityId.toString
     val links = valueFromF(
-      new DataProcessor[F]().getEntityLinksXml(input)
+      new DataProcessor[F]().getEntityLinksXml(entityId, input)
     )
 
-    links should equal(
-      <Links><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link><Link xmlns={namespaceUrl} xmlns:xip={
-        xipUrl
-      }>link</Link><Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>link</Link></Links>.child
+    val expectedLinkTo =
+      <xip:Type>Child</xip:Type><xip:ToEntity>link-ref-to</xip:ToEntity><xip:FromEntity>{id}</xip:FromEntity>
+
+    val expectedLinkFrom =
+      <xip:Type>Cited</xip:Type><xip:ToEntity>{id}</xip:ToEntity><xip:FromEntity>link-ref-from</xip:FromEntity>
+
+    def addToLink(nodeBuffer: NodeBuffer) =
+      trim(<xip:Link xmlns={namespaceUrl} xmlns:xip={xipUrl}>{nodeBuffer}</xip:Link>)
+
+    links.length should equal(2)
+    trim(links.last) should equal(addToLink(expectedLinkTo))
+    trim(links.head) should equal(addToLink(expectedLinkFrom))
+  }
+
+  "getEntityLinksXml" should "return an empty list if there missing attributes in the links" in {
+    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.0" xmlns:xip="http://preservica.com/XIP/v7.0">
+      <Links>
+        <Link ref="link-ref-from" linkType="Cited">link</Link>
+        <Link linkDirection="To" ref="link-ref-to">link</Link>
+      </Links>
+      <Paging>
+      </Paging>
+    </LinksResponse>
+    val entityId = UUID.randomUUID
+    val links = valueFromF(
+      new DataProcessor[F]().getEntityLinksXml(entityId, input)
     )
+
+    links.size should equal(0)
   }
 
   "getEntityLinksXml" should "return an empty list if there are no links" in {
@@ -796,8 +823,9 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       <Paging>
       </Paging>
     </LinksResponse>
+    val entityId = UUID.randomUUID
     val links = valueFromF(
-      new DataProcessor[F]().getEntityLinksXml(input)
+      new DataProcessor[F]().getEntityLinksXml(entityId, input)
     )
 
     links.size should equal(0)
