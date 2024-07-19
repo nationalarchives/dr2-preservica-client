@@ -159,7 +159,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     generations should equal("http://localhost:test")
   }
 
-  "generationUrlFromEntity" should "raise an error if the generation is not found" in {
+  "generationUrlFromEntity" should "raise an error if the generation url is not found" in {
     val input = <EntityResponse>
       <AdditionalInformation>
       </AdditionalInformation>
@@ -168,7 +168,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val generationsError = intercept[Throwable] {
       valueFromF(generationsF)
     }
-    generationsError.getMessage should equal("Generation not found")
+    generationsError.getMessage should equal("Generation URL not found")
   }
 
   "allGenerationUrls" should "return a sequence of generation urls" in {
