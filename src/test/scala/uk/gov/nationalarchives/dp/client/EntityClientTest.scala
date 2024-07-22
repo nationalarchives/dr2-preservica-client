@@ -466,19 +466,19 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entity.ref}</xip:Entity>
           </Identifier>.toString
     )
-    metadata.links.head.toString should equal(
-      <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
-        xipUrl
-      } xmlns={namespaceUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Link>.toString
+    Utility.trim(metadata.links.head) should equal(
+      Utility.trim(
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
+          entity.ref.toString
+        }</xip:ToEntity><xip:FromEntity>758ef5c5-a364-40e5-bd78-e40f72f5a1f0</xip:FromEntity></xip:Link>
+      )
     )
-    metadata.links.last.toString should equal(
-      <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
-        xipUrl
-      } xmlns={namespaceUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Link>.toString
+    Utility.trim(metadata.links.last) should equal(
+      Utility.trim(
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
+          entity.ref.toString
+        }</xip:FromEntity></xip:Link>
+      )
     )
     metadata.metadataNodes.head.toString should equal(
       <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">
@@ -574,19 +574,19 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
             <xip:Entity>{entity.ref}</xip:Entity>
           </Identifier>.toString
     )
-    metadata.links.head.toString should equal(
-      <Link linkType="VirtualChild" linkDirection="From" title="Linked folder" ref="758ef5c5-a364-40e5-bd78-e40f72f5a1f0" type="SO" apiId="ccea29cb2c3254e753aa91939e9b5370" xmlns:xip={
-        xipUrl
-      } xmlns={namespaceUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/v7.0/information-objects/{entityId}</Link>.toString
+    Utility.trim(metadata.links.head) should equal(
+      Utility.trim(
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
+          entity.ref.toString
+        }</xip:ToEntity><xip:FromEntity>758ef5c5-a364-40e5-bd78-e40f72f5a1f0</xip:FromEntity></xip:Link>
+      )
     )
-    metadata.links.last.toString should equal(
-      <Link linkType="CitedBy" linkDirection="To" title="Source material" ref="866d4c6e-ee51-467a-b7a3-e4b65709cf95" type="IO" apiId="16d02f195c1da0aac0f755ba599d5705" xmlns:xip={
-        xipUrl
-      } xmlns={namespaceUrl}>http://localhost:{
-        preservicaPort
-      }/api/entity/v7.0/information-objects/{entityId}</Link>.toString
+    Utility.trim(metadata.links.last) should equal(
+      Utility.trim(
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
+          entity.ref.toString
+        }</xip:FromEntity></xip:Link>
+      )
     )
     metadata.metadataNodes.head.toString should equal(
       <Metadata xmlns:xip="http://preservica.com/XIP/v7.0" xmlns="http://preservica.com/EntityAPI/v7.0">

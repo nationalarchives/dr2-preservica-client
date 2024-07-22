@@ -368,7 +368,7 @@ object EntityClient {
 
         identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), token, Nil)
 
-        entityLinks <- entityLinksXml(uri"$entityUrl/links?$queryParams".toString.some, token, Nil)
+        entityLinks <- entityLinksXml(entity.ref, uri"$entityUrl/links?$queryParams".toString.some, token, Nil)
 
         fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
         fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, token, Method.GET)).sequence
@@ -707,6 +707,7 @@ object EntityClient {
         } yield allIdentifiers
 
     private def entityLinksXml(
+        ref: UUID,
         url: Option[String],
         token: String,
         currentCollectionOfEntityLinks: Seq[Node]
@@ -715,9 +716,10 @@ object EntityClient {
       else
         for {
           entityLinksResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
-          entityLinksXmlBatch <- dataProcessor.getEntityLinksXml(entityLinksResponseXml)
+          entityLinksXmlBatch <- dataProcessor.getEntityLinksXml(ref, entityLinksResponseXml)
           nextPageUrl <- dataProcessor.nextPage(entityLinksResponseXml)
           allEntityLinksXml <- entityLinksXml(
+            ref,
             nextPageUrl,
             token,
             currentCollectionOfEntityLinks ++ entityLinksXmlBatch
