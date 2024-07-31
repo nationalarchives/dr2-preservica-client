@@ -307,13 +307,14 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
 
     val requestUrls: List[List[String] | String] = List(
+      endpoints.stubGetEntity(),
       endpoints.stubCoGenerations(),
       endpoints.stubCoGeneration(),
       endpoints.stubCoBitstreamInfo()
     )
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val bitStreamInfo = valueFromF(response)
     bitStreamInfo.head.url should equal(
@@ -325,8 +326,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
     bitStreamInfo.head.generationVersion should equal(1)
     bitStreamInfo.head.generationType should equal(Original)
-    bitStreamInfo.head.potentialCoTitle should equal(Some("title"))
-    bitStreamInfo.head.parentRef should equal(None)
+    bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
     bitStreamInfo.last.url should equal(
       s"http://localhost:9002/api/entity/v7.0/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
@@ -337,52 +338,35 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     bitStreamInfo.last.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
     bitStreamInfo.last.generationVersion should equal(2)
     bitStreamInfo.last.generationType should equal(Derived)
-    bitStreamInfo.last.potentialCoTitle should equal(Some("title"))
-    bitStreamInfo.last.parentRef should equal(None)
+    bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
+    bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
     verifyServerRequests(requestUrls)
   }
 
-  "getBitstreamInfo" should "return an error if Entity passed in is not a Content Object" in {
-    val entity = createEntity(InformationObject)
-    val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
-
-    val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity)
-
-    val expectedError = valueFromF(cme.attempt(response))
-
-    expectedError.isLeft should be(true)
-    expectedError.left.map(err => err.getMessage should equal("Entity type is not a ContentObject"))
-    verifyZeroServerRequests
-  }
-
-  "getBitstreamInfo" should "return an error if call to 'generations' endpoint, results in a bad request response" in {
+  "getBitstreamInfo" should "return an error if no generations are available" in {
     val entity = createEntity(ContentObject)
     val endpoints = EntityClientEndpoints(preservicaServer, Some(entity))
-    val generationsUrl = endpoints.stubCoGenerations(successfulResponse = false)
+    val getEntityUrl = endpoints.stubGetEntity(emptyResponse = true)
 
     val client = testClient
-    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity)
+    val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val expectedError = valueFromF(cme.attempt(response))
 
     expectedError.isLeft should be(true)
     expectedError.left.map { err =>
-      err.getMessage should equal(
-        s"Status code 400 calling http://localhost:9002/api/entity/v7.0/content-objects/${entity.ref}/generations with method GET "
-      )
+      err.getMessage should equal("Generation URL not found")
     }
-    verifyServerRequests(List(generationsUrl))
+    verifyServerRequests(List(getEntityUrl))
   }
 
   "getBitstreamInfo" should "return an error if the server is unavailable" in {
-    val entity = createEntity(ContentObject)
     val endpoints = EntityClientEndpoints(preservicaServer)
     endpoints.serverErrorStub(MockPreservicaAPI.tokenUrl)
 
     val client = testClient
-    val response = client.getBitstreamInfo(entity)
+    val response = client.getBitstreamInfo(UUID.randomUUID())
 
     val expectedError = valueFromF(cme.attempt(response))
 
