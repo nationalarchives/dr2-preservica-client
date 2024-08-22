@@ -322,8 +322,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
     bitStreamInfo.head.name should equal("test1.txt")
     bitStreamInfo.head.fileSize should equal(1234)
-    bitStreamInfo.head.fixity.algorithm should equal("SHA1")
-    bitStreamInfo.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    bitStreamInfo.head.fixities.size should equal(2)
+    bitStreamInfo.head.fixities.find(_.algorithm == "SHA1").get.value should equal(
+      "0c16735b03fe46b931060858e8cd5ca9c5101565"
+    )
+    bitStreamInfo.head.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
     bitStreamInfo.head.generationVersion should equal(1)
     bitStreamInfo.head.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
@@ -334,8 +337,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     )
     bitStreamInfo.last.name should equal("test1.txt")
     bitStreamInfo.last.fileSize should equal(1234)
-    bitStreamInfo.last.fixity.algorithm should equal("SHA1")
-    bitStreamInfo.last.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    bitStreamInfo.last.fixities.size should equal(2)
+    bitStreamInfo.last.fixities.find(_.algorithm == "SHA1").get.value should equal(
+      "0c16735b03fe46b931060858e8cd5ca9c5101565"
+    )
+    bitStreamInfo.last.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
     bitStreamInfo.last.generationVersion should equal(2)
     bitStreamInfo.last.generationType should equal(Derived)
     bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
@@ -506,6 +512,10 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
         <xip:Filename>test1.txt</xip:Filename>
         <xip:FileSize>1234</xip:FileSize>
         <xip:Fixities>
+          <xip:Fixity>
+            <xip:FixityAlgorithmRef>MD5</xip:FixityAlgorithmRef>
+            <xip:FixityValue>4985298cbf6b2b74c522ced8b128ebe3</xip:FixityValue>
+          </xip:Fixity>
           <xip:Fixity>
             <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
             <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
