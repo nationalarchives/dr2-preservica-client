@@ -153,8 +153,8 @@ object Client {
     *   The size of the bitstream
     * @param url
     *   The url to download the bitstream
-    * @param fixity
-    *   The fixity of the bitstream
+    * @param fixities
+    *   The list of fixities associated with the bitstream
     * @param generationVersion
     *   The version of the generation
     * @param potentialCoTitle
@@ -166,7 +166,7 @@ object Client {
       name: String,
       fileSize: Long,
       url: String,
-      fixity: Fixity,
+      fixities: List[Fixity],
       generationVersion: Int,
       generationType: GenerationType,
       potentialCoTitle: Option[String],
@@ -197,6 +197,12 @@ object Client {
       secretsManagerEndpointUri: String
   )
 
+  /** Represents fixity for an object
+    * @param algorithm
+    *   Algorithm used to generate hash for this object (e.g. MD5, SHA256 etc.)
+    * @param value
+    *   Hash for this object calculated using the corresponding algorithm
+    */
   case class Fixity(algorithm: String, value: String)
 
   /** Creates a new `Client` instance.

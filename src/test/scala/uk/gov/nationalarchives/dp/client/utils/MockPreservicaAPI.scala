@@ -346,6 +346,10 @@ object MockPreservicaAPI {
           <xip:FileSize>1234</xip:FileSize>
           <xip:Fixities>
             <xip:Fixity>
+              <xip:FixityAlgorithmRef>MD5</xip:FixityAlgorithmRef>
+              <xip:FixityValue>4985298cbf6b2b74c522ced8b128ebe3</xip:FixityValue>
+            </xip:Fixity>
+            <xip:Fixity>
               <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
               <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
             </xip:Fixity>

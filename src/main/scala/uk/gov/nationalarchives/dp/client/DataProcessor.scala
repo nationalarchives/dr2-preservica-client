@@ -210,13 +210,16 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         val generationVersion = bitstreamInfoUrlReversed(2).toInt
 
         val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
-        val fixityAlgorithm = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityAlgorithmRef").text
-        val fixityValue = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity" \\ "FixityValue").text
+
+        val fixities = (be \\ "Bitstream" \\ "Fixities" \\ "Fixity").map { eachFixity =>
+          Fixity((eachFixity \ "FixityAlgorithmRef").text, (eachFixity \ "FixityValue").text)
+        }.toList
+
         BitStreamInfo(
           filename,
           fileSize,
           bitstreamUrl,
-          Fixity(fixityAlgorithm, fixityValue),
+          fixities,
           generationVersion,
           generationType,
           contentObject.title,

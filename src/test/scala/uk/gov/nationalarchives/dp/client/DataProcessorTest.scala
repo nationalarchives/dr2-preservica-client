@@ -297,6 +297,10 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
               <xip:FixityAlgorithmRef>SHA1</xip:FixityAlgorithmRef>
               <xip:FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</xip:FixityValue>
             </xip:Fixity>
+            <xip:Fixity>
+              <xip:FixityAlgorithmRef>SHA256</xip:FixityAlgorithmRef>
+              <xip:FixityValue>5470f126401c16cd071df3002ab516f176c21a4b0e03df011bad18e200c5f960</xip:FixityValue>
+            </xip:Fixity>
           </xip:Fixities>
         </xip:Bitstream>
         <AdditionalInformation>
@@ -317,8 +321,13 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.head.name should equal("test.text")
     response.head.fileSize should equal(1234)
     response.head.url should equal("http://test")
-    response.head.fixity.algorithm should equal("SHA1")
-    response.head.fixity.value should equal("0c16735b03fe46b931060858e8cd5ca9c5101565")
+    response.head.fixities.size should equal(2)
+    response.head.fixities.find(_.algorithm == "SHA1").get.value should equal(
+      "0c16735b03fe46b931060858e8cd5ca9c5101565"
+    )
+    response.head.fixities.find(_.algorithm == "SHA256").get.value should equal(
+      "5470f126401c16cd071df3002ab516f176c21a4b0e03df011bad18e200c5f960"
+    )
     response.head.generationVersion should equal(2)
     response.head.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
