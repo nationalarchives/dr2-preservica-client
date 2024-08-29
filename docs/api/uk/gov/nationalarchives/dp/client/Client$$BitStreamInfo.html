@@ -7,7 +7,7 @@
 </div>
 <div class="main-signature mono-small-block">
  <div class="signature">
-  <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$BitStreamInfo.html" t="n" class="documentableName ">BitStreamInfo</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">name</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fileSize</span>: <span data-unresolved-link="" t="t">Long</span>, <span t="k"></span><span data-unresolved-link="" t="n">url</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fixity</span>: <a href="Client$$Fixity.html" t="t">Fixity</a>, <span t="k"></span><span data-unresolved-link="" t="n">generationVersion</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">generationType</span>: <a href="EntityClient$$GenerationType.html" t="t">GenerationType</a>, <span t="k"></span><span data-unresolved-link="" t="n">potentialCoTitle</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">String</span>], <span t="k"></span><span data-unresolved-link="" t="n">parentRef</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">UUID</span>])
+  <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$BitStreamInfo.html" t="n" class="documentableName ">BitStreamInfo</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">name</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fileSize</span>: <span data-unresolved-link="" t="t">Long</span>, <span t="k"></span><span data-unresolved-link="" t="n">url</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fixities</span>: <span data-unresolved-link="" t="t">List</span>[<a href="Client$$Fixity.html" t="t">Fixity</a>], <span t="k"></span><span data-unresolved-link="" t="n">generationVersion</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">generationType</span>: <a href="EntityClient$$GenerationType.html" t="t">GenerationType</a>, <span t="k"></span><span data-unresolved-link="" t="n">potentialCoTitle</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">String</span>], <span t="k"></span><span data-unresolved-link="" t="n">parentRef</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">UUID</span>])
  </div>
 </div>
 <div class="cover">
@@ -24,10 +24,10 @@
     <p>The size of the bitstream</p>
    </dd>
    <dt class="body-small">
-    fixity
+    fixities
    </dt>
    <dd class="body-medium">
-    <p>The fixity of the bitstream</p>
+    <p>The list of fixities associated with the bitstream</p>
    </dd>
    <dt class="body-small">
     generationVersion

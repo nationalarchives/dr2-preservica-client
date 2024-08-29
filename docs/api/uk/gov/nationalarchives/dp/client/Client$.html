@@ -94,7 +94,7 @@ node3 -> node2;
           <button class="icon-button ar show-content"></button>
           <div class="header monospace mono-medium">
            <div class="signature">
-            <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$BitStreamInfo.html" t="n" class="documentableName ">BitStreamInfo</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">name</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fileSize</span>: <span data-unresolved-link="" t="t">Long</span>, <span t="k"></span><span data-unresolved-link="" t="n">url</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fixity</span>: <a href="Client$$Fixity.html" t="t">Fixity</a>, <span t="k"></span><span data-unresolved-link="" t="n">generationVersion</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">generationType</span>: <a href="EntityClient$$GenerationType.html" t="t">GenerationType</a>, <span t="k"></span><span data-unresolved-link="" t="n">potentialCoTitle</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">String</span>], <span t="k"></span><span data-unresolved-link="" t="n">parentRef</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">UUID</span>])
+            <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$BitStreamInfo.html" t="n" class="documentableName ">BitStreamInfo</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">name</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fileSize</span>: <span data-unresolved-link="" t="t">Long</span>, <span t="k"></span><span data-unresolved-link="" t="n">url</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">fixities</span>: <span data-unresolved-link="" t="t">List</span>[<a href="Client$$Fixity.html" t="t">Fixity</a>], <span t="k"></span><span data-unresolved-link="" t="n">generationVersion</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">generationType</span>: <a href="EntityClient$$GenerationType.html" t="t">GenerationType</a>, <span t="k"></span><span data-unresolved-link="" t="n">potentialCoTitle</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">String</span>], <span t="k"></span><span data-unresolved-link="" t="n">parentRef</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">UUID</span>])
            </div>
           </div>
          </div>
@@ -119,10 +119,10 @@ node3 -> node2;
                <p>The size of the bitstream</p>
               </dd>
               <dt class="body-small">
-               fixity
+               fixities
               </dt>
               <dd class="body-medium">
-               <p>The fixity of the bitstream</p>
+               <p>The list of fixities associated with the bitstream</p>
               </dd>
               <dt class="body-small">
                generationVersion
@@ -304,8 +304,28 @@ node3 -> node2;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Represents fixity for an object</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Represents fixity for an object</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               algorithm
+              </dt>
+              <dd class="body-medium">
+               <p>Algorithm used to generate hash for this object (e.g. MD5, SHA256 etc.)</p>
+              </dd>
+              <dt class="body-small">
+               value
+              </dt>
+              <dd class="body-medium">
+               <p>Hash for this object calculated using the corresponding algorithm</p>
+              </dd>
+             </dl>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">
