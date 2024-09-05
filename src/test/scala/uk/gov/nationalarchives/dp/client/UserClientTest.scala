@@ -4,11 +4,9 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
-import org.scalatest.{Assertion, BeforeAndAfterEach, EitherValues}
-import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.*
-import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MessageStatus.*
 import io.circe.parser.decode
 import io.circe.generic.auto.*
+import org.scalatest.{BeforeAndAfterEach, EitherValues}
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.UserClient.ResetPasswordRequest
 
