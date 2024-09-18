@@ -36,9 +36,9 @@ lazy val releaseSettings = Seq(
   ),
   developers := List(
     Developer(
-      id = "tna-digital-archiving-jenkins",
+      id = "tna-da-bot",
       name = "TNA Digital Archiving",
-      email = "digitalpreservation@nationalarchives.gov.uk",
+      email = "181243999+tna-da-bot@users.noreply.github.com",
       url = url("https://github.com/nationalarchives/dr2-preservica-client")
     )
   ),
