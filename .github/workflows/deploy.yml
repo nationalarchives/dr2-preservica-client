@@ -22,8 +22,8 @@ jobs:
       - name: Update docs site
         run: |
           sbt 'docs / makeSite'
-          git config --global user.email digitalpreservation@nationalarchives.gov.uk
-          git config --global user.name tna-digital-archiving-jenkins
+          git config --global user.email 181243999+tna-da-bot@users.noreply.github.com
+          git config --global user.name tna-da-bot
           git checkout gh-pages
           rm -rf docs
           mkdir docs && cp -r site-docs/target/site/* docs
