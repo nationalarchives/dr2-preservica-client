@@ -20,7 +20,7 @@ private[client] class LoggingWrapper[F[_], P](delegate: SttpBackend[F, P])(using
       logger <- Slf4jLogger.create[F]
       res <- delegate.send(request)
       _ <- logger
-        .info(ctx + ("code" -> res.code.code.toString))(s"Sending $method request to $url. Response ${res.code.code}")
+        .debug(ctx + ("code" -> res.code.code.toString))(s"Sending $method request to $url. Response ${res.code.code}")
     yield res).onError(err =>
       for
         logger <- Slf4jLogger.create[F]
