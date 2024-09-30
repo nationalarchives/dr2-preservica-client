@@ -449,17 +449,17 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
         DataProcessor.EventAction(
           UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"),
           "Ingest",
-          ZonedDateTime.parse("2023-06-26T08:14:08.441Z")
+          ZonedDateTime.parse("2023-06-26T08:14:07.441Z")
         ),
         DataProcessor.EventAction(
           UUID.fromString("efe9b25d-c3b4-476a-8ff1-d52fb01ad96b"),
           "Modified",
-          ZonedDateTime.parse("2023-06-27T08:14:08.442Z")
+          ZonedDateTime.parse("2023-06-27T08:14:07.442Z")
         ),
         DataProcessor.EventAction(
           UUID.fromString("68c3adcc-8e1f-40f7-84a0-ca80c5969ef7"),
           "Moved",
-          ZonedDateTime.parse("2023-06-28T08:14:08.442Z")
+          ZonedDateTime.parse("2023-06-28T08:14:07.442Z")
         )
       )
     )

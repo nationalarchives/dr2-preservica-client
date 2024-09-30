@@ -805,11 +805,11 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val firstResult = response.head
     val secondResult = response.last
 
-    firstResult.dateOfEvent.toString should equal("2023-06-27T08:14:08.442Z")
+    firstResult.dateOfEvent.toString should equal("2023-06-27T08:14:07.442Z")
     firstResult.eventRef should equal(UUID.fromString("efe9b25d-c3b4-476a-8ff1-d52fb01ad96b"))
     firstResult.eventType should be("Modified")
 
-    secondResult.dateOfEvent.toString should equal("2023-06-26T08:14:08.441Z")
+    secondResult.dateOfEvent.toString should equal("2023-06-26T08:14:07.441Z")
     secondResult.eventRef should equal(UUID.fromString("6da319fa-07e0-4a83-9c5a-b6bad08445b1"))
     secondResult.eventType should be("Ingest")
 

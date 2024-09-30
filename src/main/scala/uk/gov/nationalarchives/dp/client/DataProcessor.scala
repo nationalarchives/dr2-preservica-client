@@ -293,7 +293,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         .map { e =>
           val eventRef = UUID.fromString((e \\ "Event" \\ "Ref").text)
           val eventType = (e \\ "Event").flatMap(event => event.attributes("type")).text
-          val dateOfEvent = ZonedDateTime.parse((e \\ "Event" \\ "Date").text)
+          val dateOfEvent = ZonedDateTime.parse((e \ "Date").text)
 
           EventAction(eventRef, eventType, dateOfEvent)
         }
