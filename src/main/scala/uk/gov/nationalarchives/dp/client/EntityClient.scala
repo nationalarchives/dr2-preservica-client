@@ -1,6 +1,6 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
+import cats.{MonadError, Parallel}
 import cats.effect.Async
 import cats.implicits.*
 import sttp.capabilities.Streams
@@ -166,15 +166,13 @@ trait EntityClient[F[_], S] {
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
 
-  /** Find entities for an identifier
-    * @param identifier
-    *   The identifier to use to find the entities
+  /** Find entities for identifiers
+    * @param identifiers
+    *   A Seq of identifiers
     * @return
-    *   A `Seq` of [[Entities.Entity]]
+    *   A map of SourceID value -> Seq of Entities
     */
-  def entitiesByIdentifier(
-      identifier: Identifier
-  ): F[Seq[Entity]]
+  def entitiesByIdentifiers(identifiers: Seq[Identifier]): F[Map[String, Seq[Entity]]]
 
   /** Adds an identifier for an entity
     * @param entityRef
@@ -219,9 +217,8 @@ object EntityClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
+  def createEntityClient[F[_]: Async: Parallel, S](clientConfig: ClientConfig[F, S])(using
+      me: MonadError[F, Throwable]
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
@@ -463,22 +460,11 @@ object EntityClient {
       } yield eventActions.reverse // most recent event first
     }
 
-    override def entitiesByIdentifier(
-        identifier: Identifier
-    ): F[Seq[Entity]] = {
-      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
-      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
+    override def entitiesByIdentifiers(identifiers: Seq[Identifier]): F[Map[String, Seq[Entity]]] =
       for {
         token <- getAuthenticationToken
-        entitiesWithIdentifier <- getEntities(url.toString, token)
-        entities <- entitiesWithIdentifier.map { entityWithId =>
-          for {
-            entityType <- getEntityType(entityWithId)
-            entity <- getEntityWithRef(entityWithId.ref, entityType, token)
-          } yield entity
-        }.sequence
-      } yield entities
-    }
+        entities <- identifiers.parTraverse(identifier => entitiesForIdentifier(identifier, token))
+      } yield entities.flatten.toMap
 
     override def addIdentifierForEntity(
         entityRef: UUID,
@@ -539,6 +525,23 @@ object EntityClient {
         resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", token, Method.GET)
         version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
       } yield version
+    }
+
+    private def entitiesForIdentifier(
+        identifier: Identifier,
+        token: String
+    ): F[Map[String, Seq[Entity]]] = {
+      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
+      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
+      for {
+        entitiesWithIdentifier <- getEntities(url.toString, token)
+        entities <- entitiesWithIdentifier.map { entityWithId =>
+          for {
+            entityType <- getEntityType(entityWithId)
+            entity <- getEntityWithRef(entityWithId.ref, entityType, token)
+          } yield entity
+        }.sequence
+      } yield Map(identifier.value -> entities)
     }
 
     private def getEntityWithRef(entityRef: UUID, entityType: EntityType, token: String) =

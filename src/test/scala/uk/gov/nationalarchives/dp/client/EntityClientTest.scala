@@ -852,20 +852,17 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   }
 
   "entitiesByIdentifier" should "return a complete entity if it has the identifier specified" in {
-    val identifier = Identifier("testIdentifier", "testValue")
+    val identifiers = List(Identifier("testIdentifier", "testValue"))
     val structuralObject = createEntity()
 
     val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
 
-    val requestUrls = List(
-      endpoints.stubGetEntity(),
-      endpoints.stubEntitiesByIdentifier(identifier)
-    )
+    val requestUrls = endpoints.stubGetEntity() :: endpoints.stubEntitiesByIdentifiers(identifiers)
 
     val client = testClient
-    val response = valueFromF(client.entitiesByIdentifier(identifier))
+    val response = valueFromF(client.entitiesByIdentifiers(identifiers))
 
-    val expectedEntity = response.head
+    val expectedEntity = response("testValue").head
 
     expectedEntity.ref.toString should equal("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
     expectedEntity.path.get should equal("structural-objects")
@@ -878,32 +875,32 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   }
 
   "entitiesByIdentifier" should "return an empty list if no entities have the identifier specified" in {
-    val identifier = Identifier("testIdentifier", "testValueDoesNotExist")
+    val identifiers = List(Identifier("testIdentifier", "testValueDoesNotExist"))
     val structuralObject = createEntity()
     val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
 
     val entitiesByIdentifierUrl =
-      endpoints.stubEntitiesByIdentifier(identifier, emptyResponse = true)
+      endpoints.stubEntitiesByIdentifiers(identifiers, emptyResponse = true)
 
     val client = testClient
     val response = valueFromF(
-      client.entitiesByIdentifier(Identifier("testIdentifier", "testValueDoesNotExist"))
+      client.entitiesByIdentifiers(identifiers)
     )
 
-    response.size should equal(0)
+    response("testValueDoesNotExist").size should equal(0)
     verifyServerRequests(List(entitiesByIdentifierUrl))
   }
 
   "entitiesByIdentifier" should "return an error if the request is malformed" in {
-    val identifier = Identifier("testIdentifier", "testValue")
+    val identifiers = List(Identifier("testIdentifier", "testValue"))
     val structuralObject = createEntity()
 
     val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
     val entitiesByIdentifierUrl =
-      endpoints.stubEntitiesByIdentifier(identifier, false)
+      endpoints.stubEntitiesByIdentifiers(identifiers, false)
 
     val client = testClient
-    val response = valueFromF(cme.attempt(client.entitiesByIdentifier(identifier)))
+    val response = valueFromF(cme.attempt(client.entitiesByIdentifiers(identifiers)))
 
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")

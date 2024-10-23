@@ -211,11 +211,11 @@ object MockPreservicaAPI {
       List(eventActionsFirstPageUrl, eventActionsSecondPageUrl)
     }
 
-    def stubEntitiesByIdentifier(
-        identifier: Identifier,
+    def stubEntitiesByIdentifiers(
+        identifiers: List[Identifier],
         successfulResponse: Boolean = true,
         emptyResponse: Boolean = false
-    ): String = {
+    ): List[String] = {
       val response: ResponseDefinitionBuilder =
         if (successfulResponse)
           if (emptyResponse)
@@ -224,9 +224,11 @@ object MockPreservicaAPI {
             ok(entitiesByIdentifierPageResponse)
         else badRequest()
 
-      val entitiesByIdUrl = entitiesByIdentifierUrl(identifier)
-      preservicaServer.stubFor(get(urlEqualTo(entitiesByIdUrl)).willReturn(response))
-      entitiesByIdUrl
+      identifiers.map { identifier =>
+        val entitiesByIdUrl = entitiesByIdentifierUrl(identifier)
+        preservicaServer.stubFor(get(urlEqualTo(entitiesByIdUrl)).willReturn(response))
+        entitiesByIdUrl
+      }
     }
 
     def stubEntitiesUpdatedSince(
