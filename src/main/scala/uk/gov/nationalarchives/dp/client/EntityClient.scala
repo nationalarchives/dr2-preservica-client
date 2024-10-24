@@ -464,7 +464,9 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         entities <- identifiers.parTraverse(identifier => entitiesForIdentifier(identifier, token))
-      } yield entities.flatten.toMap
+      } yield entities.flatten.groupBy(_._1).map { case (key, pairs) =>
+        key -> pairs.flatMap(_._2)
+      }
 
     override def addIdentifierForEntity(
         entityRef: UUID,
