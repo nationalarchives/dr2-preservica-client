@@ -851,30 +851,75 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     verifyZeroServerRequests
   }
 
-  "entitiesByIdentifier" should "return a complete entity if it has the identifier specified" in {
-    val identifiers = List(Identifier("testIdentifier", "testValue"))
+  "entitiesByIdentifiers" should "return a complete entity if it has the identifier specified" in {
+    val identifiers = List(Identifier("testIdentifier1", "testValue1"), Identifier("testIdentifier2", "testValue2"))
     val structuralObject = createEntity()
 
     val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
 
-    val requestUrls = endpoints.stubGetEntity() :: endpoints.stubEntitiesByIdentifiers(identifiers)
+    val requestUrls =
+      List(endpoints.stubGetEntity(), endpoints.stubGetEntity()) ++ endpoints.stubEntitiesByIdentifiers(identifiers)
 
     val client = testClient
-    val response = valueFromF(client.entitiesByIdentifiers(identifiers))
+    val response = valueFromF(client.entitiesPerIdentifier(identifiers))
 
-    val expectedEntity = response("testValue").head
-
-    expectedEntity.ref.toString should equal("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
-    expectedEntity.path.get should equal("structural-objects")
-    expectedEntity.title.get should be("page1File.txt")
-    expectedEntity.description.get should be("A description")
-    expectedEntity.securityTag.get should be(Open)
-    expectedEntity.deleted should be(false)
+    identifiers.foreach { identifier =>
+      val expectedEntity = response(identifier).head
+      expectedEntity.ref.toString should equal("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
+      expectedEntity.path.get should equal("structural-objects")
+      expectedEntity.title.get should be("page1File.txt")
+      expectedEntity.description.get should be("A description")
+      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.deleted should be(false)
+    }
 
     verifyServerRequests(List(requestUrls))
   }
 
-  "entitiesByIdentifier" should "return an empty list if no entities have the identifier specified" in {
+  "entitiesByIdentifiers" should "return two entities if they both have the same identifier" in {
+    val identifier = Identifier("testIdentifier", "testValue")
+    val structuralObjectOne = createEntity()
+    val structuralObjectTwo = createEntity()
+
+    val endpointsOne = EntityClientEndpoints(preservicaServer, Some(structuralObjectOne))
+    val endpointsTwo = EntityClientEndpoints(preservicaServer, Some(structuralObjectTwo))
+    val apiUrl = s"/api/entity/v$apiVersion"
+
+    val xmlResponse = <EntitiesResponse>
+      <Entities>
+        <Entity title="page1File.txt" ref={
+      structuralObjectOne.ref.toString
+    } type="SO">http://localhost/page1/object</Entity>
+        <Entity title="page1File.txt" ref={
+      structuralObjectTwo.ref.toString
+    } type="SO">http://localhost/page1/object</Entity>
+      </Entities>
+      <Paging>
+        <TotalResults>1</TotalResults>
+      </Paging>
+    </EntitiesResponse>
+
+    val entitiesByIdUrl = s"$apiUrl/entities/by-identifier?type=${identifier.identifierName}&value=${identifier.value}"
+    preservicaServer.stubFor(get(urlEqualTo(entitiesByIdUrl)).willReturn(okXml(xmlResponse.toString)))
+
+    val requestUrls = List(endpointsOne.stubGetEntity(), endpointsTwo.stubGetEntity(), entitiesByIdUrl)
+
+    val client = testClient
+    val response = valueFromF(client.entitiesPerIdentifier(List(identifier)))
+
+    response(identifier).foreach { expectedEntity =>
+      expectedEntity.ref.toString should equal("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
+      expectedEntity.path.get should equal("structural-objects")
+      expectedEntity.title.get should be("page1File.txt")
+      expectedEntity.description.get should be("A description")
+      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.deleted should be(false)
+    }
+
+    verifyServerRequests(List(requestUrls))
+  }
+
+  "entitiesByIdentifiers" should "return an empty list if no entities have the identifiers specified" in {
     val identifiers = List(Identifier("testIdentifier", "testValueDoesNotExist"))
     val structuralObject = createEntity()
     val endpoints = EntityClientEndpoints(preservicaServer, Some(structuralObject))
@@ -884,14 +929,14 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val client = testClient
     val response = valueFromF(
-      client.entitiesByIdentifiers(identifiers)
+      client.entitiesPerIdentifier(identifiers)
     )
 
-    response("testValueDoesNotExist").size should equal(0)
+    response(identifiers.head).size should equal(0)
     verifyServerRequests(List(entitiesByIdentifierUrl))
   }
 
-  "entitiesByIdentifier" should "return an error if the request is malformed" in {
+  "entitiesByIdentifiers" should "return an error if the request is malformed" in {
     val identifiers = List(Identifier("testIdentifier", "testValue"))
     val structuralObject = createEntity()
 
@@ -900,7 +945,7 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
       endpoints.stubEntitiesByIdentifiers(identifiers, false)
 
     val client = testClient
-    val response = valueFromF(cme.attempt(client.entitiesByIdentifiers(identifiers)))
+    val response = valueFromF(cme.attempt(client.entitiesPerIdentifier(identifiers)))
 
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
@@ -923,8 +968,12 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
     val expectedXml =
       <Identifier xmlns={xipUrl}>
-          <Type>TestIdentifierName</Type>
-          <Value>TestIdentifierValue</Value>
+          <Type>
+            TestIdentifierName
+          </Type>
+          <Value>
+            TestIdentifierValue
+          </Value>
         </Identifier>.toString()
 
     requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
@@ -1061,8 +1110,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     def checkEvent(serveEvent: ServeEvent, id: String) = {
       val xml = XML.loadString(serveEvent.getRequest.getBodyAsString)
 
-      (xml \ "Type").text should equal(s"Name$id")
-      (xml \ "Value").text should equal(s"Value$id")
+      (xml \ "Type").text.trim should equal(s"Name$id")
+      (xml \ "Value").text.trim should equal(s"Value$id")
       serveEvent.getRequest.getUrl.endsWith(s"/$id") should be(true)
     }
     checkEvent(putEvents.head, "2")

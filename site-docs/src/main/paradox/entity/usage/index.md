@@ -41,9 +41,7 @@ The client exposes 15 methods
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
 
-  def entitiesByIdentifier(
-      identifier: Identifier
-  ): F[Seq[Entity]]
+  def entitiesPerIdentifier(identifiers: Seq[Identifier]): F[Map[Identifier, Seq[Entity]]]
 
   def getContentObjectsFromRepresentation(
       ioEntityRef: UUID,
