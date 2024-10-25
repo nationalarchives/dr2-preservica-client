@@ -196,12 +196,12 @@ node3 -> node2;
           </div>
          </div>
         </div>
-        <div class="documentableElement" id="entitiesByIdentifier-1e8">
+        <div class="documentableElement" id="entitiesPerIdentifier-dbe">
          <div class="documentableElement-expander">
           <button class="icon-button ar show-content"></button>
           <div class="header monospace mono-medium">
            <div class="signature">
-            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="EntityClient.html#entitiesByIdentifier-1e8" t="n" class="documentableName ">entitiesByIdentifier</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">identifier</span>: <a href="EntityClient$$Identifier.html" t="t">Identifier</a>): <span t="t">F</span>[<span data-unresolved-link="" t="t">Seq</span>[<a href="Entities$$Entity.html" t="t">Entity</a>]]
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="EntityClient.html#entitiesPerIdentifier-dbe" t="n" class="documentableName ">entitiesPerIdentifier</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">identifiers</span>: <span data-unresolved-link="" t="t">Seq</span>[<a href="EntityClient$$Identifier.html" t="t">Identifier</a>]): <span t="t">F</span>[<span data-unresolved-link="" t="t">Map</span>[<a href="EntityClient$$Identifier.html" t="t">Identifier</a>, <span data-unresolved-link="" t="t">Seq</span>[<a href="Entities$$Entity.html" t="t">Entity</a>]]]
            </div>
           </div>
          </div>
@@ -211,19 +211,19 @@ node3 -> node2;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Find entities for an identifier</p>
+             <p>Find entities per identifier</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Find entities for an identifier</p>
+              <p>Find entities per identifier</p>
              </div>
              <h2 class="h200">Value parameters</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">
-               identifier
+               identifiers
               </dt>
               <dd class="body-medium">
-               <p>The identifier to use to find the entities</p>
+               <p>A Seq of identifiers</p>
               </dd>
              </dl>
              <h2 class="h200">Attributes</h2>
@@ -232,7 +232,7 @@ node3 -> node2;
                Returns
               </dt>
               <dd class="body-medium">
-               <p>A <code>Seq</code> of <a href="Entities$$Entity.html">Entities.Entity</a></p>
+               <p>A Map of Identifier -&gt; Seq of Entities</p>
               </dd>
              </dl>
             </div>
