@@ -480,7 +480,7 @@ object EntityClient {
     override def entitiesPerIdentifier(identifiers: Seq[Identifier]): F[Map[Identifier, Seq[Entity]]] =
       for {
         token <- getAuthenticationToken
-        entities <- identifiers.parTraverse(identifier => entitiesForIdentifier(identifier, token))
+        entities <- identifiers.distinct.parTraverse(identifier => entitiesForIdentifier(identifier, token))
       } yield entities.toMap
 
     override def addIdentifierForEntity(
