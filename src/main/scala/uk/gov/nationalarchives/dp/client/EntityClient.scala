@@ -1,6 +1,6 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
+import cats.{MonadError, Parallel}
 import cats.effect.Async
 import cats.implicits.*
 import sttp.capabilities.Streams
@@ -20,6 +20,7 @@ import scala.xml.Utility.escape
 import scala.util.Try
 
 /** A client to create, get and update entities in Preservica
+  *
   * @tparam F
   *   Type of the effect
   */
@@ -30,6 +31,7 @@ trait EntityClient[F[_], S] {
   val dateFormatter: DateTimeFormatter
 
   /** Returns metadata as an XML `Elem` for the provided entity
+    *
     * @param entity
     *   The entity to return metadata for
     * @return
@@ -38,6 +40,7 @@ trait EntityClient[F[_], S] {
   def metadataForEntity(entity: Entity): F[EntityMetadata]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
+    *
     * @param contentRef
     *   The reference of the content object
     * @return
@@ -46,6 +49,7 @@ trait EntityClient[F[_], S] {
   def getBitstreamInfo(contentRef: UUID): F[Seq[BitStreamInfo]]
 
   /** Returns an [[Entities.Entity]] for the given ref and type
+    *
     * @param entityRef
     *   The reference of the entity
     * @param entityType
@@ -56,6 +60,7 @@ trait EntityClient[F[_], S] {
   def getEntity(entityRef: UUID, entityType: EntityType): F[Entity]
 
   /** Returns a list of [[Entities.IdentifierResponse]] for a given entity
+    *
     * @param entity
     *   The entity to find the identifiers for
     * @return
@@ -64,6 +69,7 @@ trait EntityClient[F[_], S] {
   def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]]
 
   /** Returns a String for the given ref and representationType
+    *
     * @param ioEntityRef
     *   The reference of the Information Object
     * @param representationType
@@ -77,6 +83,7 @@ trait EntityClient[F[_], S] {
   ): F[Seq[String]]
 
   /** Returns a `Seq` of [[Entities.Entity]] for the given ref and representationType
+    *
     * @param ioEntityRef
     *   The reference of the Information Object
     * @param representationType
@@ -93,6 +100,7 @@ trait EntityClient[F[_], S] {
   ): F[Seq[Entity]]
 
   /** Adds an entity to Preservica
+    *
     * @param addEntityRequest
     *   An instance of [[EntityClient.AddEntityRequest]] with the details of the entity to add
     * @return
@@ -101,6 +109,7 @@ trait EntityClient[F[_], S] {
   def addEntity(addEntityRequest: AddEntityRequest): F[UUID]
 
   /** Updates an entity in Preservice
+    *
     * @param updateEntityRequest
     *   An instance of [[EntityClient.UpdateEntityRequest]] with the details of the entity to update
     * @return
@@ -109,6 +118,7 @@ trait EntityClient[F[_], S] {
   def updateEntity(updateEntityRequest: UpdateEntityRequest): F[String]
 
   /** Updates identifiers for an entity
+    *
     * @param entity
     *   The entity to update
     * @param identifiers
@@ -119,6 +129,7 @@ trait EntityClient[F[_], S] {
   def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
 
   /** Streams the bitstream from the provided url into `streamFn`
+    *
     * @param stream
     *   An instance of the sttp Stream type
     * @param url
@@ -135,6 +146,7 @@ trait EntityClient[F[_], S] {
   )(url: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
   /** Returns any entity updated since the provided dateTime
+    *
     * @param dateTime
     *   The date and time to pass to the API
     * @param startEntry
@@ -151,6 +163,7 @@ trait EntityClient[F[_], S] {
   ): F[Seq[Entity]]
 
   /** Returns a list of event actions for an entity
+    *
     * @param entity
     *   The entity to return the actions for
     * @param startEntry
@@ -166,17 +179,17 @@ trait EntityClient[F[_], S] {
       maxEntries: Int = 1000
   ): F[Seq[EventAction]]
 
-  /** Find entities for an identifier
-    * @param identifier
-    *   The identifier to use to find the entities
+  /** Find entities per identifier
+    *
+    * @param identifiers
+    *   A Seq of identifiers
     * @return
-    *   A `Seq` of [[Entities.Entity]]
+    *   A Map of Identifier -> Seq of Entities
     */
-  def entitiesByIdentifier(
-      identifier: Identifier
-  ): F[Seq[Entity]]
+  def entitiesPerIdentifier(identifiers: Seq[Identifier]): F[Map[Identifier, Seq[Entity]]]
 
   /** Adds an identifier for an entity
+    *
     * @param entityRef
     *   The reference of the entity
     * @param entityType
@@ -193,6 +206,7 @@ trait EntityClient[F[_], S] {
   ): F[String]
 
   /** Gets the version of Preservica in the namespace
+    *
     * @param endpoint
     *   The Entity endpoint to be called (this should exclude the baseUrl and path)
     * @return
@@ -207,6 +221,7 @@ trait EntityClient[F[_], S] {
 object EntityClient {
 
   /** Creates a new `EntityClient` instance.
+    *
     * @param clientConfig
     *   Configuration parameters needed to create the client
     * @param me
@@ -219,9 +234,8 @@ object EntityClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createEntityClient[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
+  def createEntityClient[F[_]: Async: Parallel, S](clientConfig: ClientConfig[F, S])(using
+      me: MonadError[F, Throwable]
   ): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
@@ -463,22 +477,11 @@ object EntityClient {
       } yield eventActions.reverse // most recent event first
     }
 
-    override def entitiesByIdentifier(
-        identifier: Identifier
-    ): F[Seq[Entity]] = {
-      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
-      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
+    override def entitiesPerIdentifier(identifiers: Seq[Identifier]): F[Map[Identifier, Seq[Entity]]] =
       for {
         token <- getAuthenticationToken
-        entitiesWithIdentifier <- getEntities(url.toString, token)
-        entities <- entitiesWithIdentifier.map { entityWithId =>
-          for {
-            entityType <- getEntityType(entityWithId)
-            entity <- getEntityWithRef(entityWithId.ref, entityType, token)
-          } yield entity
-        }.sequence
-      } yield entities
-    }
+        entities <- identifiers.distinct.parTraverse(identifier => entitiesForIdentifier(identifier, token))
+      } yield entities.toMap
 
     override def addIdentifierForEntity(
         entityRef: UUID,
@@ -500,6 +503,7 @@ object EntityClient {
         stream: Streams[S]
     )(url: String, streamFn: stream.BinaryStream => F[T]): F[T] = {
       val apiUri = uri"$url"
+
       def request(token: String) = basicRequest
         .get(apiUri)
         .headers(Map("Preservica-Access-Token" -> token))
@@ -539,6 +543,27 @@ object EntityClient {
         resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", token, Method.GET)
         version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
       } yield version
+    }
+
+    private def entitiesForIdentifier(
+        identifier: Identifier,
+        token: String
+    ): F[(Identifier, Seq[Entity])] = {
+      val queryParams = Map("type" -> identifier.identifierName, "value" -> identifier.value)
+      val url = uri"$apiUrl/entities/by-identifier?$queryParams"
+      for {
+        entitiesWithIdentifier <- getEntities(url.toString, token)
+        entities <- entitiesWithIdentifier.map { entityWithId =>
+          for {
+            entityType <- getEntityType(entityWithId)
+            entity <- getEntityWithRef(
+              entityWithId.ref,
+              entityType,
+              token
+            ) // This is necessary to get the full entity information as by-identifier doesn't return it
+          } yield entity
+        }.sequence
+      } yield identifier -> entities
     }
 
     private def getEntityWithRef(entityRef: UUID, entityType: EntityType, token: String) =
@@ -597,8 +622,12 @@ object EntityClient {
     private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
       val identifierAsXml =
         <Identifier xmlns={namespaceUrl}>
-          <Type>{identifierName}</Type>
-          <Value>{identifierValue}</Value>
+          <Type>
+            {identifierName}
+          </Type>
+          <Value>
+            {identifierValue}
+          </Value>
         </Identifier>
 
       s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
@@ -746,6 +775,7 @@ object EntityClient {
     override def toString: String = this match
       case Open   => "open"
       case Closed => "closed"
+
     case Open, Closed
 
   /** Represents an entity type
@@ -766,6 +796,7 @@ object EntityClient {
     case Access, Preservation
 
   /** Represents an entity to add to Preservica
+    *
     * @param ref
     *   An optional ref. If one is not provided, one will be generated
     * @param title
@@ -789,6 +820,7 @@ object EntityClient {
   )
 
   /** Represents an entity to update in Preservica
+    *
     * @param ref
     *   The ref of the entity to be updated
     * @param title
