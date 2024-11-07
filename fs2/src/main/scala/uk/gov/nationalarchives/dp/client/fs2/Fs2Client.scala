@@ -5,10 +5,8 @@ import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.SttpBackendOptions
 import sttp.client3.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient.*
-import uk.gov.nationalarchives.dp.client.AdminClient.*
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{
-  AdminClient,
   ContentClient,
   EntityClient,
   LoggingWrapper,
@@ -52,29 +50,6 @@ object Fs2Client:
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       IO(createEntityClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
-    }
-
-  /** Creates an admin client
-    * @param url
-    *   The Preservica instance url
-    * @param secretName
-    *   The of the AWS secrets manager secret containing API credentials
-    * @param duration
-    *   The length of time to cache the credentials and token
-    * @param ssmEndpointUri
-    *   The endpoint of secrets manager to use
-    * @return
-    *   An admin client
-    */
-  def adminClient(
-      url: String,
-      secretName: String,
-      duration: FiniteDuration = 15.minutes,
-      ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
-  ): IO[AdminClient[IO]] =
-    HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      IO(createAdminClient(ClientConfig(url, secretName, LoggingWrapper(backend), duration, ssmEndpointUri)))
     }
 
   /** Creates a content client
