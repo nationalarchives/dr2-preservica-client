@@ -49,27 +49,6 @@ object Clients {
   }
   // #content_client
 
-  // #admin_client
-  object AdminClients {
-    import cats.effect.IO
-    import uk.gov.nationalarchives.dp.client.AdminClient
-    import uk.gov.nationalarchives.dp.client.fs2.Fs2Client
-
-    import scala.concurrent.duration.*
-
-    val preservicaUrl = "https://test.preservica.com"
-    val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
-
-    val fs2AdminClientWithDefaults: IO[AdminClient[IO]] = Fs2Client.adminClient(preservicaUrl, secretName)
-    val fs2AdminClientWithCustomCacheDuration: IO[AdminClient[IO]] =
-      Fs2Client.adminClient(preservicaUrl, secretName, 30.minutes)
-    val fs2AdminClientWithCustomSecretsManagerEndpoint: IO[AdminClient[IO]] =
-      Fs2Client.adminClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
-    val fs2AdminClientWithCustomProxy: IO[AdminClient[IO]] =
-      Fs2Client.adminClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
-  }
-  // #admin_client
-
   // #workflow_client
   object WorkflowClients {
     import cats.effect.IO
