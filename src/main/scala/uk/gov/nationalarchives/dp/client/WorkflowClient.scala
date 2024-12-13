@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import cats.implicits.*
 import sttp.client3.*
@@ -30,10 +29,6 @@ object WorkflowClient {
   /** Creates a new `WorkflowClient` instance.
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
-    * @param sync
-    *   An implicit instance of cats.Sync
     * @tparam F
     *   The type of the effect
     * @tparam S
@@ -41,86 +36,84 @@ object WorkflowClient {
     * @return
     *   A new `WorkflowClient`
     */
-  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
-  ): WorkflowClient[F] = new WorkflowClient[F] {
-    private val apiBaseUrl: String = clientConfig.apiBaseUrl
-    private val client: Client[F, S] = Client(clientConfig)
+  def createWorkflowClient[F[_]: Async, S](clientConfig: ClientConfig[F, S]): WorkflowClient[F] =
+    new WorkflowClient[F] {
+      private val apiBaseUrl: String = clientConfig.apiBaseUrl
+      private val client: Client[F, S] = Client(clientConfig)
 
-    import client.*
+      import client.*
 
-    override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
-      val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
-      val newLine = Some("\n  ")
+      override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
+        val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
+        val newLine = Some("\n  ")
 
-      val workflowContextIdNode = startWorkflowRequest.workflowContextId
-        .map { workflowId =>
-          <WorkflowContextId>{workflowId}</WorkflowContextId>
-        }
+        val workflowContextIdNode = startWorkflowRequest.workflowContextId
+          .map { workflowId =>
+            <WorkflowContextId>{workflowId}</WorkflowContextId>
+          }
 
-      val workflowContextNameNode = startWorkflowRequest.workflowContextName
-        .map { workflowName =>
-          <WorkflowContextName>{workflowName}</WorkflowContextName>
-        }
+        val workflowContextNameNode = startWorkflowRequest.workflowContextName
+          .map { workflowName =>
+            <WorkflowContextName>{workflowName}</WorkflowContextName>
+          }
 
-      val parameterNodes = startWorkflowRequest.parameters.zipWithIndex
-        .flatMap { case (parameter, index) =>
-          List(
-            List(if (index == 0) "" else "\n  "),
-            <Parameter>
+        val parameterNodes = startWorkflowRequest.parameters.zipWithIndex
+          .flatMap { case (parameter, index) =>
+            List(
+              List(if (index == 0) "" else "\n  "),
+              <Parameter>
           <Key>{parameter.key}</Key>
           <Value>{parameter.value}</Value>
         </Parameter>
-          )
-        }
-
-      val correlationIdNode =
-        startWorkflowRequest.correlationId
-          .map { correlationId =>
-            <CorrelationId>{correlationId}</CorrelationId>
+            )
           }
 
-      val requestNodes =
-        List(
-          workflowContextIdNode,
-          newLine,
-          workflowContextNameNode,
-          newLine,
-          correlationIdNode,
-          newLine
-        ).flatten ++ parameterNodes
+        val correlationIdNode =
+          startWorkflowRequest.correlationId
+            .map { correlationId =>
+              <CorrelationId>{correlationId}</CorrelationId>
+            }
 
-      val xmlRequestBody =
-        <StartWorkflowRequest xmlns="http://workflow.preservica.com">
+        val requestNodes =
+          List(
+            workflowContextIdNode,
+            newLine,
+            workflowContextNameNode,
+            newLine,
+            correlationIdNode,
+            newLine
+          ).flatten ++ parameterNodes
+
+        val xmlRequestBody =
+          <StartWorkflowRequest xmlns="http://workflow.preservica.com">
           {
-          requestNodes.map { requestNode =>
-            requestNode
+            requestNodes.map { requestNode =>
+              requestNode
+            }
           }
-        }
         </StartWorkflowRequest>
 
-      val requestBodyString = s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n$xmlRequestBody"
-      for {
-        _ <-
-          if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
-            me.raiseError(
-              PreservicaClientException(
-                "You must pass in either a workflowContextName or a workflowContextId!"
+        val requestBodyString = s"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\n$xmlRequestBody"
+        for {
+          _ <-
+            if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
+              Async[F].raiseError(
+                PreservicaClientException(
+                  "You must pass in either a workflowContextName or a workflowContextId!"
+                )
               )
-            )
-          } else me.unit
-        token <- getAuthenticationToken
-        startWorkflowResponse <- sendXMLApiRequest(
-          startWorkflowUrl.toString,
-          token,
-          Method.POST,
-          Some(requestBodyString)
-        )
-        id <- dataProcessor.childNodeFromWorkflowInstance(startWorkflowResponse, "Id")
-      } yield id.toInt
+            } else Async[F].unit
+          token <- getAuthenticationToken
+          startWorkflowResponse <- sendXMLApiRequest(
+            startWorkflowUrl.toString,
+            token,
+            Method.POST,
+            Some(requestBodyString)
+          )
+          id <- dataProcessor.childNodeFromWorkflowInstance(startWorkflowResponse, "Id")
+        } yield id.toInt
+      }
     }
-  }
 
   /** A workflow request parameter
     * @param key

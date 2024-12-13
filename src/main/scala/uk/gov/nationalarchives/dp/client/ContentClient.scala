@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import cats.implicits.*
 import io.circe.{Decoder, Printer}
@@ -53,8 +52,6 @@ object ContentClient:
   /** Creates a new `ContentClient` instance.
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
     * @param sync
     *   An implicit instance of cats.Sync
     * @tparam F
@@ -64,7 +61,6 @@ object ContentClient:
     * @return
     */
   def createContentClient[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
       sync: Async[F]
   ): ContentClient[F] = new ContentClient[F]:
     case class SearchResponseValue(objectIds: List[String], totalHits: Int)
@@ -95,7 +91,7 @@ object ContentClient:
         .headers(Map("Preservica-Access-Token" -> token))
         .response(asJson[SearchResponse])
         .send(backend)
-        .flatMap(res => me.fromEither(res.body))
+        .flatMap(res => Async[F].fromEither(res.body))
         .flatMap(searchResponse =>
           if searchResponse.value.objectIds.isEmpty then toEntities(ids)
           else search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)

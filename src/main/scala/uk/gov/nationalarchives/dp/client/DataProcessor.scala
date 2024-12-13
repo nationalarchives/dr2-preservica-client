@@ -442,7 +442,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
 /** An apply method for the `DataProcessor` class and the `EventAction` case class
   */
 object DataProcessor {
-  def apply[F[_]]()(implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
+  def apply[F[_]](implicit me: MonadError[F, Throwable]) = new DataProcessor[F]()
 
   /** @param eventRef
     *   The reference of the event

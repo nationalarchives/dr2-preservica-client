@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import io.circe.Printer
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
@@ -23,10 +22,7 @@ object UserClient:
     def arePasswordsEqual: Boolean = password == newPassword
   }
 
-  def createUserClient[F[_]](clientConfig: ClientConfig[F, ?])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
-  ): UserClient[F] = new UserClient[F]:
+  def createUserClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): UserClient[F] = new UserClient[F]:
     val client: Client[F, ?] = Client(clientConfig)
 
     override def testNewPassword(): F[Unit] = for {
@@ -35,10 +31,10 @@ object UserClient:
     } yield ()
 
     override def resetPassword(resetPasswordRequest: ResetPasswordRequest): F[Unit] = for {
-      _ <- me.raiseWhen(resetPasswordRequest.arePasswordsEqual)(
+      _ <- Async[F].raiseWhen(resetPasswordRequest.arePasswordsEqual)(
         PreservicaClientException("New password is equal to the old password")
       )
-      _ <- me.raiseWhen(resetPasswordRequest.newPassword.trim.isEmpty)(
+      _ <- Async[F].raiseWhen(resetPasswordRequest.newPassword.trim.isEmpty)(
         PreservicaClientException("New password is empty")
       )
       token <- client.getAuthenticationToken

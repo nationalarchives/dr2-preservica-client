@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import cats.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
@@ -31,8 +30,6 @@ import scala.xml.{Elem, XML}
 /** A utility class containing methods common to all clients
   * @param clientConfig
   *   The [[ClientConfig]] instance with the config details
-  * @param me
-  *   An implicit `MonadError` instance
   * @param async
   *   An implicit `Async` instance
   * @tparam F
@@ -41,7 +38,6 @@ import scala.xml.{Elem, XML}
   *   The type of the sttp Stream
   */
 private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
-    me: MonadError[F, Throwable],
     async: Async[F]
 ) {
   private val underlying: CCache[String, Entry[String]] =
@@ -51,7 +47,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
 
-  private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]()
+  private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]
 
   private[client] val backend: SttpBackend[F, S] = clientConfig.backend
   private val duration: FiniteDuration = clientConfig.duration
@@ -71,8 +67,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .method(method, apiUri)
       .response(asXml)
     val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
-    me.flatMap(backend.send(requestWithBody)) { res =>
-      me.fromEither(
+    Async[F].flatMap(backend.send(requestWithBody)) { res =>
+      Async[F].fromEither(
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
       )
     }
@@ -92,8 +88,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
 
-    me.flatMap(backend.send(requestWithBody)) { res =>
-      me.fromEither(
+    Async[F].flatMap(backend.send(requestWithBody)) { res =>
+      Async[F].fromEither(
         res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
       )
     }
@@ -107,7 +103,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .httpClient(httpClient)
       .build()
     for {
-      secretMap <- DASecretsManagerClient[F](secretsManagerAsyncClient, secretName)
+      secretMap <- DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
         .getSecretValue[Map[String, String]](stage)
     } yield {
       secretMap.map { case (username, password) =>
@@ -126,7 +122,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       val responseOrError = res.body.left
         .map(e => PreservicaClientException(Method.POST, loginEndpointUri, res.code, e.getMessage))
         .map(_.token)
-      me.fromEither(responseOrError)
+      Async[F].fromEither(responseOrError)
     }
   } yield token
 
@@ -208,8 +204,6 @@ object Client {
   /** Creates a new `Client` instance.
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
     * @param async
     *   An implicit instance of cats.effect.Async
     * @tparam F
@@ -219,7 +213,6 @@ object Client {
     * @return
     */
   def apply[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
       async: Async[F]
   ) = new Client[F, S](clientConfig)
 }
