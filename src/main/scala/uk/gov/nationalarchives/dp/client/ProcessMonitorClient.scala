@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import cats.implicits.*
 import io.circe.generic.auto.*
@@ -42,19 +41,12 @@ object ProcessMonitorClient:
   /** Creates a new `ProcessMonitorClient` instance.
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
-    * @param sync
-    *   An implicit instance of cats.Sync
     * @tparam F
     *   The type of the effect
     * @return
     *   A new `ProcessMonitorClient`
     */
-  def createProcessMonitorClient[F[_]](clientConfig: ClientConfig[F, ?])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
-  ): ProcessMonitorClient[F] = new ProcessMonitorClient[F]:
+  def createProcessMonitorClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): ProcessMonitorClient[F] = new ProcessMonitorClient[F]:
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, ?] = Client(clientConfig)
 
@@ -67,7 +59,7 @@ object ProcessMonitorClient:
 
       for
         _ <-
-          me.raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
+          Async[F].raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
             PreservicaClientException("The monitor name must start with 'opex'")
           )
         token <- getAuthenticationToken
@@ -93,7 +85,7 @@ object ProcessMonitorClient:
       yield messages
 
     private def monitorMessages(url: String, token: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
-      if url.isEmpty then me.pure(amassedMessages)
+      if url.isEmpty then Async[F].pure(amassedMessages)
       else
         for
           getMessagesResponse <- sendJsonApiRequest[MessagesResponse](

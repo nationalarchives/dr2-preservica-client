@@ -1,6 +1,6 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.{MonadError, Parallel}
+import cats.Parallel
 import cats.effect.Async
 import cats.implicits.*
 import sttp.capabilities.Streams
@@ -224,19 +224,13 @@ object EntityClient {
     *
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
-    * @param sync
-    *   An implicit instance of cats.Sync
     * @tparam F
     *   The type of the effect
     * @tparam S
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createEntityClient[F[_]: Async: Parallel, S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable]
-  ): EntityClient[F, S] = new EntityClient[F, S] {
+  def createEntityClient[F[_]: Async: Parallel, S](clientConfig: ClientConfig[F, S]): EntityClient[F, S] = new EntityClient[F, S] {
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val apiVersion = 7.0f
@@ -282,7 +276,7 @@ object EntityClient {
 
     override def getEntityIdentifiers(entity: Entity): F[Seq[IdentifierResponse]] = {
       for {
-        path <- me.fromOption(
+        path <- Async[F].fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
@@ -297,10 +291,10 @@ object EntityClient {
       for {
         _ <-
           if (path == ContentObject.entityPath)
-            me.raiseError(
+            Async[F].raiseError(
               PreservicaClientException("You currently cannot create a content object via the API.")
             )
-          else me.unit
+          else Async[F].unit
 
         nodeNameAndToken <- validateEntityUpdateInputs(
           addEntityRequest.entityType,
@@ -376,7 +370,7 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         queryParams = Map("max" -> 1000, "start" -> 0)
-        path <- me.fromOption(
+        path <- Async[F].fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
@@ -402,7 +396,7 @@ object EntityClient {
         entityMetadata <-
           if (entityType.entityTypeShort == "CO")
             for {
-              generationsEndpointUrl <- me.pure(s"$entityUrl/generations")
+              generationsEndpointUrl <- Async[F].pure(s"$entityUrl/generations")
               allGenerationsResponseElements <- generationElements(generationsEndpointUrl, entity.ref, token)
               allGenerationElements <- allGenerationsResponseElements
                 .map(dataProcessor.getGenerationElement)
@@ -438,7 +432,7 @@ object EntityClient {
               eventActions
             )
           else
-            me.pure(
+            Async[F].pure(
               StandardEntityMetadata(entityNode, identifiers, entityLinks, fragmentsWithMetadataLabel, eventActions)
             )
       } yield entityMetadata
@@ -464,7 +458,7 @@ object EntityClient {
     ): F[Seq[EventAction]] = {
       val queryParams = Map("max" -> maxEntries, "start" -> startEntry)
       for {
-        path <- me.fromOption(
+        path <- Async[F].fromOption(
           entity.path,
           PreservicaClientException(missingPathExceptionMessage(entity.ref))
         )
@@ -512,7 +506,7 @@ object EntityClient {
       for {
         token <- getAuthenticationToken
         res <- backend.send(request(token))
-        body <- me.fromEither {
+        body <- Async[F].fromEither {
           res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
         }
       } yield body
@@ -527,7 +521,7 @@ object EntityClient {
         updateResponse <- identifiers.map { identifier =>
           val requestBody = requestBodyForIdentifier(identifier.identifierName, identifier.value).some
           for {
-            path <- me.fromOption(
+            path <- Async[F].fromOption(
               entity.path,
               PreservicaClientException(missingPathExceptionMessage(entity.ref))
             )
@@ -568,7 +562,7 @@ object EntityClient {
 
     private def getEntityWithRef(entityRef: UUID, entityType: EntityType, token: String) =
       for {
-        url <- me.pure(uri"$apiUrl/${entityType.entityPath}/$entityRef")
+        url <- Async[F].pure(uri"$apiUrl/${entityType.entityPath}/$entityRef")
         entityResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         entity <- dataProcessor.getEntity(entityRef, entityResponse, entityType)
       } yield entity
@@ -579,7 +573,7 @@ object EntityClient {
         token: String
     ) =
       for {
-        url <- me.pure(uri"$apiUrl/information-objects/$entityRef/representations")
+        url <- Async[F].pure(uri"$apiUrl/information-objects/$entityRef/representations")
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
         urlsOfRepresentations <- dataProcessor.getUrlsToEntityRepresentations(
           representationsResponse,
@@ -588,7 +582,7 @@ object EntityClient {
       } yield urlsOfRepresentations
 
     private def getEntityType(entity: Entity): F[EntityType] =
-      me.fromOption(
+      Async[F].fromOption(
         entity.entityType,
         PreservicaClientException(s"No entity type found for entity ${entity.ref}")
       )
@@ -605,7 +599,7 @@ object EntityClient {
         currentCollectionOfEventActionsXml: Seq[Elem]
     ): F[Seq[Elem]] = {
       if (url.isEmpty) {
-        me.pure(currentCollectionOfEventActionsXml)
+        Async[F].pure(currentCollectionOfEventActionsXml)
       } else {
         for {
           eventActionsResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
@@ -640,7 +634,7 @@ object EntityClient {
         token: String
     ): F[Elem] =
       for {
-        url <- me.pure(uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex")
+        url <- Async[F].pure(uri"$apiUrl/information-objects/$ioEntityRef/representations/$representationType/$repTypeIndex")
         representationsResponse <- sendXMLApiRequest(url.toString(), token, Method.GET)
       } yield representationsResponse
 
@@ -650,7 +644,7 @@ object EntityClient {
         currentCollectionOfIdentifiers: Seq[IdentifierResponse]
     ): F[Seq[IdentifierResponse]] = {
       if (url.isEmpty) {
-        me.pure(currentCollectionOfIdentifiers)
+        Async[F].pure(currentCollectionOfIdentifiers)
       } else {
         for {
           identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
@@ -669,12 +663,12 @@ object EntityClient {
       for {
         _ <-
           if (entityType.entityPath != StructuralObject.entityPath && parentRef.isEmpty)
-            me.raiseError(
+            Async[F].raiseError(
               PreservicaClientException(
                 "You must pass in the parent ref if you would like to add/update a non-structural object."
               )
             )
-          else me.unit
+          else Async[F].unit
         token <- getAuthenticationToken
       } yield (entityType.toString, token)
 
@@ -728,7 +722,7 @@ object EntityClient {
         currentCollectionOfIdentifiers: Seq[Node]
     ): F[Seq[Node]] =
       if (url.isEmpty)
-        me.pure(currentCollectionOfIdentifiers)
+        Async[F].pure(currentCollectionOfIdentifiers)
       else
         for {
           identifiersResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)
@@ -747,7 +741,7 @@ object EntityClient {
         token: String,
         currentCollectionOfEntityLinks: Seq[Node]
     ): F[Seq[Node]] =
-      if (url.isEmpty) me.pure(currentCollectionOfEntityLinks)
+      if (url.isEmpty) Async[F].pure(currentCollectionOfEntityLinks)
       else
         for {
           entityLinksResponseXml <- sendXMLApiRequest(url.get, token, Method.GET)

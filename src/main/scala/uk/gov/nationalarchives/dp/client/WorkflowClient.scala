@@ -1,6 +1,5 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Async
 import cats.implicits.*
 import sttp.client3.*
@@ -30,10 +29,6 @@ object WorkflowClient {
   /** Creates a new `WorkflowClient` instance.
     * @param clientConfig
     *   Configuration parameters needed to create the client
-    * @param me
-    *   An implicit instance of cats.MonadError
-    * @param sync
-    *   An implicit instance of cats.Sync
     * @tparam F
     *   The type of the effect
     * @tparam S
@@ -41,10 +36,7 @@ object WorkflowClient {
     * @return
     *   A new `WorkflowClient`
     */
-  def createWorkflowClient[F[_], S](clientConfig: ClientConfig[F, S])(using
-      me: MonadError[F, Throwable],
-      sync: Async[F]
-  ): WorkflowClient[F] = new WorkflowClient[F] {
+  def createWorkflowClient[F[_]: Async, S](clientConfig: ClientConfig[F, S]): WorkflowClient[F] = new WorkflowClient[F] {
     private val apiBaseUrl: String = clientConfig.apiBaseUrl
     private val client: Client[F, S] = Client(clientConfig)
 
@@ -104,12 +96,12 @@ object WorkflowClient {
       for {
         _ <-
           if (startWorkflowRequest.workflowContextName.isEmpty && startWorkflowRequest.workflowContextId.isEmpty) {
-            me.raiseError(
+            Async[F].raiseError(
               PreservicaClientException(
                 "You must pass in either a workflowContextName or a workflowContextId!"
               )
             )
-          } else me.unit
+          } else Async[F].unit
         token <- getAuthenticationToken
         startWorkflowResponse <- sendXMLApiRequest(
           startWorkflowUrl.toString,

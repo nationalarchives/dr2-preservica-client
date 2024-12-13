@@ -1,16 +1,12 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.MonadError
 import cats.effect.Sync
 import cats.implicits.*
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import sttp.capabilities
 import sttp.client3.{DelegateSttpBackend, Request, Response, SttpBackend}
 
-private[client] class LoggingWrapper[F[_], P](delegate: SttpBackend[F, P])(using
-    val me: MonadError[F, Throwable],
-    sync: Sync[F]
-) extends DelegateSttpBackend[F, P](delegate):
+private[client] class LoggingWrapper[F[_]: Sync, P](delegate: SttpBackend[F, P]) extends DelegateSttpBackend[F, P](delegate):
 
   override def send[T, R >: P & capabilities.Effect[F]](request: Request[T, R]): F[Response[T]] =
     val method = request.method.method
@@ -32,5 +28,5 @@ private[client] class LoggingWrapper[F[_], P](delegate: SttpBackend[F, P])(using
   */
 private[client] object LoggingWrapper:
 
-  def apply[F[_], P](delegate: SttpBackend[F, P])(using me: MonadError[F, Throwable], sync: Sync[F]) =
+  def apply[F[_]: Sync, P](delegate: SttpBackend[F, P]) =
     new LoggingWrapper[F, P](delegate)
