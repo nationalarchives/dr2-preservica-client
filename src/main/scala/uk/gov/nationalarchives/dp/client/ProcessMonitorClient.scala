@@ -46,67 +46,68 @@ object ProcessMonitorClient:
     * @return
     *   A new `ProcessMonitorClient`
     */
-  def createProcessMonitorClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): ProcessMonitorClient[F] = new ProcessMonitorClient[F]:
-    private val apiBaseUrl: String = clientConfig.apiBaseUrl
-    private val client: Client[F, ?] = Client(clientConfig)
+  def createProcessMonitorClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): ProcessMonitorClient[F] =
+    new ProcessMonitorClient[F]:
+      private val apiBaseUrl: String = clientConfig.apiBaseUrl
+      private val client: Client[F, ?] = Client(clientConfig)
 
-    import client.*
+      import client.*
 
-    override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] =
-      val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMonitorsRequest)
+      override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] =
+        val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMonitorsRequest)
 
-      val getMonitorsUrl = uri"$apiBaseUrl/api/processmonitor/monitors?$relevantQueryParamsAsString"
+        val getMonitorsUrl = uri"$apiBaseUrl/api/processmonitor/monitors?$relevantQueryParamsAsString"
 
-      for
-        _ <-
-          Async[F].raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
-            PreservicaClientException("The monitor name must start with 'opex'")
-          )
-        token <- getAuthenticationToken
-        getMonitorsResponse <- sendJsonApiRequest[MonitorsResponse](
-          getMonitorsUrl.toString,
-          token,
-          Method.GET
-        )
-      yield getMonitorsResponse.value.monitors
-
-    override def getMessages(
-        getMessagesRequest: GetMessagesRequest,
-        start: Int = 0,
-        max: Int = 1000
-    ): F[Seq[Message]] =
-      val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMessagesRequest)
-      val getMessagesUrl =
-        uri"$apiBaseUrl/api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
-
-      for
-        token <- getAuthenticationToken
-        messages <- monitorMessages(getMessagesUrl.toString, token, Nil)
-      yield messages
-
-    private def monitorMessages(url: String, token: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
-      if url.isEmpty then Async[F].pure(amassedMessages)
-      else
         for
-          getMessagesResponse <- sendJsonApiRequest[MessagesResponse](
-            url,
+          _ <-
+            Async[F].raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
+              PreservicaClientException("The monitor name must start with 'opex'")
+            )
+          token <- getAuthenticationToken
+          getMonitorsResponse <- sendJsonApiRequest[MonitorsResponse](
+            getMonitorsUrl.toString,
             token,
             Method.GET
           )
-          messagesResponse = getMessagesResponse.value.messages
-          potentialNextPageUrl = getMessagesResponse.value.paging.next.getOrElse("")
-          allMessages <- monitorMessages(potentialNextPageUrl, token, amassedMessages ++ messagesResponse)
-        yield allMessages
+        yield getMonitorsResponse.value.monitors
 
-    private def getQueryParamsAsMap(request: Product): Map[String, String] =
-      val getMonitorsRequestAsMap: Map[String, IterableOnce[String]] =
-        request.productElementNames
-          .zip(request.productIterator.map(_.asInstanceOf[IterableOnce[String]]))
-          .toMap
+      override def getMessages(
+          getMessagesRequest: GetMessagesRequest,
+          start: Int = 0,
+          max: Int = 1000
+      ): F[Seq[Message]] =
+        val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMessagesRequest)
+        val getMessagesUrl =
+          uri"$apiBaseUrl/api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
 
-      getMonitorsRequestAsMap.collect {
-        case (name, value) if value.iterator.nonEmpty => (name, value.iterator.mkString(","))
-      }
+        for
+          token <- getAuthenticationToken
+          messages <- monitorMessages(getMessagesUrl.toString, token, Nil)
+        yield messages
+
+      private def monitorMessages(url: String, token: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
+        if url.isEmpty then Async[F].pure(amassedMessages)
+        else
+          for
+            getMessagesResponse <- sendJsonApiRequest[MessagesResponse](
+              url,
+              token,
+              Method.GET
+            )
+            messagesResponse = getMessagesResponse.value.messages
+            potentialNextPageUrl = getMessagesResponse.value.paging.next.getOrElse("")
+            allMessages <- monitorMessages(potentialNextPageUrl, token, amassedMessages ++ messagesResponse)
+          yield allMessages
+
+      private def getQueryParamsAsMap(request: Product): Map[String, String] =
+        val getMonitorsRequestAsMap: Map[String, IterableOnce[String]] =
+          request.productElementNames
+            .zip(request.productIterator.map(_.asInstanceOf[IterableOnce[String]]))
+            .toMap
+
+        getMonitorsRequestAsMap.collect {
+          case (name, value) if value.iterator.nonEmpty => (name, value.iterator.mkString(","))
+        }
 
   /** A Monitors request parameter
     * @param key
