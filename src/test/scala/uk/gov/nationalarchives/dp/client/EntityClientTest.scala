@@ -974,9 +974,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
           <Value>
             TestIdentifierValue
           </Value>
-        </Identifier>.toString()
+        </Identifier>
 
-    requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
+    requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${Utility.trim(expectedXml)}""")
     verifyServerRequests(List(addEntityUrl))
   }
 
