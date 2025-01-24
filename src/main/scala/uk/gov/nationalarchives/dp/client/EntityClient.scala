@@ -16,7 +16,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.xml.{Elem, Node, NodeSeq}
-import scala.xml.Utility.escape
+import scala.xml.Utility.{escape, trim}
 import scala.util.Try
 
 /** A client to create, get and update entities in Preservica
@@ -629,7 +629,7 @@ object EntityClient {
           </Value>
         </Identifier>
 
-        s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$identifierAsXml"""
+        s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n${trim(identifierAsXml)}"""
       }
 
       private def ioRepresentations(
