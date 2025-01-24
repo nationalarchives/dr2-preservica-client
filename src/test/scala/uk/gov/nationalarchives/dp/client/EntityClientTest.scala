@@ -967,16 +967,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val requestMade = getRequestMade(preservicaServer)
 
     val expectedXml =
-      <Identifier xmlns={xipUrl}>
-          <Type>
-            TestIdentifierName
-          </Type>
-          <Value>
-            TestIdentifierValue
-          </Value>
-        </Identifier>.toString()
+      s"""<Identifier xmlns="$xipUrl"><Type>TestIdentifierName</Type><Value>TestIdentifierValue</Value></Identifier>"""
 
-    requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n""" + expectedXml)
+    requestMade should be(s"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n$expectedXml""")
     verifyServerRequests(List(addEntityUrl))
   }
 
