@@ -19,7 +19,13 @@ trait UserClient[F[_]]:
 object UserClient:
 
   case class ResetPasswordRequest(password: String, newPassword: String) {
-    def arePasswordsEqual: Boolean = password == newPassword
+    private val currentPasswordTrimmedAndLowerCased = password.toLowerCase().strip()
+    private val newPasswordTrimmedAndLowerCased = newPassword.toLowerCase().strip()
+
+    def arePasswordsEqual: Boolean = currentPasswordTrimmedAndLowerCased == newPasswordTrimmedAndLowerCased
+    def passwordIsEmpty: Boolean = currentPasswordTrimmedAndLowerCased.isEmpty
+    def newPasswordIsEmpty: Boolean = newPasswordTrimmedAndLowerCased.isEmpty
+    def passwordFewerThan15Chars: Boolean = newPasswordTrimmedAndLowerCased.length < 15
   }
 
   def createUserClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): UserClient[F] = new UserClient[F]:
@@ -34,9 +40,16 @@ object UserClient:
       _ <- Async[F].raiseWhen(resetPasswordRequest.arePasswordsEqual)(
         PreservicaClientException("New password is equal to the old password")
       )
-      _ <- Async[F].raiseWhen(resetPasswordRequest.newPassword.trim.isEmpty)(
+      _ <- Async[F].raiseWhen(resetPasswordRequest.passwordIsEmpty)(
+        PreservicaClientException("The password to be changed is empty")
+      )
+      _ <- Async[F].raiseWhen(resetPasswordRequest.newPasswordIsEmpty)(
         PreservicaClientException("New password is empty")
       )
+      _ <- Async[F].raiseWhen(resetPasswordRequest.passwordFewerThan15Chars)(
+        PreservicaClientException("New password has fewer than 15 characters")
+      )
+
       token <- client.getAuthenticationToken
       _ <- client.sendJsonApiRequest[Option[String]](
         s"${clientConfig.apiBaseUrl}/api/user/password",
