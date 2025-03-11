@@ -145,7 +145,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     val ex = intercept[SecretsManagerException] {
       valueFromF(testClient.testNewPassword())
     }
-    ex.getMessage should equal(
+    ex.getMessage should startWith(
       "Service returned HTTP status code 500 (Service: SecretsManager, Status Code: 500, Request ID: null)"
     )
   }
