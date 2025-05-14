@@ -28,7 +28,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
-import scala.xml.{Elem, Node, Utility, XML}
+import scala.xml.{Elem, Utility, XML}
 
 abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(using
     cme: MonadError[F, Throwable]
