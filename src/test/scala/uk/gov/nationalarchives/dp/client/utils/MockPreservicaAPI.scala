@@ -7,7 +7,7 @@ import uk.gov.nationalarchives.dp.client.Entities
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.{Access, Preservation}
-import uk.gov.nationalarchives.dp.client.EntityClient.{EntityType, Identifier, RepresentationType}
+import uk.gov.nationalarchives.dp.client.EntityClient.{EntityType, Identifier, RepresentationType, apiVersion}
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -16,8 +16,7 @@ object MockPreservicaAPI {
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
 
-  val apiVersion = 7.0f
-  val xipVersion = 7.0f
+  val xipVersion: Float = apiVersion
   val xipUrl = s"http://preservica.com/XIP/v$xipVersion"
   val namespaceUrl = s"http://preservica.com/EntityAPI/v$apiVersion"
   val entityShortNameToLong: Map[String, String] =
