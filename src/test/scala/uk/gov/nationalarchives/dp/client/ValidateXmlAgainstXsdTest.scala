@@ -4,7 +4,6 @@ import cats.Monad
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema
 import uk.gov.nationalarchives.dp.client.ValidateXmlAgainstXsd.PreservicaSchema.*
 
 import scala.xml.SAXParseException
