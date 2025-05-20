@@ -220,6 +220,10 @@ trait EntityClient[F[_], S] {
   */
 object EntityClient {
 
+  /** The version of Preservica's Entity API that this client is using
+    */
+  val apiVersion: Float = 7.7f
+
   /** Creates a new `EntityClient` instance.
     *
     * @param clientConfig
@@ -234,7 +238,6 @@ object EntityClient {
     new EntityClient[F, S] {
       val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
       private val apiBaseUrl: String = clientConfig.apiBaseUrl
-      private val apiVersion = 7.0f
       private val apiUrl = s"$apiBaseUrl/api/entity/v$apiVersion"
       private val namespaceUrl = s"http://preservica.com/XIP/v$apiVersion"
 
