@@ -10,7 +10,7 @@ object XmlValidator {
 
     val xmlValidator: ValidateXmlAgainstXsd[IO] =
       Fs2Client.xmlValidator(XipXsdSchemaV7) // a path to any schema can be passed in
-    val xmlStringToValidate: String = <XIP xmlns="http://preservica.com/XIP/v7.0">
+    val xmlStringToValidate: String = <XIP xmlns="http://preservica.com/XIP/v7.7">
       <InformationObject>
         <Title>A Test Title</Title>
         <Description></Description>
