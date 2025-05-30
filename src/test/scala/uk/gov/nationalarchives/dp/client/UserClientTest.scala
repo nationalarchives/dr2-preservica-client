@@ -23,17 +23,19 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
-  val secretsResponse = """{"SecretString":"{\"username\":\"password\"}"}"""
-  val secretsNewPasswordResponse = """{"SecretString":"{\"username\":\"newPassword\"}"}"""
+  val secretsResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"password\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
+  val secretsNewPasswordResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"newPassword\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
   val preservicaServer = new WireMockServer(preservicaPort)
   private val tokenResponse: String = """{"token": "abcde"}"""
   private val tokenUrl = "/api/accesstoken/login"
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(url: String): F[UserClient[F]]
+  def createClient(): F[UserClient[F]]
 
-  def testClient: UserClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
+  def testClient: UserClient[F] = valueFromF(createClient())
 
   override def beforeEach(): Unit =
     preservicaServer.start()
@@ -136,7 +138,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     valueFromF(testClient.testNewPassword())
     val body = preservicaServer.getAllServeEvents.asScala.head.getRequest.getBodyAsString
 
-    body should equal("username=username&password=newPassword")
+    body should equal("username=test&password=newPassword")
   }
 
   "testNewPassword" should "return an error if secrets manager returns an error" in {

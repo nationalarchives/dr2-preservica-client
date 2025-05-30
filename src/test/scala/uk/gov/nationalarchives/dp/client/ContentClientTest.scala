@@ -23,13 +23,14 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     with EitherValues:
   def valueFromF[T](value: F[T]): T
 
-  def createClient(url: String): F[ContentClient[F]]
+  def createClient(): F[ContentClient[F]]
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val preservicaServer = new WireMockServer(preservicaPort)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
 
-  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
+  val secretsResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"test\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
 
   override def beforeEach(): Unit =
     secretsManagerServer.resetAll()
@@ -42,7 +43,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.stop()
     secretsManagerServer.stop()
 
-  val client: ContentClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
+  def client: ContentClient[F] = valueFromF(createClient())
 
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"

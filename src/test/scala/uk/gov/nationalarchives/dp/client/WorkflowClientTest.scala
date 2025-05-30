@@ -20,15 +20,16 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(url: String): F[WorkflowClient[F]]
+  def createClient(): F[WorkflowClient[F]]
 
-  def testClient: WorkflowClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
+  def testClient: WorkflowClient[F] = valueFromF(createClient())
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
 
-  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
+  val secretsResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"test\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
 
   override def beforeEach(): Unit =
     preservicaServer.start()

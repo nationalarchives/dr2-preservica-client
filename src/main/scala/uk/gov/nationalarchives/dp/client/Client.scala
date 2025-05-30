@@ -42,7 +42,11 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 ) {
   private val underlying: CCache[String, Entry[String]] =
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[String]]
+  private val underlyingAuthDetails: CCache[String, Entry[AuthDetails]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[AuthDetails]]
   given caffeineCache: Cache[F, String, String] = CaffeineCache[F, String, String](underlying)
+  given authDetailsCaffeineCache: Cache[F, String, AuthDetails] =
+    CaffeineCache[F, String, AuthDetails](underlyingAuthDetails)
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
@@ -95,22 +99,17 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
   }
 
-  private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] = {
-    val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
-    val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
-      .region(Region.EU_WEST_2)
-      .endpointOverride(URI.create(secretsManagerEndpointUri))
-      .httpClient(httpClient)
-      .build()
-    for {
-      secretMap <- DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
-        .getSecretValue[Map[String, String]](stage)
-    } yield {
-      secretMap.map { case (username, password) =>
-        AuthDetails(username, password)
-      }.head
+  private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
+    memoizeF[F, AuthDetails](Some(duration)) {
+      val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
+      val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
+        .region(Region.EU_WEST_2)
+        .endpointOverride(URI.create(secretsManagerEndpointUri))
+        .httpClient(httpClient)
+        .build()
+      DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
+        .getSecretValue[AuthDetails](stage)
     }
-  }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = for {
     res <- basicRequest
@@ -133,6 +132,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         token <- generateToken(authDetails)
       } yield token
     }
+
+  private[client] def getApiUrl: F[String] =
+    getAuthDetails().map(_.apiUrl)
 }
 
 /** Case classes common to several clients
@@ -140,7 +142,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 object Client {
   private[client] case class Token(token: String)
 
-  private[client] case class AuthDetails(userName: String, password: String)
+  private[client] case class AuthDetails(userName: String, password: String, apiUrl: String)
 
   /** Represents bitstream information from a content object
     * @param name

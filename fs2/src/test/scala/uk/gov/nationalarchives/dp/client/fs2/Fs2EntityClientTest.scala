@@ -10,5 +10,5 @@ import uk.gov.nationalarchives.dp.client.{EntityClient, EntityClientTest}
 class Fs2EntityClientTest extends EntityClientTest[IO, Fs2Streams[IO]](9002, 9009, Fs2Streams[IO]):
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
-  override def createClient(url: String): IO[EntityClient[IO, Fs2Streams[IO]]] =
-    entityClient(url, "secret", zeroSeconds, ssmEndpointUri = "http://localhost:9009")
+  override def createClient(): IO[EntityClient[IO, Fs2Streams[IO]]] =
+    entityClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9009")

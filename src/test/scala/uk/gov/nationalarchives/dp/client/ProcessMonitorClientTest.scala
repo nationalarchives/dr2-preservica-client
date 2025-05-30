@@ -21,7 +21,8 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
-  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
+  val secretsResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"test\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
   val preservicaServer = new WireMockServer(preservicaPort)
   private val tokenResponse: String = """{"token": "abcde"}"""
   private val tokenUrl = "/api/accesstoken/login"
@@ -112,9 +113,9 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(url: String): F[ProcessMonitorClient[F]]
+  def createClient(): F[ProcessMonitorClient[F]]
 
-  def testClient: ProcessMonitorClient[F] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
+  def testClient: ProcessMonitorClient[F] = valueFromF(createClient())
 
   override def beforeEach(): Unit =
     preservicaServer.start()
