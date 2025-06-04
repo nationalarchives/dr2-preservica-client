@@ -37,7 +37,8 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
-  val secretsResponse = """{"SecretString":"{\"username\":\"test\",\"password\":\"test\"}"}"""
+  val secretsResponse =
+    s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"test\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""
   val preservicaServer = new WireMockServer(preservicaPort)
 
   val updateRequestPermutations: TableFor2[String, Option[String]] = Table(
@@ -71,9 +72,9 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(url: String): F[EntityClient[F, S]]
+  def createClient(): F[EntityClient[F, S]]
 
-  def testClient: EntityClient[F, S] = valueFromF(createClient(s"http://localhost:$preservicaPort"))
+  def testClient: EntityClient[F, S] = valueFromF(createClient())
 
   override def beforeEach(): Unit = {
     preservicaServer.start()
