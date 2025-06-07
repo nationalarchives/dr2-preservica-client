@@ -1,7 +1,7 @@
 import sbtrelease.ReleaseStateTransformations.*
 import Dependencies.*
 
-lazy val scala3Version = "3.7.0"
+lazy val scala3Version = "3.7.1"
 
 ThisBuild / scalaVersion := scala3Version
 
