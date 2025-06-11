@@ -215,7 +215,7 @@ trait EntityClient[F[_], S] {
 
   def getPreservicaNamespaceVersion(endpoint: String): F[Float]
 
-  def getAllDescendants(token: String): fs2.Stream[F, Entity]
+  def getAllDescendants(): fs2.Stream[F, Entity]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -780,19 +780,22 @@ object EntityClient {
             )
           } yield allEntityLinksXml
 
-      override def getAllDescendants(token: String): fs2.Stream[F, Entity] = {
-        val initialEntities = children(s"$apiUrl/root/children".some, token, Nil)
-        def streamFrom(initial: Seq[Entity]): fs2.Stream[F, Entity] =
-          fs2.Stream.unfoldLoopEval(initial) {
-            case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
-            case head :: tail => for {
-              next <- head.entityType match 
-                case Some(StructuralObject) => children(s"$apiUrl/structural-objects/${head.ref}/children".some, token, Nil)
-                case Some(other) => getEntities(s"$apiUrl/${other.entityPath}/${head.ref}", token)
-                case None => Async[F].pure(Nil)
-            } yield head -> Option(tail ++ next)
-          }
-        fs2.Stream.eval(initialEntities).flatMap(streamFrom)
+      override def getAllDescendants(): fs2.Stream[F, Entity] = {
+        fs2.Stream.eval(getAuthenticationToken).flatMap { token =>
+          val initialEntities = children(s"$apiUrl/root/children".some, token, Nil)
+          def streamFrom(initial: Seq[Entity]): fs2.Stream[F, Entity] =
+            fs2.Stream.unfoldLoopEval(initial) {
+              case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
+              case head :: tail => for {
+                next <- head.entityType match
+                  case Some(StructuralObject) => children(s"$apiUrl/structural-objects/${head.ref}/children".some, token, Nil)
+                  case Some(other) => getEntities(s"$apiUrl/${other.entityPath}/${head.ref}", token)
+                  case None => Async[F].pure(Nil)
+              } yield head -> Option(tail ++ next)
+            }
+
+          fs2.Stream.eval(initialEntities).flatMap(streamFrom)  
+        }
       }
     }
 
