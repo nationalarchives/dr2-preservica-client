@@ -38,6 +38,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     *   An [[Entities.Entity]] wrapped in the F effect
     */
   def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] = {
+
     (entityResponse \ entityType.toString).headOption
       .map { entity =>
         def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text.trim)
@@ -50,6 +51,25 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       }
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
   }
+
+  def getEntity(entityResponse: Elem): Entity = {
+    val entityType = entityResponse.child.head.label match {
+      case "InformationObject" => InformationObject
+      case "ContentObject" => ContentObject
+      case _ => StructuralObject
+    }
+    val entity = (entityResponse \ entityType.toString).head
+
+    def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text.trim)
+    val entityRef = UUID.fromString((entity \ "Ref").text)
+    val title = optionValue("Title")
+    val description = optionValue("Description")
+    val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
+    val deleted = optionValue("Deleted").isDefined
+    val parent = optionValue("Parent").map(UUID.fromString)
+    Entity(entityType.some, entityRef, title, description, deleted, entityType.entityPath.some, securityTag, parent)
+  }
+
 
   /** Retrieves the [[EntityClient.EntityType]] Node from an entity response
     * @param entityRef
@@ -254,6 +274,11 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       val deleted = attrToString(e, "deleted").nonEmpty
       fromType[F](entityType, ref, title, description, deleted)
     }.sequence
+
+  def getChildren(elem: Elem): F[Seq[String]] =
+    me.pure((elem \ "Children" \ "Child").map { c =>
+      c.text
+    })
 
   /** Returns a list of [[Entities.IdentifierResponse]] objects
     * @param elem
