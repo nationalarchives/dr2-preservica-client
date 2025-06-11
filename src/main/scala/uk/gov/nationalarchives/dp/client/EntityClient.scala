@@ -224,7 +224,7 @@ object EntityClient {
 
   /** The version of Preservica's Entity API that this client is using
     */
-  val apiVersion: Float = 7.7f
+  val apiVersion: Float = 8.0f
 
   /** Creates a new `EntityClient` instance.
     *
@@ -603,6 +603,9 @@ object EntityClient {
           entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
         } yield entitiesWithUpdates
 
+      private def getEntities(url: String): F[Seq[Entity]] =
+        getAuthenticationToken.flatMap(token => getEntities(url, token))
+
       private def eventActionsXml(
           url: Option[String],
           token: String,
@@ -623,16 +626,17 @@ object EntityClient {
         }
       }
 
-      private def children(url: Option[String], token: String, currentEntities: Seq[Entity]): F[Seq[Entity]] = {
+      private def children(url: Option[String], currentEntities: Seq[Entity]): F[Seq[Entity]] = {
         if url.isEmpty then
           Async[F].pure(currentEntities)
         else
           for {
+            token <- getAuthenticationToken
             response <- sendXMLApiRequest(url.get, token, Method.GET)
             childUrls <- dataProcessor.getChildren(response)
-            entities <- childUrls.traverse(url => sendXMLApiRequest(url, token, Method.GET).map(dataProcessor.getEntity))
+            entities <- childUrls.parTraverse(url => sendXMLApiRequest(url, token, Method.GET).map(dataProcessor.getEntity))
             nextPageUrl <- dataProcessor.nextPage(response)
-            allEntities <- children(nextPageUrl, token, currentEntities ++ entities)
+            allEntities <- children(nextPageUrl, currentEntities ++ entities)
           } yield allEntities
       }
 
@@ -781,21 +785,21 @@ object EntityClient {
           } yield allEntityLinksXml
 
       override def getAllDescendants(): fs2.Stream[F, Entity] = {
-        fs2.Stream.eval(getAuthenticationToken).flatMap { token =>
-          val initialEntities = children(s"$apiUrl/root/children".some, token, Nil)
-          def streamFrom(initial: Seq[Entity]): fs2.Stream[F, Entity] =
-            fs2.Stream.unfoldLoopEval(initial) {
-              case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
-              case head :: tail => for {
-                next <- head.entityType match
-                  case Some(StructuralObject) => children(s"$apiUrl/structural-objects/${head.ref}/children".some, token, Nil)
-                  case Some(other) => getEntities(s"$apiUrl/${other.entityPath}/${head.ref}", token)
-                  case None => Async[F].pure(Nil)
-              } yield head -> Option(tail ++ next)
-            }
+        val initialEntities = children(s"$apiUrl/root/children".some, Nil)
+        def streamFrom(initial: Seq[Entity]): fs2.Stream[F, Entity] =
+          fs2.Stream.unfoldLoopEval(initial) {
+            case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
+            case head :: tail => for {
+              _ <- Async[F].pure(println(tail.size))
+              _ <- Async[F].pure(println(s"${head.entityType.get.entityTypeShort}:${head.ref}"))
+              next <- head.entityType match
+                case Some(StructuralObject) => children(s"$apiUrl/structural-objects/${head.ref}/children".some, Nil)
+                case Some(other) => getEntities(s"$apiUrl/${other.entityPath}/${head.ref}")
+                case None => Async[F].pure(Nil)
+            } yield head -> Option(tail ++ next)
+          }
 
-          fs2.Stream.eval(initialEntities).flatMap(streamFrom)  
-        }
+        fs2.Stream.eval(initialEntities).flatMap(streamFrom)
       }
     }
 
