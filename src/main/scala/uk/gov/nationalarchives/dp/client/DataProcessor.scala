@@ -275,9 +275,15 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       fromType[F](entityType, ref, title, description, deleted)
     }.sequence
 
-  def getChildren(elem: Elem): F[Seq[String]] =
+  def getChildren(elem: Elem): F[Seq[ShortEntity]] =
     me.pure((elem \ "Children" \ "Child").map { c =>
-      c.text
+      val ref = UUID.fromString(attrToString(c, "ref"))
+      val entityType = attrToString(c, "type")
+      entityType match {
+        case "SO" => ShortEntity.ShortStructuralObject(ref)
+        case "IO" => ShortEntity.ShortInformationObject(ref)
+        case "CO" => ShortEntity.ShortContentObject(ref)
+      }
     })
 
   /** Returns a list of [[Entities.IdentifierResponse]] objects

@@ -8,7 +8,7 @@ import sttp.client3.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, ShortEntity}
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 
@@ -626,17 +626,16 @@ object EntityClient {
         }
       }
 
-      private def children(url: Option[String], currentEntities: Seq[Entity]): F[Seq[Entity]] = {
+      private def children(url: Option[String], currentEntities: Seq[ShortEntity]): F[Seq[ShortEntity]] = {
         if url.isEmpty then
           Async[F].pure(currentEntities)
         else
           for {
             token <- getAuthenticationToken
             response <- sendXMLApiRequest(url.get, token, Method.GET)
-            childUrls <- dataProcessor.getChildren(response)
-            entities <- childUrls.parTraverse(url => sendXMLApiRequest(url, token, Method.GET).map(dataProcessor.getEntity))
+            shortEntities <- dataProcessor.getChildren(response)
             nextPageUrl <- dataProcessor.nextPage(response)
-            allEntities <- children(nextPageUrl, currentEntities ++ entities)
+            allEntities <- children(nextPageUrl, currentEntities ++ shortEntities)
           } yield allEntities
       }
 
@@ -784,9 +783,9 @@ object EntityClient {
             )
           } yield allEntityLinksXml
 
-      override def getAllDescendants(): fs2.Stream[F, Entity] = {
+      override def getAllDescendants(): fs2.Stream[F, ShortEntity] = {
         val initialEntities = children(s"$apiUrl/root/children".some, Nil)
-        def streamFrom(initial: Seq[Entity]): fs2.Stream[F, Entity] =
+        def streamFrom(initial: Seq[ShortEntity]): fs2.Stream[F, ShortEntity] =
           fs2.Stream.unfoldLoopEval(initial) {
             case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
             case head :: tail => for {

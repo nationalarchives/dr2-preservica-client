@@ -90,3 +90,8 @@ object Entities:
     *   The identifier value
     */
   case class IdentifierResponse(id: String, identifierName: String, value: String)
+  
+  enum ShortEntity(reference: UUID)
+    case ShortStructuralObject(reference: UUID) extends ShortEntity
+    case ShortInformationObject(reference: UUID) extends ShortEntity
+    case ShortContentObject(reference: UUID) extends ShortEntity
