@@ -723,7 +723,6 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val contentObjects = valueFromF(
       new DataProcessor[F]().getContentObjectsFromRepresentation(
         input,
-        Preservation,
         UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
       )
     )
@@ -753,7 +752,6 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val contentObjects = valueFromF(
       new DataProcessor[F]().getContentObjectsFromRepresentation(
         input,
-        Preservation,
         UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")
       )
     )

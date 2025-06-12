@@ -373,7 +373,6 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     */
   def getContentObjectsFromRepresentation(
       elem: Elem,
-      representationType: RepresentationType,
       ioEntityRef: UUID
   ): F[Seq[Entity]] =
     me.pure {

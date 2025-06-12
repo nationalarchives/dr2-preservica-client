@@ -8,9 +8,11 @@ import sttp.client3.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
+import uk.gov.nationalarchives.dp.client.Entities.ShortEntity.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, ShortEntity}
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.Preservation
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -215,7 +217,7 @@ trait EntityClient[F[_], S] {
 
   def getPreservicaNamespaceVersion(endpoint: String): F[Float]
 
-  def getAllDescendants(): fs2.Stream[F, Entity]
+  def getAllDescendants(): fs2.Stream[F, ShortEntity]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -275,7 +277,6 @@ object EntityClient {
           representationsResponse <- ioRepresentations(ioEntityRef, representationType, repTypeIndex, token)
           contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
             representationsResponse,
-            representationType,
             ioEntityRef
           )
         } yield contentObjects
@@ -790,15 +791,24 @@ object EntityClient {
             case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
             case head :: tail => for {
               _ <- Async[F].pure(println(tail.size))
-              _ <- Async[F].pure(println(s"${head.entityType.get.entityTypeShort}:${head.ref}"))
-              next <- head.entityType match
-                case Some(StructuralObject) => children(s"$apiUrl/structural-objects/${head.ref}/children".some, Nil)
-                case Some(other) => getEntities(s"$apiUrl/${other.entityPath}/${head.ref}")
-                case None => Async[F].pure(Nil)
+              _ <- Async[F].pure(println(s"$head"))
+              next <- head match {
+                case ShortStructuralObject(ref) => children(s"$apiUrl/structural-objects/$ref/children".some, Nil) 
+                case ShortInformationObject(ref) => contentObjectsForInformationObject(ref)
+                case ShortContentObject(ref) => Async[F].pure(Nil) 
+              }
             } yield head -> Option(tail ++ next)
           }
-
         fs2.Stream.eval(initialEntities).flatMap(streamFrom)
+      }
+
+      private def contentObjectsForInformationObject(ref: UUID) = {
+        for {
+          representationUrls <- getUrlsToIoRepresentations(ref, Option(Preservation))
+          token <- getAuthenticationToken
+          representationElems <- representationUrls.parTraverse(url => sendXMLApiRequest(url, token, Method.GET))
+          entities <- representationElems.parTraverse(elem => dataProcessor.getContentObjectsFromRepresentation(elem, ref)).map(_.flatten)
+        } yield entities.map(entity => ShortContentObject(entity.ref))
       }
     }
 
