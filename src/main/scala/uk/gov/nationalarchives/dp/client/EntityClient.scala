@@ -784,18 +784,19 @@ object EntityClient {
             )
           } yield allEntityLinksXml
 
+      private def doNothing[A] = Async[F].unit
+
       override def getAllDescendants(): fs2.Stream[F, ShortEntity] = {
         val initialEntities = children(s"$apiUrl/root/children".some, Nil)
         def streamFrom(initial: Seq[ShortEntity]): fs2.Stream[F, ShortEntity] =
           fs2.Stream.unfoldLoopEval(initial) {
-            case Nil => Async[F].raiseError(new Exception("Cannot invoke with empty list"))
+            case Nil => Async[F].pure(NoEntity -> None)
             case head :: tail => for {
-              _ <- Async[F].pure(println(tail.size))
-              _ <- Async[F].pure(println(s"$head"))
               next <- head match {
-                case ShortStructuralObject(ref) => children(s"$apiUrl/structural-objects/$ref/children".some, Nil) 
+                case ShortStructuralObject(ref) => children(s"$apiUrl/structural-objects/$ref/children".some, Nil)
                 case ShortInformationObject(ref) => contentObjectsForInformationObject(ref)
-                case ShortContentObject(ref) => Async[F].pure(Nil) 
+                case ShortContentObject(ref) => Async[F].pure(Nil)
+                case NoEntity => Async[F].pure(Nil)
               }
             } yield head -> Option(tail ++ next)
           }
