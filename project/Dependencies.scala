@@ -5,7 +5,7 @@ object Dependencies {
   private lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
-  lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.13"
+  lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.14"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
