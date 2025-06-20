@@ -8,16 +8,18 @@ import sttp.client3.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse}
-import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
+import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.Preservation
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
-import scala.xml.{Elem, Node, NodeSeq}
-import scala.xml.Utility.{escape, trim}
 import scala.util.Try
+import scala.xml.Utility.{escape, trim}
+import scala.xml.{Elem, Node, NodeSeq}
 
 /** A client to create, get and update entities in Preservica
   *
@@ -214,6 +216,17 @@ trait EntityClient[F[_], S] {
     */
 
   def getPreservicaNamespaceVersion(endpoint: String): F[Float]
+
+  /** Streams the refs of all StructuredObjects and InformationObjects in Preservica recursively, starting from the root
+    * of the directory
+    *
+    * @param maxEntries
+    *   The maximum number of entries to return. Defaults to 1000
+    * @return
+    *   a List of Entity refs
+    */
+
+  def streamAllEntityRefs(maxEntries: Int = 1000): fs2.Stream[F, EntityRef]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -601,6 +614,9 @@ object EntityClient {
           entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
         } yield entitiesWithUpdates
 
+      private def getEntities(url: String): F[Seq[Entity]] =
+        getAuthenticationToken.flatMap(token => getEntities(url, token))
+
       private def eventActionsXml(
           url: Option[String],
           token: String,
@@ -619,6 +635,22 @@ object EntityClient {
             )
           } yield allEventActionsXml
         }
+      }
+
+      private def children(
+          url: Option[String],
+          currentEntityRefs: Seq[EntityRef],
+          potentialParentRef: Option[UUID]
+      ): F[Seq[EntityRef]] = {
+        if url.isEmpty then Async[F].pure(currentEntityRefs)
+        else
+          for {
+            token <- getAuthenticationToken
+            response <- sendXMLApiRequest(url.get, token, Method.GET)
+            childEntityRefs <- dataProcessor.getChildren(response, potentialParentRef)
+            nextPageUrl <- dataProcessor.nextPage(response)
+            allEntities <- children(nextPageUrl, currentEntityRefs ++ childEntityRefs, potentialParentRef)
+          } yield allEntities
       }
 
       private def requestBodyForIdentifier(identifierName: String, identifierValue: String): String = {
@@ -764,6 +796,39 @@ object EntityClient {
               currentCollectionOfEntityLinks ++ entityLinksXmlBatch
             )
           } yield allEntityLinksXml
+
+      private def contentObjectsForInformationObject(
+          ioRef: UUID,
+          representationType: RepresentationType = Preservation
+      ) =
+        for {
+          representationUrls <- getUrlsToIoRepresentations(ioRef, Option(representationType))
+          token <- getAuthenticationToken
+          representationElems <- representationUrls.parTraverse(url => sendXMLApiRequest(url, token, Method.GET))
+          entities <- representationElems
+            .parTraverse(elem => dataProcessor.getContentObjectsFromRepresentation(elem, representationType, ioRef))
+            .map(_.flatten)
+        } yield entities.map(entity => ContentObjectRef(entity.ref, ioRef))
+
+      override def streamAllEntityRefs(maxEntries: Int = 1000): fs2.Stream[F, EntityRef] = {
+        val queryParams = Map("max" -> maxEntries, "start" -> 0)
+        val topLevelEntityRefs = children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None)
+
+        def getChildrenRefs(rootEntityRefs: Seq[EntityRef]): fs2.Stream[F, EntityRef] =
+          fs2.Stream.unfoldLoopEval(rootEntityRefs) {
+            case Nil => Async[F].pure(NoEntityRef -> None)
+            case firstEntityRef :: restOfRefs =>
+              for {
+                nextPageOfRefs <- firstEntityRef match {
+                  case StructuralObjectRef(ref, _) =>
+                    children(Some(uri"$apiUrl/structural-objects/$ref/children?$queryParams".toString), Nil, Some(ref))
+                  case InformationObjectRef(ref, _) => contentObjectsForInformationObject(ref)
+                  case _                            => Async[F].pure(Nil)
+                }
+              } yield firstEntityRef -> Option(restOfRefs ++ nextPageOfRefs)
+          }
+        fs2.Stream.eval(topLevelEntityRefs).flatMap(getChildrenRefs).filterNot(_ == NoEntityRef)
+      }
     }
 
   sealed trait EntityMetadata:

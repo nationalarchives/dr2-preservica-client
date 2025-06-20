@@ -22,10 +22,13 @@ object MockPreservicaAPI {
   val entityShortNameToLong: Map[String, String] =
     Map("SO" -> "StructuralObject", "IO" -> "InformationObject", "CO" -> "ContentObject")
 
-  def createEntity(entityType: EntityType = StructuralObject): Entity = {
+  def createEntity(
+      entityType: EntityType = StructuralObject,
+      ref: UUID = UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
+  ): Entity = {
     Entities.Entity(
       Some(entityType),
-      UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
+      ref,
       Option("title"),
       Option("description"),
       deleted = false,
@@ -55,6 +58,7 @@ object MockPreservicaAPI {
     lazy val linksUrl = s"$specificEntityUrl/links"
     lazy val eventActionsUrl = s"$specificEntityUrl/event-actions"
     lazy val updatedSinceUrl = s"$apiUrl/entities/updated-since"
+    lazy val rootChildrenUrl = s"$apiUrl/root/children"
     lazy val retentionPoliciesUrl = "/api/entity/retention-policies"
     lazy private val preservicaPort = preservicaServer.port()
 
@@ -290,6 +294,44 @@ object MockPreservicaAPI {
         if (successfulResponse) ok(retentionPoliciesResponse()) else badRequest()
       preservicaServer.stubFor(get(urlEqualTo(retentionPoliciesUrl)).willReturn(response))
       retentionPoliciesUrl
+    }
+
+    def stubRootChildren(successfulResponse: Boolean = true): List[String] = {
+      val firstResponse: ResponseDefinitionBuilder =
+        if (successfulResponse) ok(rootChildrenFirstPageResponse) else badRequest()
+
+      val rootChildrenFirstPageUrl = s"$rootChildrenUrl?max=1000&start=0"
+      val rootChildrenSecondPageUrl = s"$rootChildrenUrl?max=1000&start=1000"
+      val so1FirstPageUrl = s"$entityUrl/a9e1cae8-ea06-4157-8dd4-82d0525b031c/children?max=1000&start=0"
+      val so2FirstPageUrl = s"$entityUrl/71143bfd-b29f-4548-871c-8334f2d2bcb8/children?max=1000&start=0"
+      val so3FirstPageUrl = s"$entityUrl/dd672e2c-6248-43d7-81ff-c632acfc8fd7/children?max=1000&start=0"
+
+      val ioOne1FirstPageUrl =
+        s"$apiUrl/information-object/174eb617-2d05-4920-a764-99cdbdae94a1/children?max=1000&start=0"
+      val soOne2FirstPageUrl = s"$entityUrl/b107677d-745f-4cb8-94c7-e31383f2eb0b/children?max=1000&start=0"
+
+      preservicaServer.stubFor(get(urlEqualTo(rootChildrenFirstPageUrl)).willReturn(firstResponse))
+      preservicaServer.stubFor(
+        get(urlEqualTo(rootChildrenSecondPageUrl)).willReturn(ok(rootChildrenSecondPageResponse))
+      )
+      preservicaServer.stubFor(get(urlEqualTo(so1FirstPageUrl)).willReturn(ok(so1ChildrenFirstPageResponse)))
+      preservicaServer.stubFor(get(urlEqualTo(so2FirstPageUrl)).willReturn(ok(secondPageEmptyResponse)))
+      preservicaServer.stubFor(get(urlEqualTo(so3FirstPageUrl)).willReturn(ok(secondPageEmptyResponse)))
+
+      preservicaServer.stubFor(get(urlEqualTo(ioOne1FirstPageUrl)).willReturn(ok(ioOne1ChildrenFirstPageResponse)))
+      preservicaServer.stubFor(get(urlEqualTo(soOne2FirstPageUrl)).willReturn(ok(secondPageEmptyResponse)))
+
+      List(
+        rootChildrenFirstPageUrl,
+        rootChildrenSecondPageUrl,
+        so1FirstPageUrl,
+        so2FirstPageUrl,
+        so3FirstPageUrl,
+        ioOne1FirstPageUrl,
+        stubIoRepresentationUrls(),
+        stubIoRepresentations(Preservation),
+        soOne2FirstPageUrl
+      )
     }
 
     private def urlsToRepresentationsResponse: String =
@@ -553,6 +595,67 @@ object MockPreservicaAPI {
         <Paging>
         </Paging>
       </LinksResponse>.toString
+
+    private def rootChildrenFirstPageResponse: String =
+      <ChildrenResponse>
+        <Children>
+          <Child title="SO 1 Title" ref="a9e1cae8-ea06-4157-8dd4-82d0525b031c" type="SO" overlays="lock" icon="folder">{
+        entityUrl
+      }/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Child>
+          <Child title="SO 2 Title" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="SO" icon="folder">{
+        entityUrl
+      }/71143bfd-b29f-4548-871c-8334f2d2bcb8</Child>
+        </Children>
+        <Paging>
+          <Next>{s"$preservicaUrl$rootChildrenUrl"}?max=1000&amp;start=1000</Next>
+          <TotalResults>2</TotalResults>
+        </Paging>
+      </ChildrenResponse>.toString
+
+    private def rootChildrenSecondPageResponse: String =
+      <ChildrenResponse>
+        <Children>
+          <Child title="SO 3 Title" ref="dd672e2c-6248-43d7-81ff-c632acfc8fd7" type="SO" overlays="lock" icon="folder">{
+        entityUrl
+      }/dd672e2c-6248-43d7-81ff-c632acfc8fd7</Child>
+        </Children>
+        <Paging>
+          <TotalResults>1</TotalResults>
+        </Paging>
+      </ChildrenResponse>.toString
+
+    private def secondPageEmptyResponse: String =
+      <ChildrenResponse>
+        <Children>
+        </Children>
+        <Paging>
+          <TotalResults>0</TotalResults>
+        </Paging>
+      </ChildrenResponse>.toString
+
+    private def so1ChildrenFirstPageResponse: String =
+      <ChildrenResponse>
+        <Children>
+          <Child title="IO 1_1 Title" ref={entity.ref.toString} type="IO" overlays="lock" icon="folder">
+            {entityUrl}/{entity.ref}</Child>
+          <Child title="SO 1_2 Title" ref="b107677d-745f-4cb8-94c7-e31383f2eb0b" type="SO" icon="folder">
+            {entityUrl}/b107677d-745f-4cb8-94c7-e31383f2eb0b</Child>
+        </Children>
+        <Paging>
+          <TotalResults>2</TotalResults>
+        </Paging>
+      </ChildrenResponse>.toString
+
+    private def ioOne1ChildrenFirstPageResponse: String =
+      <ChildrenResponse>
+        <Children>
+          <Child title="CO 1_1_1 Title" ref="4131ab3d-2549-482d-948f-adf9478ff4cb" type="IO" overlays="lock" icon="folder">
+            {entityUrl}/4131ab3d-2549-482d-948f-adf9478ff4cb</Child>
+        </Children>
+        <Paging>
+          <TotalResults>1</TotalResults>
+        </Paging>
+      </ChildrenResponse>.toString
 
     private def retentionPoliciesResponse(): String =
       <RetentionPoliciesResponse  xmlns={

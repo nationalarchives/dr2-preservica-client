@@ -1,6 +1,7 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
+import cats.effect.Async
 import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
@@ -14,7 +15,8 @@ import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.*
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
+import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
@@ -30,7 +32,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 import scala.xml.{Elem, Utility, XML}
 
-abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(using
+abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsManagerPort: Int, stream: Streams[S])(using
     cme: MonadError[F, Throwable]
 ) extends AnyFlatSpec
     with BeforeAndAfterEach {
@@ -91,12 +93,17 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
   private def serverRequestUrls =
     preservicaServer.getAllServeEvents.asScala.map(_.getRequest.getUrl).toList
 
-  private def verifyServerRequests(additionalExpectedRequestUrls: List[List[String] | String]) = {
+  private def verifyServerRequests(
+      additionalExpectedRequestUrls: List[List[String] | String],
+      numOfTokenRequests: Int = 1
+  ) = {
     val expectedRequestUrlsFlattened: List[String] = additionalExpectedRequestUrls.flatMap {
       case requests: List[String] => requests
       case request: String        => List(request)
     }
-    serverRequestUrls.sorted should equal((expectedRequestUrlsFlattened :+ tokenUrl).sorted)
+    serverRequestUrls.sorted should equal(
+      (expectedRequestUrlsFlattened ++ List.fill(numOfTokenRequests)(tokenUrl)).sorted
+    )
   }
 
   private def verifyZeroServerRequests = serverRequestUrls.length should be(0)
@@ -1327,6 +1334,46 @@ abstract class EntityClientTest[F[_], S](preservicaPort: Int, secretsManagerPort
     val version = valueFromF(client.getPreservicaNamespaceVersion(endpoint))
     version should equal(7.7f)
     verifyServerRequests(List(retentionPoliciesUrl))
+  }
+
+  "streamAllEntityRefs" should "recursively collect and return the correct entityRefs" in {
+    val client = testClient
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val stubbedUrls = endpoints.stubRootChildren()
+    val rootSoRef = UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
+
+    val entityRefs = valueFromF(client.streamAllEntityRefs().compile.toList)
+
+    entityRefs should equal(
+      List(
+        StructuralObjectRef(rootSoRef, None),
+        StructuralObjectRef(UUID.fromString("71143bfd-b29f-4548-871c-8334f2d2bcb8"), None),
+        StructuralObjectRef(UUID.fromString("dd672e2c-6248-43d7-81ff-c632acfc8fd7"), None),
+        InformationObjectRef(endpoints.entity.ref, rootSoRef),
+        StructuralObjectRef(UUID.fromString("b107677d-745f-4cb8-94c7-e31383f2eb0b"), Some(rootSoRef)),
+        ContentObjectRef(UUID.fromString("ad30d41e-b75c-4195-b569-91e820f430ac"), endpoints.entity.ref),
+        ContentObjectRef(UUID.fromString("354f47cf-3ca2-4a4e-8181-81b714334f00"), endpoints.entity.ref)
+      )
+    )
+    val expectedUrlRequests = stubbedUrls.filterNot(_.contains("174eb617-2d05-4920-a764-99cdbdae94a1"))
+
+    verifyServerRequests(List(expectedUrlRequests), expectedUrlRequests.length)
+  }
+
+  "streamAllEntityRefs" should "return an error if the get request returns an error" in {
+    val client = testClient
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val stubbedUrls = endpoints.stubRootChildren(false)
+
+    val ex = intercept[PreservicaClientException] {
+      valueFromF(client.streamAllEntityRefs().compile.toList)
+    }
+    ex.getMessage should equal(
+      s"Status code 400 calling http://localhost:$preservicaPort${endpoints.rootChildrenUrl}?max=1000&start=0 with method GET "
+    )
+
+    val expectedUrlRequests = stubbedUrls.take(1)
+    verifyServerRequests(List(expectedUrlRequests), expectedUrlRequests.length)
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =
