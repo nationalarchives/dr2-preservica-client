@@ -247,7 +247,7 @@ object EntityClient {
     *   The type of the Stream to be used for the streaming methods.
     * @return
     */
-  def createEntityClient[F[_]: Async: Parallel, S](clientConfig: ClientConfig[F, S]): EntityClient[F, S] =
+  def createEntityClient[F[_]: {Async, Parallel}, S](clientConfig: ClientConfig[F, S]): EntityClient[F, S] =
     new EntityClient[F, S] {
       val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
       private val apiBaseUrl: String = clientConfig.apiBaseUrl
