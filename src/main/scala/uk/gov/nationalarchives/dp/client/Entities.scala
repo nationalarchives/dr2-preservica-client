@@ -90,3 +90,9 @@ object Entities:
     *   The identifier value
     */
   case class IdentifierResponse(id: String, identifierName: String, value: String)
+
+  enum EntityRef:
+    case StructuralObjectRef(ref: UUID, parentRef: Option[UUID]) extends EntityRef
+    case InformationObjectRef(ref: UUID, parentRef: UUID) extends EntityRef
+    case ContentObjectRef(ref: UUID, parentRef: UUID) extends EntityRef
+    case NoEntityRef extends EntityRef

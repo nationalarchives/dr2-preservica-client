@@ -58,6 +58,10 @@ The client exposes 15 methods
   def getPreservicaNamespaceVersion(
       endpoint: String
   ): F[Float]
+
+  def streamAllEntityRefs(
+      maxEntries: Int = 1000
+  ): F[List[EntityRef]]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
@@ -167,6 +171,11 @@ The client exposes 15 methods
 ### getPreservicaNamespaceVersion
 * Calls any Entity Preservica endpoint that returns XML
 * Returns version number found in namespace
+
+### streamAllEntityRefs
+* Calls root/children endpoint to get the root SOs
+* For each SO, calls {entity-type}/{entity-ref}/children in order to get the children of those
+* Continues to recursively collect SO and IO entities until it reaches the bottom
 
 @@@ index
 

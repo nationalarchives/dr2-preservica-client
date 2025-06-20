@@ -51,7 +51,6 @@ object Fs2Client:
       Client(clientConfig).getAuthDetails().map { authDetails =>
         createEntityClient(clientConfig.copy(apiBaseUrl = authDetails.apiUrl))
       }
-
     }
 
   /** Creates a content client
