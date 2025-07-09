@@ -60,7 +60,7 @@ The client exposes 15 methods
   ): F[Float]
 
   def streamAllEntityRefs(
-      maxEntries: Int = 1000
+      repTypeFilter: Option[RepresentationType] = None
   ): F[List[EntityRef]]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)

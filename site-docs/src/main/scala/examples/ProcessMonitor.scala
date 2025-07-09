@@ -23,7 +23,7 @@ object ProcessMonitor {
 
     def searchEntities(): IO[Unit] = {
       for {
-        client <- Fs2Client.processMonitorClient(url, "secretName")
+        client <- Fs2Client.processMonitorClient("secretName")
         _ <- client.getMonitors(monitorsRequestWithStatusAnd2Categories)
         _ <- client.getMonitors(monitorsRequestWith2Statuses)
         _ <- client.getMonitors(monitorsRequestWithName)

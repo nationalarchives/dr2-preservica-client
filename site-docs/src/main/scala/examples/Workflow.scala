@@ -20,7 +20,7 @@ object Workflow {
 
     def searchEntities(): IO[Unit] = {
       for {
-        client <- Fs2Client.workflowClient(url, "secretName")
+        client <- Fs2Client.workflowClient("secretName")
         _ <- client.startWorkflow(startWorkflowRequestWithName)
         _ <- client.startWorkflow(startWorkflowRequestWithId)
         _ <- client.startWorkflow(startWorkflowRequestNoCorrelationId)

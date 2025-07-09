@@ -222,7 +222,7 @@ trait EntityClient[F[_], S] {
     * @param maxEntries
     *   The maximum number of entries to return. Defaults to 1000
     * @return
-    *   a List of Entity refs
+    *   a Stream of Entity refs
     */
 
   def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None): fs2.Stream[F, EntityRef]
