@@ -1,6 +1,6 @@
 import sbtrelease.ReleaseStateTransformations.*
 import Dependencies.*
-import xerial.sbt.Sonatype.{sonatype01, sonatypeCentralHost}
+import sbt.internal.librarymanagement.Publishing.sonaUpload
 
 lazy val scala3Version = "3.7.1"
 
@@ -8,9 +8,12 @@ ThisBuild / scalaVersion := scala3Version
 
 lazy val releaseSettings = Seq(
   useGpgPinentry := true,
-  publishTo := sonatypePublishToBundle.value,
+  publishTo := {
+    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    else localStaging.value
+  },
   publishMavenStyle := true,
-  sonatypeCredentialHost := sonatypeCentralHost,
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
     inquireVersions,
@@ -20,7 +23,7 @@ lazy val releaseSettings = Seq(
     commitReleaseVersion,
     tagRelease,
     releaseStepCommand("publishSigned"),
-    releaseStepCommand("sonatypeBundleRelease"),
+    releaseStepCommand(sonaUpload),
     setNextVersion,
     commitNextVersion,
     pushChanges
