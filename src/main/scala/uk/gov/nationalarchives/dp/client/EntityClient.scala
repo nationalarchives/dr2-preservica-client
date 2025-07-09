@@ -226,7 +226,7 @@ trait EntityClient[F[_], S] {
     *   a List of Entity refs
     */
 
-  def streamAllEntityRefs(maxEntries: Int = 1000): fs2.Stream[F, EntityRef]
+  def streamAllEntityRefs(): fs2.Stream[F, EntityRef]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -614,9 +614,6 @@ object EntityClient {
           entitiesWithUpdates <- dataProcessor.getEntities(entitiesResponseXml)
         } yield entitiesWithUpdates
 
-      private def getEntities(url: String): F[Seq[Entity]] =
-        getAuthenticationToken.flatMap(token => getEntities(url, token))
-
       private def eventActionsXml(
           url: Option[String],
           token: String,
@@ -810,8 +807,8 @@ object EntityClient {
             .map(_.flatten)
         } yield entities.map(entity => ContentObjectRef(entity.ref, ioRef))
 
-      override def streamAllEntityRefs(maxEntries: Int = 1000): fs2.Stream[F, EntityRef] = {
-        val queryParams = Map("max" -> maxEntries, "start" -> 0)
+      override def streamAllEntityRefs(): fs2.Stream[F, EntityRef] = {
+        val queryParams = Map("max" -> 1000, "start" -> 0)
         val topLevelEntityRefs = children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None)
 
         def getChildrenRefs(rootEntityRefs: Seq[EntityRef]): fs2.Stream[F, EntityRef] =

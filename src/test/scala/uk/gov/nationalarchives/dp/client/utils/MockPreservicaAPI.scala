@@ -23,12 +23,11 @@ object MockPreservicaAPI {
     Map("SO" -> "StructuralObject", "IO" -> "InformationObject", "CO" -> "ContentObject")
 
   def createEntity(
-      entityType: EntityType = StructuralObject,
-      ref: UUID = UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
+      entityType: EntityType = StructuralObject
   ): Entity = {
     Entities.Entity(
       Some(entityType),
-      ref,
+      UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"),
       Option("title"),
       Option("description"),
       deleted = false,
