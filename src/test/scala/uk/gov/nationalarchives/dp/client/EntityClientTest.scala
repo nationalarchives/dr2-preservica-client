@@ -1342,7 +1342,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val stubbedUrls = endpoints.stubRootChildren()
     val rootSoRef = UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c")
 
-    val entityRefs = valueFromF(client.streamAllEntityRefs().compile.toList)
+    val entityRefs = valueFromF(client.streamAllEntityRefs(Some(Preservation)).compile.toList)
 
     entityRefs should equal(
       List(
