@@ -1,5 +1,6 @@
 import sbtrelease.ReleaseStateTransformations.*
 import Dependencies.*
+import xerial.sbt.Sonatype.{sonatype01, sonatypeCentralHost}
 
 lazy val scala3Version = "3.7.1"
 
@@ -9,6 +10,7 @@ lazy val releaseSettings = Seq(
   useGpgPinentry := true,
   publishTo := sonatypePublishToBundle.value,
   publishMavenStyle := true,
+  sonatypeCredentialHost := sonatypeCentralHost,
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
     inquireVersions,
