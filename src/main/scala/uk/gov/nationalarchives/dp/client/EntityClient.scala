@@ -12,7 +12,6 @@ import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
-import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.Preservation
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -226,7 +225,7 @@ trait EntityClient[F[_], S] {
     *   a List of Entity refs
     */
 
-  def streamAllEntityRefs(): fs2.Stream[F, EntityRef]
+  def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None): fs2.Stream[F, EntityRef]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -286,7 +285,6 @@ object EntityClient {
           representationsResponse <- ioRepresentations(ioEntityRef, representationType, repTypeIndex, token)
           contentObjects <- dataProcessor.getContentObjectsFromRepresentation(
             representationsResponse,
-            representationType,
             ioEntityRef
           )
         } yield contentObjects
@@ -794,20 +792,17 @@ object EntityClient {
             )
           } yield allEntityLinksXml
 
-      private def contentObjectsForInformationObject(
-          ioRef: UUID,
-          representationType: RepresentationType = Preservation
-      ) =
+      private def contentObjectsForInformationObject(ioRef: UUID, potentialRepType: Option[RepresentationType]) =
         for {
-          representationUrls <- getUrlsToIoRepresentations(ioRef, Option(representationType))
+          representationUrls <- getUrlsToIoRepresentations(ioRef, potentialRepType)
           token <- getAuthenticationToken
           representationElems <- representationUrls.parTraverse(url => sendXMLApiRequest(url, token, Method.GET))
           entities <- representationElems
-            .parTraverse(elem => dataProcessor.getContentObjectsFromRepresentation(elem, representationType, ioRef))
+            .parTraverse(elem => dataProcessor.getContentObjectsFromRepresentation(elem, ioRef))
             .map(_.flatten)
         } yield entities.map(entity => ContentObjectRef(entity.ref, ioRef))
 
-      override def streamAllEntityRefs(): fs2.Stream[F, EntityRef] = {
+      override def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None): fs2.Stream[F, EntityRef] = {
         val queryParams = Map("max" -> 1000, "start" -> 0)
         val topLevelEntityRefs = children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None)
 
@@ -819,7 +814,7 @@ object EntityClient {
                 nextPageOfRefs <- firstEntityRef match {
                   case StructuralObjectRef(ref, _) =>
                     children(Some(uri"$apiUrl/structural-objects/$ref/children?$queryParams".toString), Nil, Some(ref))
-                  case InformationObjectRef(ref, _) => contentObjectsForInformationObject(ref)
+                  case InformationObjectRef(ref, _) => contentObjectsForInformationObject(ref, repTypeFilter)
                   case _                            => Async[F].pure(Nil)
                 }
               } yield firstEntityRef -> Option(restOfRefs ++ nextPageOfRefs)
