@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.132*
+0.0.139*
 </div>
 </div>
 <div class="nav-toc">
@@ -87,7 +87,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.132*
+0.0.139*
 </div>
 </div>
 <div class="nav-toc">
@@ -154,13 +154,12 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   val secretName = &quot;nameOfSecretsManagerSecretContainingAPICredentials&quot;
 
   val fs2ProcessMonitorClientWithDefaults: IO[ProcessMonitorClient[IO]] =
-    Fs2Client.processMonitorClient(preservicaUrl, secretName)
+    Fs2Client.processMonitorClient(secretName)
   val fs2ProcessMonitorClientWithCustomCacheDuration: IO[ProcessMonitorClient[IO]] =
-    Fs2Client.processMonitorClient(preservicaUrl, secretName, 30.minutes)
+    Fs2Client.processMonitorClient(secretName, 30.minutes)
   val fs2ProcessMonitorClientWithCustomSecretsManagerEndpoint: IO[ProcessMonitorClient[IO]] =
-    Fs2Client.processMonitorClient(preservicaUrl, secretName, ssmEndpointUri = &quot;https://private.ssm.endpoint&quot;)
+    Fs2Client.processMonitorClient(secretName, ssmEndpointUri = &quot;https://private.ssm.endpoint&quot;)
   val fs2ProcessMonitorClientWithCustomProxy: IO[ProcessMonitorClient[IO]] = Fs2Client.processMonitorClient(
-    preservicaUrl,
     secretName,
     potentialProxyUrl = Option(URI.create(&quot;http://proxy.url&quot;))
   )
@@ -257,7 +256,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.132-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.139-SNAPSHOT', '')});</script>
 
 
 </html>

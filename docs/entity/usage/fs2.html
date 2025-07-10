@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.132*
+0.0.139*
 </div>
 </div>
 <div class="nav-toc">
@@ -87,7 +87,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.132*
+0.0.139*
 </div>
 </div>
 <div class="nav-toc">
@@ -137,14 +137,14 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
 <div class="page-content row">
 <div class="small-12 large-9 column" id="docs">
-<h1><a href="#use-with-fs2" name="use-with-fs2" class="anchor"><span class="anchor-link"></span></a>Use with FS2</h1><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "uk.gov.nationalarchives" %% "preservica-client-fs2" % "0.0.132"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
+<h1><a href="#use-with-fs2" name="use-with-fs2" class="anchor"><span class="anchor-link"></span></a>Use with FS2</h1><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies += "uk.gov.nationalarchives" %% "preservica-client-fs2" % "0.0.139"</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
   &lt;dependency&gt;
     &lt;groupId&gt;uk.gov.nationalarchives&lt;/groupId&gt;
     &lt;artifactId&gt;preservica-client-fs2_3&lt;/artifactId&gt;
-    &lt;version&gt;0.0.132&lt;/version&gt;
+    &lt;version&gt;0.0.139&lt;/version&gt;
   &lt;/dependency&gt
 &lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  implementation "uk.gov.nationalarchives:preservica-client-fs2_3:0.0.132"
+  implementation "uk.gov.nationalarchives:preservica-client-fs2_3:0.0.139"
 }</code></pre></dd></dl>
 <p>Most of the methods in the list will work with either Cats effect or ZIO with the only difference being the effect type of <code>cats.effect.IO</code> vs <code>zio.Task</code></p>
 <p>The exception is the method to stream bitstream content.</p>
@@ -156,13 +156,11 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 
   import java.util.UUID
 
-  val url = &quot;https://test.preservica.com&quot;
-
   def processStream(name: String, stream: fs2.Stream[IO, Byte]): IO[Unit] = ???
 
   def getAndProcessStream(): IO[Unit] = {
     for {
-      client &lt;- Fs2Client.entityClient(url, &quot;secretName&quot;)
+      client &lt;- Fs2Client.entityClient(&quot;secretName&quot;)
       bitStreamInfo &lt;- client.getBitstreamInfo(UUID.randomUUID())
       _ &lt;- bitStreamInfo
         .map(eachBitStream =&gt; {
@@ -172,6 +170,20 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
           )
         })
         .sequence
+    } yield ()
+  }
+
+  private def doSomething(): IO[Unit] = ???
+  private def doSomethingElse(): IO[Unit] = ???
+
+  def streamEntityRefs(): IO[Unit] = {
+    for {
+      _ &lt;- Fs2Client.entityClient(&quot;secretName&quot;).map{ client =&gt;
+        client.streamAllEntityRefs().map {
+          case _: InformationObjectRef | _: ContentObjectRef =&gt; doSomething()
+          case _ =&gt; doSomethingElse()
+        }
+      }
     } yield ()
   }
 }</code></pre>
@@ -242,7 +254,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.132-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.139-SNAPSHOT', '')});</script>
 
 
 </html>
