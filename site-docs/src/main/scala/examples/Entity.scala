@@ -1,5 +1,7 @@
 package examples
 
+import uk.gov.nationalarchives.dp.client.Entities.EntityRef.{ContentObjectRef, InformationObjectRef}
+
 object Entity {
   // #fs2
   object PreservicaFs2 {
@@ -10,13 +12,11 @@ object Entity {
 
     import java.util.UUID
 
-    val url = "https://test.preservica.com"
-
     def processStream(name: String, stream: fs2.Stream[IO, Byte]): IO[Unit] = ???
 
     def getAndProcessStream(): IO[Unit] = {
       for {
-        client <- Fs2Client.entityClient(url, "secretName")
+        client <- Fs2Client.entityClient("secretName")
         bitStreamInfo <- client.getBitstreamInfo(UUID.randomUUID())
         _ <- bitStreamInfo
           .map(eachBitStream => {
@@ -26,6 +26,20 @@ object Entity {
             )
           })
           .sequence
+      } yield ()
+    }
+
+    private def doSomething(): IO[Unit] = ???
+    private def doSomethingElse(): IO[Unit] = ???
+
+    def streamEntityRefs(): IO[Unit] = {
+      for {
+        _ <- Fs2Client.entityClient("secretName").map{ client =>
+          client.streamAllEntityRefs().map {
+            case _: InformationObjectRef | _: ContentObjectRef => doSomething()
+            case _ => doSomethingElse()
+          }
+        }
       } yield ()
     }
   }

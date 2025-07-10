@@ -13,7 +13,7 @@ object Content {
 
     def searchEntities(): IO[Unit] = {
       for {
-        client <- Fs2Client.contentClient(url, "secretName")
+        client <- Fs2Client.contentClient("secretName")
         searchResultAllResults <- client.searchEntities(searchQuery)
         searchResultWithMax <- client.searchEntities(searchQuery, 1000)
       } yield ()
