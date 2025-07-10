@@ -1,6 +1,6 @@
 package examples
 
-import examples.Clients.ContentClients.{preservicaUrl, secretName}
+import examples.Clients.ContentClients.{secretName}
 import uk.gov.nationalarchives.dp.client.ContentClient
 
 import java.net.URI
@@ -19,13 +19,13 @@ object Clients {
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
 
     val fs2EntityClientWithDefaults: IO[EntityClient[IO, Fs2Streams[IO]]] =
-      Fs2Client.entityClient(preservicaUrl, secretName)
+      Fs2Client.entityClient(secretName)
     val fs2EntityClientWithCustomCacheDuration: IO[EntityClient[IO, Fs2Streams[IO]]] =
-      Fs2Client.entityClient(preservicaUrl, secretName, 30.minutes)
+      Fs2Client.entityClient(secretName, 30.minutes)
     val fs2EntityClientWithCustomSecretsManagerEndpoint: IO[EntityClient[IO, Fs2Streams[IO]]] =
-      Fs2Client.entityClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
+      Fs2Client.entityClient(secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2EntityClientWithCustomProxy: IO[EntityClient[IO, Fs2Streams[IO]]] =
-      Fs2Client.entityClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
+      Fs2Client.entityClient(secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
   }
   // #entity_client
   // #content_client
@@ -39,13 +39,13 @@ object Clients {
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
 
-    val fs2ContentClientWithDefaults: IO[ContentClient[IO]] = Fs2Client.contentClient(preservicaUrl, secretName)
+    val fs2ContentClientWithDefaults: IO[ContentClient[IO]] = Fs2Client.contentClient(secretName)
     val fs2ContentClientWithCustomCacheDuration: IO[ContentClient[IO]] =
-      Fs2Client.contentClient(preservicaUrl, secretName, 30.minutes)
+      Fs2Client.contentClient(secretName, 30.minutes)
     val fs2ContentClientWithCustomSecretsManagerEndpoint: IO[ContentClient[IO]] =
-      Fs2Client.contentClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
+      Fs2Client.contentClient(secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2ContentClientWithCustomProxy: IO[ContentClient[IO]] =
-      Fs2Client.contentClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
+      Fs2Client.contentClient(secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
   }
   // #content_client
 
@@ -60,13 +60,13 @@ object Clients {
     val preservicaUrl = "https://test.preservica.com"
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
 
-    val fs2WorkflowClientWithDefaults: IO[WorkflowClient[IO]] = Fs2Client.workflowClient(preservicaUrl, secretName)
+    val fs2WorkflowClientWithDefaults: IO[WorkflowClient[IO]] = Fs2Client.workflowClient(secretName)
     val fs2WorkflowClientWithCustomCacheDuration: IO[WorkflowClient[IO]] =
-      Fs2Client.workflowClient(preservicaUrl, secretName, 30.minutes)
+      Fs2Client.workflowClient(secretName, 30.minutes)
     val fs2WorkflowClientWithCustomSecretsManagerEndpoint: IO[WorkflowClient[IO]] =
-      Fs2Client.workflowClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
+      Fs2Client.workflowClient(secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2WorkflowClientWithCustomProxy: IO[WorkflowClient[IO]] =
-      Fs2Client.workflowClient(preservicaUrl, secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
+      Fs2Client.workflowClient(secretName, potentialProxyUrl = Option(URI.create("http://proxy.url")))
   }
   // #workflow_client
 
@@ -82,13 +82,12 @@ object Clients {
     val secretName = "nameOfSecretsManagerSecretContainingAPICredentials"
 
     val fs2ProcessMonitorClientWithDefaults: IO[ProcessMonitorClient[IO]] =
-      Fs2Client.processMonitorClient(preservicaUrl, secretName)
+      Fs2Client.processMonitorClient(secretName)
     val fs2ProcessMonitorClientWithCustomCacheDuration: IO[ProcessMonitorClient[IO]] =
-      Fs2Client.processMonitorClient(preservicaUrl, secretName, 30.minutes)
+      Fs2Client.processMonitorClient(secretName, 30.minutes)
     val fs2ProcessMonitorClientWithCustomSecretsManagerEndpoint: IO[ProcessMonitorClient[IO]] =
-      Fs2Client.processMonitorClient(preservicaUrl, secretName, ssmEndpointUri = "https://private.ssm.endpoint")
+      Fs2Client.processMonitorClient(secretName, ssmEndpointUri = "https://private.ssm.endpoint")
     val fs2ProcessMonitorClientWithCustomProxy: IO[ProcessMonitorClient[IO]] = Fs2Client.processMonitorClient(
-      preservicaUrl,
       secretName,
       potentialProxyUrl = Option(URI.create("http://proxy.url"))
     )
