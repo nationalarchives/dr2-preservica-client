@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
-    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@main
+    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@7f44edae156f1bfa890749bed3bcfa20a26d439a
     with:
       library-name: "Preservica Client"
     secrets:
@@ -16,10 +16,10 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@09d2acae674a48949e3602304ab46fd20ae0c42f
         with:
           fetch-depth: 0
-      - uses: sbt/setup-sbt@v1
+      - uses: sbt/setup-sbt@3c1652372d153b35a30472b3e5b2f1f204eff746
       - name: Update docs site
         run: |
           sbt 'docs / makeSite'
