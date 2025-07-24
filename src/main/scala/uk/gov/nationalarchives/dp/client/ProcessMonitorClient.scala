@@ -2,7 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.effect.Async
 import cats.implicits.*
-import io.circe.generic.auto.*
+import io.circe.{Decoder, HCursor}
 import sttp.client3.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
@@ -52,6 +52,106 @@ object ProcessMonitorClient:
       private val client: Client[F, ?] = Client(clientConfig)
 
       import client.*
+
+      given Decoder[Monitors] = (c: HCursor) =>
+        for
+          mappedId <- c.downField("mappedId").as[String]
+          name <- c.downField("name").as[String]
+          status <- c.downField("status").as[String]
+          started <- c.downField("started").as[Option[String]]
+          completed <- c.downField("completed").as[Option[String]]
+          category <- c.downField("category").as[String]
+          subcategory <- c.downField("subcategory").as[String]
+          progressText <- c.downField("progressText").as[Option[String]]
+          percentComplete <- c.downField("percentComplete").as[Option[String]]
+          filesPending <- c.downField("filesPending").as[Int]
+          size <- c.downField("size").as[Int]
+          filesProcessed <- c.downField("filesProcessed").as[Int]
+          warnings <- c.downField("warnings").as[Int]
+          errors <- c.downField("errors").as[Int]
+          canRetry <- c.downField("canRetry").as[Boolean]
+        yield Monitors(
+          mappedId,
+          name,
+          status,
+          started,
+          completed,
+          category,
+          subcategory,
+          progressText,
+          percentComplete,
+          filesPending,
+          size,
+          filesProcessed,
+          warnings,
+          errors,
+          canRetry
+        )
+
+      given Decoder[Message] = (c: HCursor) =>
+        for
+          workflowInstanceId <- c.downField("workflowInstanceId").as[Int]
+          monitorName <- c.downField("monitorName").as[String]
+          path <- c.downField("path").as[String]
+          date <- c.downField("date").as[String]
+          status <- c.downField("status").as[String]
+          displayMessage <- c.downField("displayMessage").as[String]
+          workflowName <- c.downField("workflowName").as[String]
+          mappedMonitorId <- c.downField("mappedMonitorId").as[String]
+          message <- c.downField("message").as[String]
+          mappedId <- c.downField("mappedId").as[String]
+          securityDescriptor <- c.downField("securityDescriptor").as[Option[String]]
+          entityTitle <- c.downField("entityTitle").as[Option[String]]
+          entityRef <- c.downField("entityRef").as[Option[String]]
+          sourceId <- c.downField("sourceId").as[Option[String]]
+        yield Message(
+          workflowInstanceId,
+          monitorName,
+          path,
+          date,
+          status,
+          displayMessage,
+          workflowName,
+          mappedMonitorId,
+          message,
+          mappedId,
+          securityDescriptor,
+          entityTitle,
+          entityRef,
+          sourceId
+        )
+
+      given Decoder[Paging] = (c: HCursor) =>
+        for
+          next <- c.downField("next").as[Option[String]]
+          totalResults <- c.downField("totalResults").as[Int]
+        yield Paging(next, totalResults)
+
+      given Decoder[MessagesValue] = (c: HCursor) =>
+        for
+          paging <- c.downField("paging").as[Paging]
+          messages <- c.downField("messages").as[Seq[Message]]
+        yield MessagesValue(paging, messages)
+
+      given Decoder[MessagesResponse] = (c: HCursor) =>
+        for
+          success <- c.downField("success").as[Boolean]
+          version <- c.downField("version").as[Int]
+          value <- c.downField("value").as[MessagesValue]
+        yield MessagesResponse(success, version, value)
+
+      given Decoder[MonitorsValue] = (c: HCursor) =>
+        for
+          paging <- c.downField("paging").as[Paging]
+          monitors <- c.downField("monitors").as[Seq[Monitors]]
+        yield MonitorsValue(paging, monitors)
+
+      given Decoder[MonitorsResponse] = (c: HCursor) =>
+        for
+          success <- c.downField("success").as[Boolean]
+          version <- c.downField("version").as[Int]
+          value <- c.downField("value").as[MonitorsValue]
+        yield MonitorsResponse(success, version, value)
 
       override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] =
         val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMonitorsRequest)
@@ -132,7 +232,7 @@ object ProcessMonitorClient:
   ):
     val subcategory: List[String] = Nil
 
-  case class MonitorsResponse(success: Boolean, version: Int, value: MonitorsValue)
+  private case class MonitorsResponse(success: Boolean, version: Int, value: MonitorsValue)
 
   case class MonitorsValue(paging: Paging, monitors: Seq[Monitors])
 
@@ -164,7 +264,7 @@ object ProcessMonitorClient:
 
   case class GetMessagesRequest(monitor: List[String] = Nil, status: List[MessageStatus] = Nil)
 
-  case class MessagesResponse(success: Boolean, version: Int, value: MessagesValue)
+  private case class MessagesResponse(success: Boolean, version: Int, value: MessagesValue)
 
   case class MessagesValue(paging: Paging, messages: Seq[Message])
 

@@ -2,8 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.effect.Async
 import cats.implicits.*
-import io.circe.{Decoder, Printer}
-import io.circe.generic.auto.*
+import io.circe.{Decoder, Encoder, HCursor, Printer}
 import io.circe.syntax.*
 import sttp.client3.*
 import sttp.client3.circe.asJson
@@ -69,6 +68,22 @@ object ContentClient:
 
     private val client: Client[F, S] = Client(clientConfig)
     import client.*
+
+    given Decoder[SearchResponseValue] = (c: HCursor) =>
+      for {
+        objectIds <- c.downField("objectIds").as[List[String]]
+        totalHits <- c.downField("totalHits").as[Int]
+      } yield SearchResponseValue(objectIds, totalHits)
+
+    given Decoder[SearchResponse] = (c: HCursor) =>
+      for {
+        success <- c.downField("success").as[Boolean]
+        value <- c.downField("value").as[SearchResponseValue]
+      } yield SearchResponse(success, value)
+
+    given Encoder[SearchField] = Encoder.forProduct2("name", "values")(field => (field.name, field.values))
+
+    given Encoder[SearchQuery] = Encoder.forProduct2("q", "fields")(query => (query.q, query.fields))
 
     def toEntities(entityInfo: List[String]): F[List[Entity]] = entityInfo
       .map(info =>
