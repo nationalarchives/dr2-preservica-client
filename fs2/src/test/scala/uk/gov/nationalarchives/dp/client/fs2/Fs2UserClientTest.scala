@@ -9,4 +9,4 @@ class Fs2UserClientTest extends UserClientTest[IO](9010, 9011):
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(): IO[UserClient[IO]] =
-    userClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9011")
+    userClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9011", retryCount = 1)

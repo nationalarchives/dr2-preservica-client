@@ -5,6 +5,9 @@ import cats.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
 import io.circe.{Decoder, HCursor}
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+import retry.*
 import scalacache.*
 import scalacache.caffeine.*
 import scalacache.memoization.*
@@ -14,7 +17,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerAsyncClient
 import sttp.client3.*
 import sttp.client3.circe.*
-import sttp.model.Method
+import sttp.model.{Method, StatusCode, Uri}
 import uk.gov.nationalarchives.DASecretsManagerClient
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage.*
@@ -27,6 +30,7 @@ import scala.concurrent.duration.*
 import scala.xml.{Elem, XML}
 
 /** A utility class containing methods common to all clients
+  *
   * @param clientConfig
   *   The [[ClientConfig]] instance with the config details
   * @param async
@@ -43,9 +47,12 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[String]]
   private val underlyingAuthDetails: CCache[String, Entry[AuthDetails]] =
     Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[AuthDetails]]
+
   given caffeineCache: Cache[F, String, String] = CaffeineCache[F, String, String](underlying)
+
   given authDetailsCaffeineCache: Cache[F, String, AuthDetails] =
     CaffeineCache[F, String, AuthDetails](underlyingAuthDetails)
+
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
     asString.mapRight(XML.loadString)
@@ -68,6 +75,40 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
 
   given Decoder[Token] = (c: HCursor) => c.downField("token").as[String].map(Token.apply)
+  given SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+  private def retrySend[T, E](method: Method, apiUri: Uri, sendHttpRequest: F[Response[Either[E, T]]]): F[T] = {
+    def liftEither(response: Response[Either[E, T]]): F[T] = Async[F].fromEither {
+      response.body.left.map {
+        case e: Throwable => PreservicaClientException(method, apiUri, response.code, e.getMessage)
+        case e            => PreservicaClientException(method, apiUri, response.code, e.toString)
+      }
+    }
+    retryingOnFailuresAndErrors(sendHttpRequest)(
+      RetryPolicies.limitRetries[F](clientConfig.retryCount).join(RetryPolicies.exponentialBackoff[F](1.second)),
+      (response, retryDetails) =>
+        val currentRetry = retryDetails.retriesSoFar + 1
+        val retryMessage = s"Retrying $currentRetry of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
+
+        response.map(_.code) match {
+          case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Continue)
+          case Right(code) if code == StatusCode.Unauthorized || code == StatusCode.Forbidden =>
+            Logger[F]
+              .warn(s"$retryMessage unauthorised response ${code.code}. Invalidating cache")
+              .map { _ =>
+                underlyingAuthDetails.invalidateAll()
+                underlying.invalidateAll()
+              }
+              .as(HandlerDecision.Continue)
+          case Right(code) if code != StatusCode.Ok =>
+            Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
+          case _ => Async[F].pure(HandlerDecision.Stop)
+        }
+    ).flatMap {
+      case Left(errResponse)      => liftEither(errResponse)
+      case Right(successResponse) => liftEither(successResponse)
+    }
+  }
 
   private[client] def sendXMLApiRequest(
       url: String,
@@ -81,11 +122,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .method(method, apiUri)
       .response(asXml)
     val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
-    Async[F].flatMap(backend.send(requestWithBody)) { res =>
-      Async[F].fromEither(
-        res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err))
-      )
-    }
+    retrySend(method, apiUri, backend.send(requestWithBody))
   }
 
   private[client] def sendJsonApiRequest[R: IsOption](
@@ -101,12 +138,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .response(asJson[R])
     val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
       requestBody.map(request.body(_)).getOrElse(request)
-
-    Async[F].flatMap(backend.send(requestWithBody)) { res =>
-      Async[F].fromEither(
-        res.body.left.map(err => PreservicaClientException(method, apiUri, res.code, err.getMessage))
-      )
-    }
+    retrySend(method, apiUri, backend.send(requestWithBody))
   }
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
@@ -155,6 +187,7 @@ object Client {
   private[client] case class AuthDetails(userName: String, password: String, apiUrl: String)
 
   /** Represents bitstream information from a content object
+    *
     * @param name
     *   The name of the bitstream
     * @param fileSize
@@ -182,6 +215,7 @@ object Client {
   )
 
   /** Configuration for the clients
+    *
     * @param apiBaseUrl
     *   The Preservica service url
     * @param secretName
@@ -202,10 +236,12 @@ object Client {
       secretName: String,
       backend: SttpBackend[F, S],
       duration: FiniteDuration,
-      secretsManagerEndpointUri: String
+      secretsManagerEndpointUri: String,
+      retryCount: Int
   )
 
   /** Represents fixity for an object
+    *
     * @param algorithm
     *   Algorithm used to generate hash for this object (e.g. MD5, SHA256 etc.)
     * @param value
@@ -214,6 +250,7 @@ object Client {
   case class Fixity(algorithm: String, value: String)
 
   /** Creates a new `Client` instance.
+    *
     * @param clientConfig
     *   Configuration parameters needed to create the client
     * @param async
