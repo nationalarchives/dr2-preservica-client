@@ -256,13 +256,13 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     }.sequence
 
   def getChildren(elem: Elem, potentialParentRef: Option[UUID]): F[Seq[EntityRef]] =
-    me.pure((elem \ "Children" \ "Child").map { c =>
+    me.pure((elem \ "Children" \ "Child").flatMap { c =>
       val ref = UUID.fromString(attrToString(c, "ref"))
       val entityType = attrToString(c, "type")
       entityType match {
-        case "SO" => EntityRef.StructuralObjectRef(ref, potentialParentRef)
-        case "IO" => EntityRef.InformationObjectRef(ref, potentialParentRef.get)
-        case "CO" => EntityRef.ContentObjectRef(ref, potentialParentRef.get)
+        case "SO" => EntityRef.StructuralObjectRef(ref, potentialParentRef).some
+        case "IO" => potentialParentRef.map(EntityRef.InformationObjectRef(ref, _))
+        case "CO" => potentialParentRef.map(EntityRef.InformationObjectRef(ref, _))
       }
     })
 
