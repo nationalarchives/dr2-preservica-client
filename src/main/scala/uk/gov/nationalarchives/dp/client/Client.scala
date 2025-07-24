@@ -4,8 +4,7 @@ import cats.effect.Async
 import cats.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
-import io.circe.Decoder
-import io.circe.generic.auto.*
+import io.circe.{Decoder, HCursor}
 import scalacache.*
 import scalacache.caffeine.*
 import scalacache.memoization.*
@@ -58,6 +57,17 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
   private val loginEndpointUri = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
+
+  given Decoder[AuthDetails] = (c: HCursor) =>
+    for {
+      userName <- c.downField("userName").as[String]
+      password <- c.downField("password").as[String]
+      apiUrl <- c.downField("apiUrl").as[String]
+    } yield {
+      AuthDetails(userName, password, apiUrl)
+    }
+
+  given Decoder[Token] = (c: HCursor) => c.downField("token").as[String].map(Token.apply)
 
   private[client] def sendXMLApiRequest(
       url: String,

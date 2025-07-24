@@ -6,12 +6,13 @@ import com.github.tomakehurst.wiremock.admin.model.ServeEventQuery
 import com.github.tomakehurst.wiremock.client.MappingBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED
+import io.circe.Decoder
 import org.scalatest.{BeforeAndAfterEach, EitherValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
 import io.circe.parser.decode
-import io.circe.generic.auto.*
+
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
@@ -28,6 +29,18 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val preservicaServer = new WireMockServer(preservicaPort)
   val secretsManagerServer = new WireMockServer(secretsManagerPort)
+
+  given Decoder[SearchField] = (c: io.circe.HCursor) =>
+    for {
+      name <- c.downField("name").as[String]
+      values <- c.downField("values").as[List[String]]
+    } yield SearchField(name, values)
+
+  given Decoder[SearchQuery] = (c: io.circe.HCursor) =>
+    for {
+      q <- c.downField("q").as[String]
+      fields <- c.downField("fields").as[List[SearchField]]
+    } yield SearchQuery(q, fields)
 
   val secretsResponse =
     s"""{"SecretString":"{\\"userName\\":\\"test\\",\\"password\\":\\"test\\",\\"apiUrl\\":\\"http://localhost:$preservicaPort\\"}"}"""

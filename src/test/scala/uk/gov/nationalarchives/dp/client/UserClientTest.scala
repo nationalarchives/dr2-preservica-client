@@ -2,10 +2,10 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import io.circe.Decoder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import io.circe.parser.decode
-import io.circe.generic.auto.*
 import org.scalatest.{BeforeAndAfterEach, EitherValues}
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.UserClient.ResetPasswordRequest
@@ -30,6 +30,18 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   val preservicaServer = new WireMockServer(preservicaPort)
   private val tokenResponse: String = """{"token": "abcde"}"""
   private val tokenUrl = "/api/accesstoken/login"
+
+  given Decoder[ResetPasswordRequest] = (c: io.circe.HCursor) =>
+    for {
+      password <- c.downField("password").as[String]
+      newPassword <- c.downField("newPassword").as[String]
+    } yield ResetPasswordRequest(password, newPassword)
+
+  given Decoder[SecretRequest] = (c: io.circe.HCursor) =>
+    for {
+      secretId <- c.downField("SecretId").as[String]
+      versionStage <- c.downField("VersionStage").as[String]
+    } yield SecretRequest(secretId, versionStage)
 
   def valueFromF[T](value: F[T]): T
 

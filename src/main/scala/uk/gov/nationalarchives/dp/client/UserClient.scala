@@ -1,12 +1,11 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.effect.Async
-import io.circe.Printer
+import io.circe.{Decoder, Encoder, Printer}
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import sttp.model.Method
 import cats.implicits.*
 import io.circe.syntax.*
-import io.circe.generic.auto.*
 import sttp.client3.IsOption
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage.Pending
 import uk.gov.nationalarchives.dp.client.UserClient.ResetPasswordRequest
@@ -17,6 +16,9 @@ trait UserClient[F[_]]:
   def testNewPassword(): F[Unit]
 
 object UserClient:
+
+  given Encoder[ResetPasswordRequest] =
+    Encoder.forProduct2("password", "newPassword")(req => (req.password, req.newPassword))
 
   case class ResetPasswordRequest(password: String, newPassword: String) {
     private val currentPasswordTrimmedAndLowerCased = password.toLowerCase().strip()
