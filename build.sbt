@@ -57,6 +57,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     secretsManagerClient,
     catsCore,
+    catsRetry,
     scalaCacheCore,
     scalaCacheCaffeine,
     log4Cats,

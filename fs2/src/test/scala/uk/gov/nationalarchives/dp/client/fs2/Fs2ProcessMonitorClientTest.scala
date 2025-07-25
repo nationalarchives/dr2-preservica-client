@@ -9,4 +9,4 @@ class Fs2ProcessMonitorClientTest extends ProcessMonitorClientTest[IO](9012, 901
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(): IO[ProcessMonitorClient[IO]] =
-    processMonitorClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9013")
+    processMonitorClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9013", retryCount = 1)
