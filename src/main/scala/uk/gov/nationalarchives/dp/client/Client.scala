@@ -154,19 +154,14 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         .getSecretValue[AuthDetails](stage)
     }
 
-  private[client] def generateToken(authDetails: AuthDetails): F[String] = for {
-    res <- basicRequest
+  private[client] def generateToken(authDetails: AuthDetails): F[String] = {
+    val request: F[Response[Either[ResponseException[String, circe.Error], Token]]] = basicRequest
       .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
       .post(loginEndpointUri)
       .response(asJson[Token])
       .send(backend)
-    token <- {
-      val responseOrError = res.body.left
-        .map(e => PreservicaClientException(Method.POST, loginEndpointUri, res.code, e.getMessage))
-        .map(_.token)
-      Async[F].fromEither(responseOrError)
-    }
-  } yield token
+    retrySend[Token, ResponseException[String, circe.Error]](Method.POST, loginEndpointUri, request).map(_.token)
+  }
 
   private[client] def getAuthenticationToken: F[String] =
     memoizeF[F, String](Some(duration)) {
