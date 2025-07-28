@@ -88,7 +88,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       RetryPolicies.limitRetries[F](clientConfig.retryCount).join(RetryPolicies.exponentialBackoff[F](1.second)),
       (response, retryDetails) =>
         val currentRetry = retryDetails.retriesSoFar + 1
-        val retryMessage = s"Retrying $currentRetry of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
+        val retryMessage =
+          s"Retrying $currentRetry of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
 
         response.map(_.code) match {
           case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Continue)
