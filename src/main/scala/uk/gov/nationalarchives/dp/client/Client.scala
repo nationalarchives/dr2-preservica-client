@@ -92,7 +92,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
           s"Retrying $currentRetry of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
 
         response.map(_.code) match {
-          case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Continue)
+          case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Stop)
           case Right(code) if code == StatusCode.Unauthorized || code == StatusCode.Forbidden =>
             Logger[F]
               .warn(s"$retryMessage unauthorised response ${code.code}. Invalidating cache")
