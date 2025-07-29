@@ -751,7 +751,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.metadataForEntity(entity))
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
@@ -1122,7 +1122,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val entity = createEntity()
     EntityClientEndpoints(preservicaServer, Some(entity))
     valueFromF(client.updateEntityIdentifiers(entity, Nil))
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "updateEntityIdentifiers" should "send a request to Preservica for each identifier" in {
@@ -1169,7 +1169,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.updateEntityIdentifiers(entity, identifiers))
     }
     ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "updateEntityIdentifiers" should "return an error if the update request returns an error" in {

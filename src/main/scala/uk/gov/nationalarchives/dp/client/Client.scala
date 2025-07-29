@@ -77,28 +77,26 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   given Decoder[Token] = (c: HCursor) => c.downField("token").as[String].map(Token.apply)
   given SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-  private def retrySend[T, E](method: Method, apiUri: Uri, sendHttpRequest: F[Response[Either[E, T]]]): F[T] = {
+  private def retrySend[T, E](method: Method, apiUri: Uri, response: F[Response[Either[E, T]]]): F[T] = {
     def liftEither(response: Response[Either[E, T]]): F[T] = Async[F].fromEither {
       response.body.left.map {
         case e: Throwable => PreservicaClientException(method, apiUri, response.code, e.getMessage)
         case e            => PreservicaClientException(method, apiUri, response.code, e.toString)
       }
     }
-    retryingOnFailuresAndErrors(sendHttpRequest)(
+    retryingOnFailuresAndErrors(response)(
       RetryPolicies.limitRetries[F](clientConfig.retryCount).join(RetryPolicies.exponentialBackoff[F](1.second)),
       (response, retryDetails) =>
-        val currentRetry = retryDetails.retriesSoFar + 1
         val retryMessage =
-          s"Retrying $currentRetry of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
+          s"Retrying ${retryDetails.retriesSoFar} of ${clientConfig.retryCount} with cumulative delay ${retryDetails.cumulativeDelay} for request due to"
 
         response.map(_.code) match {
           case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Continue)
           case Right(code) if code == StatusCode.Unauthorized || code == StatusCode.Forbidden =>
             Logger[F]
               .warn(s"$retryMessage unauthorised response ${code.code}. Invalidating cache")
-              .map { _ =>
-                underlyingAuthDetails.invalidateAll()
-                underlying.invalidateAll()
+              .flatMap { _ =>
+                caffeineCache.removeAll >> authDetailsCaffeineCache.removeAll
               }
               .as(HandlerDecision.Continue)
           case Right(code) if code != StatusCode.Ok =>
@@ -113,33 +111,37 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 
   private[client] def sendXMLApiRequest(
       url: String,
-      token: String,
       method: Method,
       requestBody: Option[String] = None
   ) = {
     val apiUri = uri"$url"
-    val request = basicRequest
-      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
-      .method(method, apiUri)
-      .response(asXml)
-    val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
-    retrySend(method, apiUri, backend.send(requestWithBody))
+    val response = getAuthenticationToken.flatMap { token =>
+      val request = basicRequest
+        .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
+        .method(method, apiUri)
+        .response(asXml)
+      val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
+      backend.send(requestWithBody)
+    }
+    retrySend(method, apiUri, response)
   }
 
   private[client] def sendJsonApiRequest[R: IsOption](
       url: String,
-      token: String,
       method: Method,
       requestBody: Option[String] = None
   )(using decoder: Decoder[R]): F[R] = {
     val apiUri = uri"$url"
-    val request = basicRequest
-      .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
-      .method(method, apiUri)
-      .response(asJson[R])
-    val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
-      requestBody.map(request.body(_)).getOrElse(request)
-    retrySend(method, apiUri, backend.send(requestWithBody))
+    val response = getAuthenticationToken.flatMap { token =>
+      val request = basicRequest
+        .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
+        .method(method, apiUri)
+        .response(asJson[R])
+      val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
+        requestBody.map(request.body(_)).getOrElse(request)
+      backend.send(requestWithBody)
+    }
+    retrySend(method, apiUri, response)
   }
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
