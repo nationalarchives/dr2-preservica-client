@@ -112,7 +112,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private[client] def sendXMLApiRequest(
       url: String,
       method: Method,
-      requestBody: Option[String] = None
+      potentialRequestBody: Option[String] = None
   ) = {
     val apiUri = uri"$url"
     val response = getAuthenticationToken.flatMap { token =>
@@ -120,7 +120,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
         .method(method, apiUri)
         .response(asXml)
-      val requestWithBody = requestBody.map(request.body(_)).getOrElse(request)
+      val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
       backend.send(requestWithBody)
     }
     retrySend(method, apiUri, response)
