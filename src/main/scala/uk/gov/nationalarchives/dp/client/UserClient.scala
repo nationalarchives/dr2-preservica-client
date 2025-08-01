@@ -52,10 +52,8 @@ object UserClient:
         PreservicaClientException("New password has fewer than 15 characters")
       )
 
-      token <- client.getAuthenticationToken
       _ <- client.sendJsonApiRequest[Option[String]](
         s"${clientConfig.apiBaseUrl}/api/user/password",
-        token,
         Method.PUT,
         resetPasswordRequest.asJson.printWith(Printer.noSpaces).some
       )

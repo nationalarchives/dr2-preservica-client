@@ -103,10 +103,8 @@ object WorkflowClient {
                 )
               )
             } else Async[F].unit
-          token <- getAuthenticationToken
           startWorkflowResponse <- sendXMLApiRequest(
             startWorkflowUrl.toString,
-            token,
             Method.POST,
             Some(requestBodyString)
           )

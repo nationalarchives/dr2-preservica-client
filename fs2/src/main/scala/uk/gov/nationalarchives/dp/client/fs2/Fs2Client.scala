@@ -44,10 +44,11 @@ object Fs2Client:
       secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
+      potentialProxyUrl: Option[URI] = None,
+      retryCount: Int = 5
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getAuthDetails().map { authDetails =>
         createEntityClient(clientConfig.copy(apiBaseUrl = authDetails.apiUrl))
       }
@@ -68,10 +69,11 @@ object Fs2Client:
       secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
+      potentialProxyUrl: Option[URI] = None,
+      retryCount: Int = 5
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createContentClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -91,10 +93,11 @@ object Fs2Client:
       secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
+      potentialProxyUrl: Option[URI] = None,
+      retryCount: Int = 5
   ): IO[WorkflowClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createWorkflowClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -116,10 +119,11 @@ object Fs2Client:
       secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
+      potentialProxyUrl: Option[URI] = None,
+      retryCount: Int = 5
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createProcessMonitorClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -129,10 +133,11 @@ object Fs2Client:
       secretName: String,
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
-      potentialProxyUrl: Option[URI] = None
+      potentialProxyUrl: Option[URI] = None,
+      retryCount: Int = 5
   ): IO[UserClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri)
+      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createUserClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
