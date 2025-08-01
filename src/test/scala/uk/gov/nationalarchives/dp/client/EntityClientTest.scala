@@ -4,9 +4,10 @@ import cats.MonadError
 import cats.effect.Async
 import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.MappingBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.RequestMethod
-import com.github.tomakehurst.wiremock.stubbing.ServeEvent
+import com.github.tomakehurst.wiremock.stubbing.{Scenario, ServeEvent}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.forAll
@@ -101,8 +102,8 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       case requests: List[String] => requests
       case request: String        => List(request)
     }
-    serverRequestUrls.sorted should equal(
-      (expectedRequestUrlsFlattened ++ List.fill(numOfTokenRequests)(tokenUrl)).sorted
+    serverRequestUrls.sorted.toSet should equal(
+      (expectedRequestUrlsFlattened ++ List.fill(numOfTokenRequests)(tokenUrl)).sorted.toSet
     )
   }
 
@@ -222,7 +223,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     error.getMessage should equal(
       s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects with method POST "
     )
-    verifyServerRequests(List(addEntityUrl))
+    verifyServerRequests(List(addEntityUrl, addEntityUrl))
   }
 
   forAll(updateRequestPermutations) { (title, potentialDescription) =>
@@ -307,7 +308,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     error.getMessage should equal(
       s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c with method PUT "
     )
-    verifyServerRequests(List(updateEntityUrl))
+    verifyServerRequests(List(updateEntityUrl, updateEntityUrl))
   }
 
   "getBitstreamInfo" should "call the correct API endpoints and return the bitstream info" in {
@@ -750,7 +751,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.metadataForEntity(entity))
     }
     ex.getMessage should equal(s"No path found for entity id $id. Could this entity have been deleted?")
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "entitiesUpdatedSince" should "return an entity if one was updated since the datetime specified" in {
@@ -792,7 +793,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
-    verifyServerRequests(List(entitiesUpdatedSinceUrl))
+    verifyServerRequests(List(entitiesUpdatedSinceUrl, entitiesUpdatedSinceUrl))
   }
 
   "entityEventActions" should "return all paginated values in reverse chronological order (most recent EventAction first)" in {
@@ -835,7 +836,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
-    verifyServerRequests(List(eventActionsUrl))
+    verifyServerRequests(List(eventActionsUrl, eventActionsUrl))
   }
 
   "entityEventActions" should "return an error if the entity path is empty" in {
@@ -958,7 +959,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.left.map { err =>
       err.getClass.getSimpleName should equal("PreservicaClientException")
     }
-    verifyServerRequests(List(entitiesByIdentifierUrl))
+    verifyServerRequests(List(entitiesByIdentifierUrl, entitiesByIdentifierUrl))
   }
 
   "addIdentifierForEntity" should s"make a correct request to add an identifier to an Entity" in {
@@ -997,7 +998,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     error.getMessage should equal(
       s"Status code 400 calling http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/${structuralObject.ref}/identifiers with method POST "
     )
-    verifyServerRequests(List(addEntityUrl))
+    verifyServerRequests(List(addEntityUrl, addEntityUrl))
   }
 
   "addIdentifierForEntity" should s"return a message confirmation if the Identifier was added" in {
@@ -1074,7 +1075,46 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.getEntity(id, InformationObject))
     }
     ex.getMessage should be(s"Status code 404 calling $host$getEntitiesUrl with method GET ")
-    verifyServerRequests(List(getEntitiesUrl))
+    verifyServerRequests(List(getEntitiesUrl, getEntitiesUrl))
+  }
+
+  "getEntity" should "return the entity if the first call fails but the second succeeds" in {
+    val host = s"http://localhost:$preservicaPort"
+    val client = testClient
+    val id = UUID.randomUUID()
+    val getEntitiesUrl = s"/api/entity/v$apiVersion/structural-objects/$id"
+    val fullEntityResponse = <EntityResponse>
+      <xip:StructuralObject>
+        <xip:Ref>
+          {id}
+        </xip:Ref>
+        <xip:Title>title.txt</xip:Title>
+        <xip:Description>A description</xip:Description>
+        <xip:SecurityTag>open</xip:SecurityTag>
+      </xip:StructuralObject>
+    </EntityResponse>
+    EntityClientEndpoints(preservicaServer)
+
+    val firstGetMapping: MappingBuilder = get(urlEqualTo(getEntitiesUrl))
+      .inScenario("RetryCall")
+      .whenScenarioStateIs(Scenario.STARTED)
+      .willReturn(notFound())
+      .willSetStateTo("Next call")
+    val secondGetMapping: MappingBuilder = get(urlEqualTo(getEntitiesUrl))
+      .inScenario("RetryCall")
+      .whenScenarioStateIs("Next call")
+      .willReturn(ok(fullEntityResponse.toString))
+
+    preservicaServer.stubFor(firstGetMapping)
+    preservicaServer.stubFor(secondGetMapping)
+
+    val response = valueFromF(client.getEntity(id, StructuralObject))
+
+    response.ref should be(id)
+    response.title should be(Some("title.txt"))
+    response.description should be(Some("A description"))
+    response.securityTag should be(Some(Open))
+    verifyServerRequests(List(getEntitiesUrl, getEntitiesUrl))
   }
 
   "updateEntityIdentifiers" should "not send a request if no identifiers are passed" in {
@@ -1082,7 +1122,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val entity = createEntity()
     EntityClientEndpoints(preservicaServer, Some(entity))
     valueFromF(client.updateEntityIdentifiers(entity, Nil))
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "updateEntityIdentifiers" should "send a request to Preservica for each identifier" in {
@@ -1129,7 +1169,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.updateEntityIdentifiers(entity, identifiers))
     }
     ex.getMessage should equal(s"No path found for entity id ${entity.ref}. Could this entity have been deleted?")
-    verifyServerRequests(Nil)
+    verifyServerRequests(Nil, 0)
   }
 
   "updateEntityIdentifiers" should "return an error if the update request returns an error" in {
@@ -1145,7 +1185,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     ex.getMessage should equal(
       s"Status code 500 calling http://localhost:$preservicaPort$updateEntityIdentifiersUrl with method PUT "
     )
-    verifyServerRequests(List(updateEntityIdentifiersUrl))
+    verifyServerRequests(List(updateEntityIdentifiersUrl, updateEntityIdentifiersUrl))
   }
 
   "getEntityIdentifiers" should "return an empty list if there are no identifiers" in {
@@ -1200,7 +1240,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     ex.getMessage should equal(
       s"Status code 500 calling http://localhost:$preservicaPort${endpoints.identifiersUrl} with method GET "
     )
-    verifyServerRequests(List(getEntityIdentifiersUrl))
+    verifyServerRequests(List(getEntityIdentifiersUrl, getEntityIdentifiersUrl))
   }
 
   "getUrlsToIoRepresentations" should "return an empty list if there are no representations" in {
@@ -1262,7 +1302,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     ex.getMessage should equal(
       s"Status code 500 calling http://localhost:$preservicaPort${endpoints.representationsUrl} with method GET "
     )
-    verifyServerRequests(List(ioRepresentationUrls))
+    verifyServerRequests(List(ioRepresentationUrls, ioRepresentationUrls))
   }
 
   "getContentObjectsFromRepresentation" should "return an empty list if there are no representations" in {
@@ -1322,7 +1362,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(client.getContentObjectsFromRepresentation(entity.ref, Preservation, repCount))
     }
     ex.getMessage should equal(s"Status code 500 calling http://localhost:$preservicaPort$url with method GET ")
-    verifyServerRequests(List(ioRepresentationUrls))
+    verifyServerRequests(List(ioRepresentationUrls, ioRepresentationUrls))
   }
 
   "getPreservicaNamespaceVersion" should "extract and return the version, as a float, from a namespace" in {
@@ -1373,7 +1413,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
 
     val expectedUrlRequests = stubbedUrls.take(1)
-    verifyServerRequests(List(expectedUrlRequests), expectedUrlRequests.length)
+    verifyServerRequests(List(expectedUrlRequests, expectedUrlRequests), expectedUrlRequests.length)
   }
 
   private def getRequestMade(preservicaServer: WireMockServer) =

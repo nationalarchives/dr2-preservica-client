@@ -11,4 +11,4 @@ class Fs2EntityClientTest extends EntityClientTest[IO, Fs2Streams[IO]](9002, 900
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(): IO[EntityClient[IO, Fs2Streams[IO]]] =
-    entityClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9009")
+    entityClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9009", retryCount = 1)

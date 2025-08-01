@@ -163,10 +163,8 @@ object ProcessMonitorClient:
             Async[F].raiseWhen(!relevantQueryParamsAsString("name").startsWith("opex"))(
               PreservicaClientException("The monitor name must start with 'opex'")
             )
-          token <- getAuthenticationToken
           getMonitorsResponse <- sendJsonApiRequest[MonitorsResponse](
             getMonitorsUrl.toString,
-            token,
             Method.GET
           )
         yield getMonitorsResponse.value.monitors
@@ -180,23 +178,19 @@ object ProcessMonitorClient:
         val getMessagesUrl =
           uri"$apiBaseUrl/api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
 
-        for
-          token <- getAuthenticationToken
-          messages <- monitorMessages(getMessagesUrl.toString, token, Nil)
-        yield messages
+        monitorMessages(getMessagesUrl.toString, Nil)
 
-      private def monitorMessages(url: String, token: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
+      private def monitorMessages(url: String, amassedMessages: Seq[Message]): F[Seq[Message]] =
         if url.isEmpty then Async[F].pure(amassedMessages)
         else
           for
             getMessagesResponse <- sendJsonApiRequest[MessagesResponse](
               url,
-              token,
               Method.GET
             )
             messagesResponse = getMessagesResponse.value.messages
             potentialNextPageUrl = getMessagesResponse.value.paging.next.getOrElse("")
-            allMessages <- monitorMessages(potentialNextPageUrl, token, amassedMessages ++ messagesResponse)
+            allMessages <- monitorMessages(potentialNextPageUrl, amassedMessages ++ messagesResponse)
           yield allMessages
 
       private def getQueryParamsAsMap(request: Product): Map[String, String] =

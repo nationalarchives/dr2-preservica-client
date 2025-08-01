@@ -9,4 +9,4 @@ class Fs2WorkflowClientTest extends WorkflowClientTest[IO](9006, 9008):
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
   override def createClient(): IO[WorkflowClient[IO]] =
-    workflowClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9008")
+    workflowClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9008", retryCount = 1)
