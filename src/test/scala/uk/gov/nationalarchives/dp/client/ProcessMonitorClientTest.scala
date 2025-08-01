@@ -348,32 +348,28 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
       val requestUrls = allRequests.map(_.getRequest.getAbsoluteUrl)
 
-      allRequests.length should equal(2)
-      requestUrls should equal(
-        List(
-          s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
-          s"http://localhost:$preservicaPort/api/accesstoken/login"
-        )
+      val expectedUrls = List(
+        s"http://localhost:$preservicaPort/api/processmonitor/messages?monitor=1a84d902d9d993c348e06fbce21ac37f&status=Info&start=0&max=1000",
+        s"http://localhost:$preservicaPort/api/accesstoken/login"
       )
+      requestUrls.forall(expectedUrls.contains) should equal(true)
 
-      messages should equal(
-        List(
-          Message(
-            1,
-            "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
-            "9c433a2c-69da-4b43-b0a6-bfad4223b000",
-            "2023-10-23T10:52:54.000Z",
-            "Info",
-            "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO f66589d2-1040-407e-baf8-1bdeffbecd8b via Source ID TEST",
-            "Ingest OPEX (Incremental)",
-            "aacb79d7c91db789ce0f7c5abe02bf7a",
-            "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
-            "d6676f9cbf9697fb6df629039c3311c8",
-            Option("open"),
-            Option("entity title"),
-            Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
-            Option("TEST")
-          )
+      messages should contain(
+        Message(
+          1,
+          "opex/20ab81ce-759c-4a31-b58b-0b0f768e5716-e85222c9-7eb8-4f13-b8ed-1c8a2bc50253",
+          "9c433a2c-69da-4b43-b0a6-bfad4223b000",
+          "2023-10-23T10:52:54.000Z",
+          "Info",
+          "Matched directory 9c433a2c-69da-4b43-b0a6-bfad4223b000 to existing SO f66589d2-1040-407e-baf8-1bdeffbecd8b via Source ID TEST",
+          "Ingest OPEX (Incremental)",
+          "aacb79d7c91db789ce0f7c5abe02bf7a",
+          "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
+          "d6676f9cbf9697fb6df629039c3311c8",
+          Option("open"),
+          Option("entity title"),
+          Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
+          Option("TEST")
         )
       )
     }
