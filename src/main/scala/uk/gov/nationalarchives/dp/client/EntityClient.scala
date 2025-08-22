@@ -226,7 +226,7 @@ trait EntityClient[F[_], S] {
     *   a Stream of Entity refs
     */
 
-  def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None): fs2.Stream[F, EntityRef]
+  def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None, potentialEntities: Seq[EntityRef] = Nil): fs2.Stream[F, EntityRef]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -771,24 +771,25 @@ object EntityClient {
             .map(_.flatten)
         } yield entities.map(entity => ContentObjectRef(entity.ref, ioRef))
 
-      override def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None): fs2.Stream[F, EntityRef] = {
+      override def streamAllEntityRefs(repTypeFilter: Option[RepresentationType] = None, entities: Seq[EntityRef] = Nil): fs2.Stream[F, EntityRef] = {
         val queryParams = Map("max" -> 1000, "start" -> 0)
-        val topLevelEntityRefs = children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None)
+        val entitiesToStart = if entities.isEmpty then children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None) else Async[F].pure(entities)
 
         def getChildrenRefs(rootEntityRefs: Seq[EntityRef]): fs2.Stream[F, EntityRef] =
           fs2.Stream.unfoldLoopEval(rootEntityRefs) {
             case Nil => Async[F].pure(NoEntityRef -> None)
             case firstEntityRef :: restOfRefs =>
               for {
-                nextPageOfRefs <- firstEntityRef match {
+                nextPageOfRefs <- (firstEntityRef match {
                   case StructuralObjectRef(ref, _) =>
                     children(Some(uri"$apiUrl/structural-objects/$ref/children?$queryParams".toString), Nil, Some(ref))
                   case InformationObjectRef(ref, _) => contentObjectsForInformationObject(ref, repTypeFilter)
                   case _                            => Async[F].pure(Nil)
-                }
+                }).handleError(_ => Nil)
               } yield firstEntityRef -> Option(restOfRefs ++ nextPageOfRefs)
+              
           }
-        fs2.Stream.eval(topLevelEntityRefs).flatMap(getChildrenRefs).filterNot(_ == NoEntityRef)
+        fs2.Stream.eval(entitiesToStart).flatMap(getChildrenRefs).filterNot(_ == NoEntityRef)
       }
     }
 
