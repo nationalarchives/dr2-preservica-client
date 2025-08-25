@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
         with:
           fetch-depth: 0
-      - uses: sbt/setup-sbt@3c1652372d153b35a30472b3e5b2f1f204eff746
+      - uses: sbt/setup-sbt@1759594d7c06639a7633d618fc4eb2e6b90d60c9
       - name: Update docs site
         run: |
           sbt 'docs / makeSite'
