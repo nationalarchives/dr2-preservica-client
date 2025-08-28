@@ -11,6 +11,7 @@ import retry.*
 import scalacache.*
 import scalacache.caffeine.*
 import scalacache.memoization.*
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
@@ -146,14 +147,20 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
     memoizeF[F, AuthDetails](Some(duration)) {
-      val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
-      val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
-        .region(Region.EU_WEST_2)
-        .endpointOverride(URI.create(secretsManagerEndpointUri))
-        .httpClient(httpClient)
-        .build()
-      DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
-        .getSecretValue[AuthDetails](stage)
+      Async[F]
+        .blocking {
+          val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
+          val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
+            .region(Region.EU_WEST_2)
+            .credentialsProvider(DefaultCredentialsProvider.builder.build)
+            .endpointOverride(URI.create(secretsManagerEndpointUri))
+            .httpClient(httpClient)
+            .build()
+          DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
+        }
+        .flatMap { client =>
+          client.getSecretValue[AuthDetails](stage)
+        }
     }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
