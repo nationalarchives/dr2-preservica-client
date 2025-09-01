@@ -240,12 +240,12 @@ node3 -> node2;
           </div>
          </div>
         </div>
-        <div class="documentableElement" id="entitiesUpdatedSince-fffff5b1">
+        <div class="documentableElement" id="entitiesUpdatedSince-4ee">
          <div class="documentableElement-expander">
           <button class="icon-button ar show-content"></button>
           <div class="header monospace mono-medium">
            <div class="signature">
-            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="EntityClient.html#entitiesUpdatedSince-fffff5b1" t="n" class="documentableName ">entitiesUpdatedSince</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">dateTime</span>: <span data-unresolved-link="" t="t">ZonedDateTime</span>, <span t="k"></span><span data-unresolved-link="" t="n">startEntry</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">maxEntries</span>: <span data-unresolved-link="" t="t">Int</span>): <span t="t">F</span>[<span data-unresolved-link="" t="t">Seq</span>[<a href="Entities$$Entity.html" t="t">Entity</a>]]
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="EntityClient.html#entitiesUpdatedSince-4ee" t="n" class="documentableName ">entitiesUpdatedSince</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">sinceDateTime</span>: <span data-unresolved-link="" t="t">ZonedDateTime</span>, <span t="k"></span><span data-unresolved-link="" t="n">startEntry</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">maxEntries</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">potentialEndDate</span>: <span data-unresolved-link="" t="t">Option</span>[<span data-unresolved-link="" t="t">ZonedDateTime</span>]): <span t="t">F</span>[<span data-unresolved-link="" t="t">Seq</span>[<a href="Entities$$Entity.html" t="t">Entity</a>]]
            </div>
           </div>
          </div>
@@ -264,16 +264,22 @@ node3 -> node2;
              <h2 class="h200">Value parameters</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">
-               dateTime
-              </dt>
-              <dd class="body-medium">
-               <p>The date and time to pass to the API</p>
-              </dd>
-              <dt class="body-small">
                maxEntries
               </dt>
               <dd class="body-medium">
                <p>The maximum number of entries to return. Defaults to 1000</p>
+              </dd>
+              <dt class="body-small">
+               potentialEndDate
+              </dt>
+              <dd class="body-medium">
+               <p>If provided, no entities updated after this date will be returned</p>
+              </dd>
+              <dt class="body-small">
+               sinceDateTime
+              </dt>
+              <dd class="body-medium">
+               <p>The date and time to pass to the API</p>
               </dd>
               <dt class="body-small">
                startEntry

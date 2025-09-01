@@ -184,9 +184,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   )(url: String, streamFn: stream.BinaryStream =&gt; F[T]): F[T]
 
   def entitiesUpdatedSince(
-      dateTime: ZonedDateTime,
+      sinceDateTime: ZonedDateTime,
       startEntry: Int,
-      maxEntries: Int = 1000
+      maxEntries: Int = 1000,
+      potentialEndDate: Option[ZonedDateTime] = None                          
   ): F[Seq[Entity]]
 
   def entityEventActions(
@@ -326,7 +327,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 </ul>
 <h3><a href="#entitiesupdatedsince" name="entitiesupdatedsince" class="anchor"><span class="anchor-link"></span></a>entitiesUpdatedSince</h3>
 <ul>
-  <li>Calls the <code>updated-since</code> endpoint using the parameters in the arguments.</li>
+  <li>Calls the <code>updated-since</code> endpoint using the parameters in the arguments. Has an optional end date which won&rsquo;t return requests newer than that date if provided.</li>
   <li>Converts the response to <code>Seq[Entity]</code> and returns</li>
 </ul>
 <h3><a href="#entityeventactions" name="entityeventactions" class="anchor"><span class="anchor-link"></span></a>entityEventActions</h3>
