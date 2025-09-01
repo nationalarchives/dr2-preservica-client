@@ -148,17 +148,19 @@ trait EntityClient[F[_], S] {
 
   /** Returns any entity updated since the provided dateTime
     *
-    * @param dateTime
+    * @param sinceDateTime
     *   The date and time to pass to the API
     * @param startEntry
     *   The entry to start from. Used for pagination
     * @param maxEntries
     *   The maximum number of entries to return. Defaults to 1000
+    * @param potentialEndDate
+    *   If provided, no entities updated after this date will be returned
     * @return
     *   A `Seq` of [[Entities.Entity]] wrapped in the F effect
     */
   def entitiesUpdatedSince(
-      dateTime: ZonedDateTime,
+      sinceDateTime: ZonedDateTime,
       startEntry: Int,
       maxEntries: Int = 1000,
       potentialEndDate: Option[ZonedDateTime] = None
@@ -450,12 +452,12 @@ object EntityClient {
       }
 
       override def entitiesUpdatedSince(
-          dateTime: ZonedDateTime,
+          sinceDateTime: ZonedDateTime,
           startEntry: Int,
           maxEntries: Int = 1000,
           potentialEndDate: Option[ZonedDateTime] = None
       ): F[Seq[Entity]] = {
-        val dateString = dateTime.format(dateFormatter)
+        val dateString = sinceDateTime.format(dateFormatter)
         val endDateParams =
           potentialEndDate.map(endDate => Map("endDate" -> endDate.format(dateFormatter))).getOrElse(Map())
         val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry) ++ endDateParams
