@@ -771,6 +771,25 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
+  "entitiesUpdatedSince" should "return an entity if the entity is before the end date specified" in {
+    val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
+    val potentialEndDate = Option(ZonedDateTime.of(2024, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC")))
+    val entitiesUpdatedSinceUrl =
+      EntityClientEndpoints(preservicaServer).stubEntitiesUpdatedSince(date, potentialEndDate = potentialEndDate)
+
+    val client = testClient
+    val response = valueFromF(client.entitiesUpdatedSince(date, 0, potentialEndDate = potentialEndDate))
+
+    val expectedEntity = response.head
+
+    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.path.get should equal("information-objects")
+    expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.deleted should be(false)
+
+    verifyServerRequests(List(entitiesUpdatedSinceUrl))
+  }
+
   "entitiesUpdatedSince" should "return an empty list if none have been updated" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val entitiesUpdatedSinceUrl =

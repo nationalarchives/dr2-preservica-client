@@ -160,7 +160,8 @@ trait EntityClient[F[_], S] {
   def entitiesUpdatedSince(
       dateTime: ZonedDateTime,
       startEntry: Int,
-      maxEntries: Int = 1000
+      maxEntries: Int = 1000,
+      potentialEndDate: Option[ZonedDateTime] = None
   ): F[Seq[Entity]]
 
   /** Returns a list of event actions for an entity
@@ -451,10 +452,13 @@ object EntityClient {
       override def entitiesUpdatedSince(
           dateTime: ZonedDateTime,
           startEntry: Int,
-          maxEntries: Int = 1000
+          maxEntries: Int = 1000,
+          potentialEndDate: Option[ZonedDateTime] = None
       ): F[Seq[Entity]] = {
         val dateString = dateTime.format(dateFormatter)
-        val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry)
+        val endDateParams =
+          potentialEndDate.map(endDate => Map("endDate" -> endDate.format(dateFormatter))).getOrElse(Map())
+        val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry) ++ endDateParams
         val url = uri"$apiUrl/entities/updated-since?$queryParams"
         for {
           updatedEntities <- getEntities(url.toString)

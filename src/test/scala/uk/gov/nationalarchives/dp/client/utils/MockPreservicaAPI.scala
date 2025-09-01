@@ -10,6 +10,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.{Access
 import uk.gov.nationalarchives.dp.client.EntityClient.{EntityType, Identifier, RepresentationType, apiVersion}
 
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 object MockPreservicaAPI {
@@ -236,7 +237,8 @@ object MockPreservicaAPI {
     def stubEntitiesUpdatedSince(
         updatedSince: ZonedDateTime,
         successfulResponse: Boolean = true,
-        emptyResponse: Boolean = false
+        emptyResponse: Boolean = false,
+        potentialEndDate: Option[ZonedDateTime] = None
     ): String = {
       val response: ResponseDefinitionBuilder =
         if (successfulResponse)
@@ -245,7 +247,14 @@ object MockPreservicaAPI {
           else
             ok(entitiesUpdatedSincePageResponse)
         else badRequest()
-      val updatedSinceReqUrl = s"$updatedSinceUrl?date=2023-04-25T00:00:00.000Z&max=1000&start=0"
+
+      val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+      val dateString = updatedSince.format(formatter)
+      val baseUrl = s"$updatedSinceUrl?date=$dateString&max=1000&start=0"
+      val updatedSinceReqUrl = potentialEndDate
+        .map(endDate => s"$baseUrl&endDate=${endDate.format(formatter)}")
+        .getOrElse(baseUrl)
+
       preservicaServer.stubFor(get(urlEqualTo(updatedSinceReqUrl)).willReturn(response))
       updatedSinceReqUrl
     }
