@@ -30,7 +30,7 @@ The client exposes 15 methods
   )(url: String, streamFn: stream.BinaryStream => F[T]): F[T]
 
   def entitiesUpdatedSince(
-      dateTime: ZonedDateTime,
+      sinceDateTime: ZonedDateTime,
       startEntry: Int,
       maxEntries: Int = 1000,
       potentialEndDate: Option[ZonedDateTime] = None                          
