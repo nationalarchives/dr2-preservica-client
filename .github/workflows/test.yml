@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
-      - uses: sbt/setup-sbt@1759594d7c06639a7633d618fc4eb2e6b90d60c9
+      - uses: sbt/setup-sbt@3e0b42cddbe318c19f5bbd1af907f913ad005308
       - uses: scalacenter/sbt-dependency-submission@64084844d2b0a9b6c3765f33acde2fbe3f5ae7d3
       - uses: actions/dependency-review-action@bc41886e18ea39df68b1b1245f4184881938e050
       - name: Run tests
