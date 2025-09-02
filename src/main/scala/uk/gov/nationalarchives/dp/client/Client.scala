@@ -100,7 +100,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
                 caffeineCache.removeAll >> authDetailsCaffeineCache.removeAll
               }
               .as(HandlerDecision.Continue)
-          case Right(code) if code != StatusCode.Ok =>
+          case Right(code) if code.isClientError || code.isServerError =>
             Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
           case _ => Async[F].pure(HandlerDecision.Stop)
         }
