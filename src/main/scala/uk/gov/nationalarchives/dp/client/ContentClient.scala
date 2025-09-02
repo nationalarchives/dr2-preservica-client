@@ -12,6 +12,7 @@ import uk.gov.nationalarchives.dp.client.ContentClient.SearchQuery
 import uk.gov.nationalarchives.dp.client.Entities.*
 
 import java.util.UUID
+import concurrent.duration.*
 
 /** A client to search for entities in Preservica
   * @tparam F
@@ -109,7 +110,7 @@ object ContentClient:
         .flatMap(res => Async[F].fromEither(res.body))
         .flatMap(searchResponse =>
           if searchResponse.value.objectIds.isEmpty then toEntities(ids)
-          else search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)
+          else Async[F].sleep(100.milliseconds) >> search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)
         )
 
     private def searchUri(start: Int, max: Int, searchQuery: SearchQuery): Uri =
