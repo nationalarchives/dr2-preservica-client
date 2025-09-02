@@ -104,7 +104,9 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   "startWorkflow" should s"make a correct full request to start a workflow" in {
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
-    preservicaServer.stubFor(post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(ok(startWorkflowResponse)))
+    preservicaServer.stubFor(
+      post(urlEqualTo(s"/sdb/rest/workflow/instances")).willReturn(created().withBody(startWorkflowResponse))
+    )
 
     val startWorkflowRequest = StartWorkflowRequest(
       Some("workflowContextName"),
@@ -116,9 +118,11 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     val client = testClient
     val startedWorkflowIdResponse: F[Int] = client.startWorkflow(startWorkflowRequest)
 
-    val _ = valueFromF(startedWorkflowIdResponse)
+    val id = valueFromF(startedWorkflowIdResponse)
 
     val requestMade = getRequestMade(preservicaServer)
+
+    preservicaServer.getAllServeEvents.size should be(2)
 
     requestMade should be(
       s"""<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
