@@ -100,7 +100,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
                 caffeineCache.removeAll >> authDetailsCaffeineCache.removeAll
               }
               .as(HandlerDecision.Continue)
-          case Right(code) if code != StatusCode.Ok =>
+          case Right(code) if code.isClientError || code.isServerError =>
             Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
           case _ => Async[F].pure(HandlerDecision.Stop)
         }
@@ -120,6 +120,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       val request = basicRequest
         .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
         .method(method, apiUri)
+        .readTimeout(Duration.Inf)
         .response(asXml)
       val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
       backend.send(requestWithBody)
@@ -137,6 +138,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       val request = basicRequest
         .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
         .method(method, apiUri)
+        .readTimeout(Duration.Inf)
         .response(asJson[R])
       val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
         requestBody.map(request.body(_)).getOrElse(request)
