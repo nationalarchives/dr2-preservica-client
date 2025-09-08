@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
-      - uses: sbt/setup-sbt@3e0b42cddbe318c19f5bbd1af907f913ad005308
+      - uses: sbt/setup-sbt@17575ea4e18dd928fe5968dbe32294b97923d65b
       - uses: scalacenter/sbt-dependency-submission@64084844d2b0a9b6c3765f33acde2fbe3f5ae7d3
       - uses: actions/dependency-review-action@595b5aeba73380359d98a5e087f648dbb0edce1b
         with:
