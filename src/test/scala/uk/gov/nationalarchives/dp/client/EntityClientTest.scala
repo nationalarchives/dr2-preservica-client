@@ -61,7 +61,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     "page1File&Correction.txt",
     Some("A description"),
     StructuralObject,
-    Open,
+    Unknown,
     Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
   )
   private val defaultUpdateEntityRequest = UpdateEntityRequest(
@@ -69,7 +69,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     "page1File&Correction.txt",
     Some("A new description"),
     StructuralObject,
-    Open,
+    Unknown,
     Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
   )
 
@@ -135,7 +135,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               ${addEntityRequest.ref.map(ref => s"<Ref>$ref</Ref>").getOrElse("")}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A description</Description>
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
       )
@@ -161,7 +161,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <Ref>${addEntityRequest.ref.get}</Ref>
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A description</Description>
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </InformationObject>
             </XIP>"""
@@ -259,7 +259,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
                 s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
               else ""
             }
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
         )
@@ -897,7 +897,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       expectedEntity.path.get should equal("structural-objects")
       expectedEntity.title.get should be("page1File.txt")
       expectedEntity.description.get should be("A description")
-      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.securityTag.get should be(Unknown)
       expectedEntity.deleted should be(false)
     }
 
@@ -940,7 +940,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       expectedEntity.path.get should equal("structural-objects")
       expectedEntity.title.get should be("page1File.txt")
       expectedEntity.description.get should be("A description")
-      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.securityTag.get should be(Unknown)
       expectedEntity.deleted should be(false)
     }
 
@@ -1047,7 +1047,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     entity.ref should be(structuralObject.ref)
     entity.title.get should be("page1File.txt")
     entity.description.get should be("A description")
-    entity.securityTag.get should be(Open)
+    entity.securityTag.get should be(Unknown)
     verifyServerRequests(List(getEntityUrl))
   }
 
@@ -1132,7 +1132,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.ref should be(id)
     response.title should be(Some("title.txt"))
     response.description should be(Some("A description"))
-    response.securityTag should be(Some(Open))
+    response.securityTag should be(Some(Unknown))
     verifyServerRequests(List(getEntitiesUrl, getEntitiesUrl))
   }
 
