@@ -809,9 +809,9 @@ object EntityClient {
     */
   enum SecurityTag:
     override def toString: String = this match
-      case Open => "open"
-      case Closed => "closed"
-      case Unknown   => "unknown"
+      case Open    => "open"
+      case Closed  => "closed"
+      case Unknown => "unknown"
 
     case Open, Closed, Unknown
 
