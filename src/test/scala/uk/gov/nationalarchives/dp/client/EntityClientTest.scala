@@ -453,7 +453,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:SecurityTag>unknown</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
             </xip:ContentObject>.toString
     )
@@ -565,7 +565,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:SecurityTag>unknown</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
             </xip:InformationObject>.toString
     )
@@ -1064,7 +1064,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
         </xip:Ref>
         <xip:Title>title.txt</xip:Title>
         <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
+        <xip:SecurityTag>unknown</xip:SecurityTag>
       </xip:StructuralObject>
     </EntityResponse>
 
@@ -1109,7 +1109,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
         </xip:Ref>
         <xip:Title>title.txt</xip:Title>
         <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
+        <xip:SecurityTag>unknown</xip:SecurityTag>
       </xip:StructuralObject>
     </EntityResponse>
     EntityClientEndpoints(preservicaServer)

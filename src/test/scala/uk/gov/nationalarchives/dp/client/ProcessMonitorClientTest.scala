@@ -74,7 +74,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
         "mappedMonitorId": "aacb79d7c91db789ce0f7c5abe02bf7a",
         "message": "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
         "mappedId": "d6676f9cbf9697fb6df629039c3311c8",
-        "securityDescriptor": "open",
+        "securityDescriptor": "closed",
         "entityTitle": "entity title",
         "entityRef": "f66589d2-1040-407e-baf8-1bdeffbecd8b",
         "sourceId": "TEST"
@@ -366,7 +366,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
           "aacb79d7c91db789ce0f7c5abe02bf7a",
           "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
           "d6676f9cbf9697fb6df629039c3311c8",
-          Option("open"),
+          Option("closed"),
           Option("entity title"),
           Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
           Option("TEST")
@@ -422,7 +422,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
             "aacb79d7c91db789ce0f7c5abe02bf7a",
             "monitor.info.directory.skip|{\"matchText\":\"Source ID TEST\"}",
             "d6676f9cbf9697fb6df629039c3311c8",
-            Option("open"),
+            Option("closed"),
             Option("entity title"),
             Option("f66589d2-1040-407e-baf8-1bdeffbecd8b"),
             Option("TEST")

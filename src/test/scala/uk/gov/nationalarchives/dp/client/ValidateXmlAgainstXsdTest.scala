@@ -22,7 +22,7 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec with T
         <Ref>7cea2ce0-f7da-4132-bbfa-7fc92f3fd4d7</Ref>
         <Title>A Test Title</Title>
         <Description></Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
       </InformationObject>
     </XIP>
@@ -55,7 +55,7 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec with T
         <UnexpectedElement>7cea2ce0-f7da-4132-bbfa-7fc92f3fd4d7</UnexpectedElement>
         <Title>A Test Title</Title>
         <Description></Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
       </InformationObject>
     </XIP>
@@ -77,7 +77,7 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec with T
       <InformationObject>
         <Title>A Test Title</Title>
         <Description></Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
       </InformationObject>
     </XIP>
@@ -156,7 +156,7 @@ abstract class ValidateXmlAgainstXsdTest[F[_]: Monad] extends AnyFlatSpec with T
           <InformationObject>
             <Title>A Test Title</Title>
             <Description></Description>
-            <SecurityTag>open</SecurityTag>
+            <SecurityTag>unknown</SecurityTag>
             <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
         </XIP>"""
 
