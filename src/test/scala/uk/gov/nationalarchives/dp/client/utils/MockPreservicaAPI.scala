@@ -238,14 +238,14 @@ object MockPreservicaAPI {
         updatedSince: ZonedDateTime,
         successfulResponse: Boolean = true,
         emptyResponse: Boolean = false,
+        nextPage: Boolean = true,
         potentialEndDate: Option[ZonedDateTime] = None
     ): String = {
       val response: ResponseDefinitionBuilder =
         if (successfulResponse)
-          if (emptyResponse)
-            ok(<EntitiesResponse><Entities></Entities></EntitiesResponse>.toString)
-          else
-            ok(entitiesUpdatedSincePageResponse)
+          if (emptyResponse) ok(<EntitiesResponse><Entities></Entities></EntitiesResponse>.toString)
+          else if nextPage then ok(entitiesUpdatedSincePageResponse)
+          else ok(entitiesUpdatedSinceNoNext)
         else badRequest()
 
       val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
@@ -485,6 +485,15 @@ object MockPreservicaAPI {
           <Next>{updatedSinceUrl}?date=2023-04-25T00%3A00%3A00.000Z&amp;start=1000&amp;max=1000</Next>
         </Paging>
       </EntitiesResponse>.toString
+
+    private def entitiesUpdatedSinceNoNext: String =
+      <EntitiesResponse>
+          <Entities>
+            <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/page1/object</Entity>
+          </Entities>
+          <Paging>
+          </Paging>
+        </EntitiesResponse>.toString
 
     private def getIdentifierForEntityResponse =
       <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
