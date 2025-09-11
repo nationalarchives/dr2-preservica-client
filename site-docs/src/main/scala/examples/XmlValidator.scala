@@ -14,7 +14,7 @@ object XmlValidator {
       <InformationObject>
         <Title>A Test Title</Title>
         <Description></Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Parent>3fbc5b0e-c5d7-42a4-8a49-5ffad4cae761</Parent>
       </InformationObject>
     </XIP>.toString
