@@ -34,7 +34,7 @@ The client exposes 15 methods
       startEntry: Int,
       maxEntries: Int = 1000,
       potentialEndDate: Option[ZonedDateTime] = None                          
-  ): F[Seq[Entity]]
+  ): F[EntitiesUpdated]
 
   def entityEventActions(
       entity: Entity,
@@ -154,7 +154,7 @@ The client exposes 15 methods
 
 ### entitiesUpdatedSince
 * Calls the `updated-since` endpoint using the parameters in the arguments. Has an optional end date which won't return requests newer than that date if provided.
-* Converts the response to `Seq[Entity]` and returns
+* Returns an `EntitiesUpdated` which contains a `Seq[Entity]` with the updated entities and a boolean `hasNext` parameter which is true if there is another page.
 
 ### entityEventActions
 * Calls the `event-actions` endpoint using the parameters in the arguments.

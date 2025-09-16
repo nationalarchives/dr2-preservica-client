@@ -471,7 +471,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       <StructuralObject>
         <Title>Title</Title>
         <Description>A description</Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Deleted>true</Deleted>
         <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
       </StructuralObject>
@@ -480,7 +480,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val response = valueFromF(new DataProcessor[F]().getEntity(id, entityResponse, StructuralObject))
     response.title.get should equal("Title")
     response.description.get should equal("A description")
-    response.securityTag.get should equal(Open)
+    response.securityTag.get should equal(Unknown)
     response.deleted should equal(true)
     response.parent.get should equal(UUID.fromString("f567352f-0874-49da-85aa-ac0fbfa3b335"))
   }
@@ -497,7 +497,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.deleted should equal(false)
   }
 
-  "getEntity" should "return a missing security tag if it isn't set to open or closed" in {
+  "getEntity" should "return a missing security tag if it isn't set to open, unknown or closed" in {
     val id = UUID.randomUUID()
     val entityResponse = <EntityResponse>
       <StructuralObject>
@@ -544,7 +544,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       <InformationObject>
         <Title>Title</Title>
         <Description>A description</Description>
-        <SecurityTag>open</SecurityTag>
+        <SecurityTag>unknown</SecurityTag>
         <Deleted>true</Deleted>
         <Parent>f567352f-0874-49da-85aa-ac0fbfa3b335</Parent>
       </InformationObject>

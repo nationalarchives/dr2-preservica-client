@@ -61,7 +61,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     "page1File&Correction.txt",
     Some("A description"),
     StructuralObject,
-    Open,
+    Unknown,
     Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
   )
   private val defaultUpdateEntityRequest = UpdateEntityRequest(
@@ -69,7 +69,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     "page1File&Correction.txt",
     Some("A new description"),
     StructuralObject,
-    Open,
+    Unknown,
     Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1"))
   )
 
@@ -135,7 +135,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               ${addEntityRequest.ref.map(ref => s"<Ref>$ref</Ref>").getOrElse("")}
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A description</Description>
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
       )
@@ -161,7 +161,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <Ref>${addEntityRequest.ref.get}</Ref>
               <Title>page1File&amp;Correction.txt</Title>
               <Description>A description</Description>
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </InformationObject>
             </XIP>"""
@@ -259,7 +259,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
                 s"<Description>${updateEntityRequest.descriptionToChange.get}</Description>"
               else ""
             }
-              <SecurityTag>open</SecurityTag>
+              <SecurityTag>unknown</SecurityTag>
               <Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</Parent>
             </StructuralObject>""".replace("++++++++++++", "            ")
         )
@@ -453,7 +453,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:SecurityTag>unknown</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
             </xip:ContentObject>.toString
     )
@@ -565,7 +565,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:SecurityTag>unknown</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
             </xip:InformationObject>.toString
     )
@@ -761,8 +761,9 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val client = testClient
     val response = valueFromF(client.entitiesUpdatedSince(date, 0))
 
-    val expectedEntity = response.head
+    val expectedEntity = response.entities.head
 
+    response.hasNext should equal(true)
     expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     expectedEntity.path.get should equal("information-objects")
     expectedEntity.title.get should be("page1File.txt")
@@ -771,7 +772,26 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
-  "entitiesUpdatedSince" should "return an entity if the entity is before the end date specified" in {
+  "entitiesUpdatedSince" should "return hasNext false if there is no Next element in the response" in {
+    val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
+    val entitiesUpdatedSinceUrl =
+      EntityClientEndpoints(preservicaServer).stubEntitiesUpdatedSince(date, nextPage = false)
+
+    val client = testClient
+    val response = valueFromF(client.entitiesUpdatedSince(date, 0))
+
+    val expectedEntity = response.entities.head
+
+    response.hasNext should equal(false)
+    expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
+    expectedEntity.path.get should equal("information-objects")
+    expectedEntity.title.get should be("page1File.txt")
+    expectedEntity.deleted should be(false)
+
+    verifyServerRequests(List(entitiesUpdatedSinceUrl))
+  }
+
+  "entitiesUpdatedSince" should "return an entity, with hasNext set to true, if the entity is before the end date specified" in {
     val date = ZonedDateTime.of(2023, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC"))
     val potentialEndDate = Option(ZonedDateTime.of(2024, 4, 25, 0, 0, 0, 0, ZoneId.of("UTC")))
     val entitiesUpdatedSinceUrl =
@@ -780,8 +800,9 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val client = testClient
     val response = valueFromF(client.entitiesUpdatedSince(date, 0, potentialEndDate = potentialEndDate))
 
-    val expectedEntity = response.head
+    val expectedEntity = response.entities.head
 
+    response.hasNext should be(true)
     expectedEntity.ref.toString should equal("8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91")
     expectedEntity.path.get should equal("information-objects")
     expectedEntity.title.get should be("page1File.txt")
@@ -798,7 +819,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val client = testClient
     val response = valueFromF(client.entitiesUpdatedSince(date, 0))
 
-    response.size should equal(0)
+    response.entities.size should equal(0)
     verifyServerRequests(List(entitiesUpdatedSinceUrl))
   }
 
@@ -897,7 +918,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       expectedEntity.path.get should equal("structural-objects")
       expectedEntity.title.get should be("page1File.txt")
       expectedEntity.description.get should be("A description")
-      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.securityTag.get should be(Unknown)
       expectedEntity.deleted should be(false)
     }
 
@@ -940,7 +961,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       expectedEntity.path.get should equal("structural-objects")
       expectedEntity.title.get should be("page1File.txt")
       expectedEntity.description.get should be("A description")
-      expectedEntity.securityTag.get should be(Open)
+      expectedEntity.securityTag.get should be(Unknown)
       expectedEntity.deleted should be(false)
     }
 
@@ -1047,7 +1068,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     entity.ref should be(structuralObject.ref)
     entity.title.get should be("page1File.txt")
     entity.description.get should be("A description")
-    entity.securityTag.get should be(Open)
+    entity.securityTag.get should be(Unknown)
     verifyServerRequests(List(getEntityUrl))
   }
 
@@ -1064,7 +1085,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
         </xip:Ref>
         <xip:Title>title.txt</xip:Title>
         <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
+        <xip:SecurityTag>unknown</xip:SecurityTag>
       </xip:StructuralObject>
     </EntityResponse>
 
@@ -1109,7 +1130,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
         </xip:Ref>
         <xip:Title>title.txt</xip:Title>
         <xip:Description>A description</xip:Description>
-        <xip:SecurityTag>open</xip:SecurityTag>
+        <xip:SecurityTag>unknown</xip:SecurityTag>
       </xip:StructuralObject>
     </EntityResponse>
     EntityClientEndpoints(preservicaServer)
@@ -1132,7 +1153,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.ref should be(id)
     response.title should be(Some("title.txt"))
     response.description should be(Some("A description"))
-    response.securityTag should be(Some(Open))
+    response.securityTag should be(Some(Unknown))
     verifyServerRequests(List(getEntitiesUrl, getEntitiesUrl))
   }
 

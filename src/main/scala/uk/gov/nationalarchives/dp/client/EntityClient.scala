@@ -164,7 +164,7 @@ trait EntityClient[F[_], S] {
       startEntry: Int,
       maxEntries: Int = 1000,
       potentialEndDate: Option[ZonedDateTime] = None
-  ): F[Seq[Entity]]
+  ): F[EntitiesUpdated]
 
   /** Returns a list of event actions for an entity
     *
@@ -456,15 +456,17 @@ object EntityClient {
           startEntry: Int,
           maxEntries: Int = 1000,
           potentialEndDate: Option[ZonedDateTime] = None
-      ): F[Seq[Entity]] = {
+      ): F[EntitiesUpdated] = {
         val dateString = sinceDateTime.format(dateFormatter)
         val endDateParams =
           potentialEndDate.map(endDate => Map("endDate" -> endDate.format(dateFormatter))).getOrElse(Map())
         val queryParams = Map("date" -> dateString, "max" -> maxEntries, "start" -> startEntry) ++ endDateParams
         val url = uri"$apiUrl/entities/updated-since?$queryParams"
         for {
-          updatedEntities <- getEntities(url.toString)
-        } yield updatedEntities
+          xmlResponse <- sendXMLApiRequest(url.toString, Method.GET)
+          hasNext <- dataProcessor.nextPage(xmlResponse).map(_.isDefined)
+          updatedEntities <- dataProcessor.getEntities(xmlResponse)
+        } yield EntitiesUpdated(hasNext, updatedEntities)
       }
 
       override def entityEventActions(
@@ -809,10 +811,11 @@ object EntityClient {
     */
   enum SecurityTag:
     override def toString: String = this match
-      case Open   => "open"
-      case Closed => "closed"
+      case Open    => "open"
+      case Closed  => "closed"
+      case Unknown => "unknown"
 
-    case Open, Closed
+    case Open, Closed, Unknown
 
   /** Represents an entity type
     */
@@ -824,6 +827,8 @@ object EntityClient {
   /** Represents a Preservica identifier
     */
   case class Identifier(identifierName: String, value: String)
+
+  case class EntitiesUpdated(hasNext: Boolean, entities: Seq[Entity])
 
   /** Represents a Preservica representation tag
     */

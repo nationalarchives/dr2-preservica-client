@@ -238,14 +238,14 @@ object MockPreservicaAPI {
         updatedSince: ZonedDateTime,
         successfulResponse: Boolean = true,
         emptyResponse: Boolean = false,
+        nextPage: Boolean = true,
         potentialEndDate: Option[ZonedDateTime] = None
     ): String = {
       val response: ResponseDefinitionBuilder =
         if (successfulResponse)
-          if (emptyResponse)
-            ok(<EntitiesResponse><Entities></Entities></EntitiesResponse>.toString)
-          else
-            ok(entitiesUpdatedSincePageResponse)
+          if (emptyResponse) ok(<EntitiesResponse><Entities></Entities></EntitiesResponse>.toString)
+          else if nextPage then ok(entitiesUpdatedSincePageResponse)
+          else ok(entitiesUpdatedSinceNoNext)
         else badRequest()
 
       val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
@@ -486,6 +486,15 @@ object MockPreservicaAPI {
         </Paging>
       </EntitiesResponse>.toString
 
+    private def entitiesUpdatedSinceNoNext: String =
+      <EntitiesResponse>
+          <Entities>
+            <Entity title="page1File.txt" ref="8a8b1582-aa5f-4eb0-9c5d-2c16049fcb91" type="IO">http://localhost/page1/object</Entity>
+          </Entities>
+          <Paging>
+          </Paging>
+        </EntitiesResponse>.toString
+
     private def getIdentifierForEntityResponse =
       <IdentifiersResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <Identifiers>
@@ -530,7 +539,7 @@ object MockPreservicaAPI {
             <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
-            <xip:SecurityTag>open</xip:SecurityTag>
+            <xip:SecurityTag>unknown</xip:SecurityTag>
             <xip:Parent>58412111-c73d-4414-a8fc-495cfc57f7e1</xip:Parent>
           </GenericEntity>
 
