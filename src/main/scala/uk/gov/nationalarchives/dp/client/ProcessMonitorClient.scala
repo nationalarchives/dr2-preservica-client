@@ -243,7 +243,7 @@ object ProcessMonitorClient:
       progressText: Option[String],
       percentComplete: Option[String],
       filesPending: Int,
-      size: Int,
+      size: Long,
       filesProcessed: Int,
       warnings: Int,
       errors: Int,
