@@ -65,7 +65,7 @@ object ProcessMonitorClient:
           progressText <- c.downField("progressText").as[Option[String]]
           percentComplete <- c.downField("percentComplete").as[Option[String]]
           filesPending <- c.downField("filesPending").as[Int]
-          size <- c.downField("size").as[Int]
+          size <- c.downField("size").as[Long]
           filesProcessed <- c.downField("filesProcessed").as[Int]
           warnings <- c.downField("warnings").as[Int]
           errors <- c.downField("errors").as[Int]
