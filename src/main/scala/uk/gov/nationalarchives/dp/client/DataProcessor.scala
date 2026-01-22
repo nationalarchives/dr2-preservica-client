@@ -169,7 +169,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
           potentialOriginalityStatus match {
             case Some("true")  => me.pure(Original)
             case Some("false") => me.pure(Derived)
-            case _ =>
+            case _             =>
               me.raiseError(
                 PreservicaClientException(
                   s"'original' attribute could not be found on Generation for entity ref: $contentObjectRef"
