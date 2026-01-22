@@ -785,7 +785,7 @@ object EntityClient {
 
         def getChildrenRefs(rootEntityRefs: Seq[EntityRef]): fs2.Stream[F, EntityRef] =
           fs2.Stream.unfoldLoopEval(rootEntityRefs) {
-            case Nil => Async[F].pure(NoEntityRef -> None)
+            case Nil                          => Async[F].pure(NoEntityRef -> None)
             case firstEntityRef :: restOfRefs =>
               for {
                 nextPageOfRefs <- firstEntityRef match {
