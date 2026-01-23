@@ -4,8 +4,8 @@ import cats.effect.Async
 import cats.implicits.*
 import io.circe.{Decoder, Encoder, HCursor, Printer}
 import io.circe.syntax.*
-import sttp.client3.*
-import sttp.client3.circe.asJson
+import sttp.client4.*
+import sttp.client4.circe.asJson
 import sttp.model.Uri
 import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import uk.gov.nationalarchives.dp.client.ContentClient.SearchQuery

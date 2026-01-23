@@ -16,8 +16,11 @@ import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerAsyncClient
-import sttp.client3.*
-import sttp.client3.circe.*
+import sttp.client4.*
+import sttp.client4.circe.*
+import sttp.client4.logging.LogConfig
+import sttp.client4.logging.LogLevel.Trace
+import sttp.client4.logging.slf4j.Slf4jLoggingBackend
 import sttp.model.{Method, StatusCode, Uri}
 import uk.gov.nationalarchives.DASecretsManagerClient
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage
@@ -55,12 +58,14 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     CaffeineCache[F, String, AuthDetails](underlyingAuthDetails)
 
   val secretName: String = clientConfig.secretName
-  private[client] val asXml: ResponseAs[Either[String, Elem], Any] =
+  private[client] val asXml: ResponseAs[Either[String, Elem]] =
     asString.mapRight(XML.loadString)
 
   private[client] val dataProcessor: DataProcessor[F] = DataProcessor[F]
 
-  private[client] val backend: SttpBackend[F, S] = clientConfig.backend
+  private val logConfig: LogConfig =
+    LogConfig(logRequestHeaders = false, logResponseHeaders = false, beforeRequestSendLogLevel = Trace)
+  private[client] val backend: WebSocketStreamBackend[F, S] = Slf4jLoggingBackend(clientConfig.backend, logConfig)
   private val duration: FiniteDuration = clientConfig.duration
   private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
   private val loginEndpointUri = uri"$apiBaseUrl/api/accesstoken/login"
@@ -140,7 +145,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         .method(method, apiUri)
         .readTimeout(Duration.Inf)
         .response(asJson[R])
-      val requestWithBody: RequestT[Identity, Either[ResponseException[String, circe.Error], R], Any] =
+      val requestWithBody: Request[Either[ResponseException[String], R]] =
         requestBody.map(request.body(_)).getOrElse(request)
       backend.send(requestWithBody)
     }
@@ -166,12 +171,12 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
-    val request: F[Response[Either[ResponseException[String, circe.Error], Token]]] = basicRequest
+    val request = basicRequest
       .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
       .post(loginEndpointUri)
       .response(asJson[Token])
       .send(backend)
-    retrySend[Token, ResponseException[String, circe.Error]](Method.POST, loginEndpointUri, request).map(_.token)
+    retrySend[Token, ResponseException[String]](Method.POST, loginEndpointUri, request).map(_.token)
   }
 
   private[client] def getAuthenticationToken: F[String] =
@@ -241,7 +246,7 @@ object Client {
   case class ClientConfig[F[_], S](
       apiBaseUrl: String,
       secretName: String,
-      backend: SttpBackend[F, S],
+      backend: WebSocketStreamBackend[F, S],
       duration: FiniteDuration,
       secretsManagerEndpointUri: String,
       retryCount: Int

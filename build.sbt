@@ -2,7 +2,7 @@ import sbtrelease.ReleaseStateTransformations.*
 import Dependencies.*
 import sbt.internal.librarymanagement.Publishing.sonaRelease
 
-lazy val scala3Version = "3.7.3"
+lazy val scala3Version = "3.7.4"
 
 ThisBuild / scalaVersion := scala3Version
 
@@ -58,12 +58,14 @@ lazy val commonSettings = Seq(
     secretsManagerClient,
     catsCore,
     catsRetry,
+    fs2Core,
     scalaCacheCore,
     scalaCacheCaffeine,
     log4Cats,
     scalaXml,
     sttpCore,
     sttpFs2,
+    sttpSlf4j,
     sttpCirce,
     mockito % Test,
     scalaTest % Test,
@@ -91,7 +93,7 @@ lazy val fs2 = project
   .settings(commonSettings)
   .settings(
     name := "preservica-client-fs2",
-    libraryDependencies += sttpFs2
+    libraryDependencies ++= Seq(sttpFs2)
   )
   .dependsOn(root % "compile->compile;test->test")
 

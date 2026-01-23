@@ -6,7 +6,7 @@ import uk.gov.nationalarchives.dp.client.Client.ClientConfig
 import sttp.model.Method
 import cats.implicits.*
 import io.circe.syntax.*
-import sttp.client3.IsOption
+import sttp.client4.IsOption
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage.Pending
 import uk.gov.nationalarchives.dp.client.UserClient.ResetPasswordRequest
 

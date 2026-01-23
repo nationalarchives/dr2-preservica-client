@@ -34,10 +34,10 @@ object Entity {
 
     def streamEntityRefs(): IO[Unit] = {
       for {
-        _ <- Fs2Client.entityClient("secretName").map{ client =>
+        _ <- Fs2Client.entityClient("secretName").map { client =>
           client.streamAllEntityRefs().map {
             case _: InformationObjectRef | _: ContentObjectRef => doSomething()
-            case _ => doSomethingElse()
+            case _                                             => doSomethingElse()
           }
         }
       } yield ()
