@@ -2,15 +2,14 @@ package uk.gov.nationalarchives.dp.client.fs2
 
 import cats.effect.*
 import sttp.capabilities.fs2.Fs2Streams
-import sttp.client3.SttpBackendOptions
-import sttp.client3.httpclient.fs2.HttpClientFs2Backend
+import sttp.client4.BackendOptions
+import sttp.client4.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{
   Client,
   ContentClient,
   EntityClient,
-  LoggingWrapper,
   ProcessMonitorClient,
   UserClient,
   ValidateXmlAgainstXsd,
@@ -48,7 +47,7 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getAuthDetails().map { authDetails =>
         createEntityClient(clientConfig.copy(apiBaseUrl = authDetails.apiUrl))
       }
@@ -73,7 +72,7 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createContentClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -97,7 +96,7 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[WorkflowClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createWorkflowClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -123,7 +122,7 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createProcessMonitorClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -137,7 +136,7 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[UserClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, LoggingWrapper(backend), duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
       Client(clientConfig).getApiUrl.map { apiUrl =>
         createUserClient(clientConfig.copy(apiBaseUrl = apiUrl))
       }
@@ -146,9 +145,9 @@ object Fs2Client:
 
   def xmlValidator(schema: PreservicaSchema): ValidateXmlAgainstXsd[IO] = ValidateXmlAgainstXsd[IO](schema)
 
-  private def httpClientOptions(potentialProxyUrl: Option[URI]): SttpBackendOptions =
+  private def httpClientOptions(potentialProxyUrl: Option[URI]): BackendOptions =
     potentialProxyUrl
       .map { proxyUrl =>
-        SttpBackendOptions.Default.httpProxy(proxyUrl.getHost, proxyUrl.getPort)
+        BackendOptions.Default.httpProxy(proxyUrl.getHost, proxyUrl.getPort)
       }
-      .getOrElse(SttpBackendOptions.Default)
+      .getOrElse(BackendOptions.Default)

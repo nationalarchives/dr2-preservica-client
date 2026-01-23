@@ -4,7 +4,7 @@ import cats.Parallel
 import cats.effect.Async
 import cats.implicits.*
 import sttp.capabilities.Streams
-import sttp.client3.*
+import sttp.client4.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction

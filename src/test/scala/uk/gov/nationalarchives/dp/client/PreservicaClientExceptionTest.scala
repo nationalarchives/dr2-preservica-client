@@ -2,7 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
-import sttp.client3.UriContext
+import sttp.client4.UriContext
 import sttp.model.{Method, StatusCode}
 
 class PreservicaClientExceptionTest extends AnyFlatSpec:
