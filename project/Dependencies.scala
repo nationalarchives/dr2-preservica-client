@@ -16,7 +16,7 @@ object Dependencies {
   lazy val sttpFs2 = "com.softwaremill.sttp.client4" %% "fs2" % sttpVersion
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.7.1"
   lazy val sttpCirce = "com.softwaremill.sttp.client4" %% "circe" % sttpVersion
-  lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.138"
+  lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.139"
   lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % "3.2.18.0"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "3.0.1"
 }
