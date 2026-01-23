@@ -12,7 +12,5 @@ jobs:
       - uses: sbt/setup-sbt@a627500d27445f8c5021755a439829b6e78e3358
       - uses: scalacenter/sbt-dependency-submission@f43202114d7522a4b233e052f82c2eea8d658134
       - uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261
-        with:
-          fail-on-severity: critical
       - name: Run tests
         run: sbt scalafmtCheckAll test
