@@ -5,6 +5,8 @@ permissions:
   id-token: write
   contents: write
   pull-requests: write
+env:
+  BRANCH_NAME: version-bump-${{ github.run_id }}${{ github.run_attempt }}
 jobs:
   deploy:
     runs-on: ubuntu-latest
