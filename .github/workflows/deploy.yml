@@ -61,8 +61,8 @@ jobs:
           git checkout gh-pages
           rm -rf docs
           mkdir docs && cp -r site-docs/target/site/* docs
-          git add docs
-          git commit -m "Update site documentation"
-          git push -u origin gh-pages
+          git add docs | true
+          git commit -m "Update site documentation"  | true
+          git push -u origin gh-pages  | true
         env:
           GH_TOKEN: ${{ github.token }}
