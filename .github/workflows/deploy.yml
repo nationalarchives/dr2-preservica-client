@@ -1,6 +1,10 @@
 name: DP Deploy Preservica Client
 on:
   workflow_dispatch:
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -31,7 +35,7 @@ jobs:
       - name: Create Pull Request
         run: gh pr create --fill --label 'Version bump'
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
       - run: pip install boto3
       - if: failure()
         run: python .github/scripts/send_message.py
@@ -59,4 +63,4 @@ jobs:
           git commit -m "Update site documentation"
           git push -u origin gh-pages
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
