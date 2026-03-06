@@ -1,0 +1,13 @@
+name: workflow.yml
+on:
+  push:
+    branches:
+      - DR2-2714-remove-reusable-workflow
+permissions:
+  actions: write
+jobs:
+  test_dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: gh workflow run deploy.yml --ref DR2-2713-remove-dependency-from-aws-clients
