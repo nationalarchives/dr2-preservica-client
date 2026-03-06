@@ -14,8 +14,6 @@ A @ref:[process monitor client](processmonitor/usage/index.md) which provides a 
 
 It also provides an @ref:[XML Validator](xmlvalidator/usage/index.md) which provides a method that validates XML against an XSD schema.
 
-View the [Scaladoc](api/uk/gov/nationalarchives/dp/client/index.html)
-
 @@@ index
 
 * [Entity Client Usage](entity/usage/index.md)
