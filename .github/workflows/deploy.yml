@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
-    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@13faff54c193651ee30482ebdf01e083c8b14203
+    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@e4f98cd6bbf1281fd0e859fd1457274baf11ac0d
     with:
       library-name: "Preservica Client"
     secrets:
