@@ -1,18 +1,51 @@
 name: DP Deploy Preservica Client
 on:
   workflow_dispatch:
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+env:
+  BRANCH_NAME: version-bump-${{ github.run_id }}${{ github.run_attempt }}
 jobs:
   deploy:
-    uses: nationalarchives/tdr-github-actions/.github/workflows/sbt_release.yml@e4f98cd6bbf1281fd0e859fd1457274baf11ac0d
-    with:
-      library-name: "Preservica Client"
-    secrets:
-      WORKFLOW_PAT: ${{ secrets.WORKFLOW_TOKEN }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-      SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: sbt/setup-sbt@6bec67c98f542b9e17369bfca0ec822ac1363194 # v1.1.19
+      - uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.MANAGEMENT_ACCOUNT }}:role/mgmt-library-put-events-role
+          aws-region: eu-west-2
+          role-session-name: PreservicaClientDeploySendMessage
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - run: |
+          git config --global user.email 181243999+tna-da-bot@users.noreply.github.com
+          git config --global user.name tna-da-bot
+          git checkout -b $BRANCH_NAME
+          git push -u origin $BRANCH_NAME
+          sbt '+release with-defaults'
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+      - name: Create Pull Request
+        run: gh pr create --fill --label 'Version bump'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+      - run: pip install boto3
+      - if: failure()
+        run: python .github/scripts/send_message.py
+        env:
+          MESSAGE: ":warning: Build failed for Preservica client <https://github.com/nationalarchives/dr2-preservica-client/actions/runs/${{ github.run_id }}|View the failed workflow>"
+      - run: python .github/scripts/send_message.py
+        env:
+          MESSAGE: ":white_check_mark: Preservica client has been published"
   build-docs:
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +61,8 @@ jobs:
           git checkout gh-pages
           rm -rf docs
           mkdir docs && cp -r site-docs/target/site/* docs
-          git add docs
-          git commit -m "Update site documentation"
-          git push -u origin gh-pages
+          git add docs | true
+          git commit -m "Update site documentation"  | true
+          git push -u origin gh-pages  | true
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
