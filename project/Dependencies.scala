@@ -6,7 +6,7 @@ object Dependencies {
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
-  lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.13.0-M8"
+  lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.13.0"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
