@@ -14,7 +14,7 @@ object Dependencies {
   lazy val sttpCore = "com.softwaremill.sttp.client4" %% "core" % sttpVersion
   lazy val sttpSlf4j = "com.softwaremill.sttp.client4" %% "slf4j-backend" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client4" %% "fs2" % sttpVersion
-  lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.7.1"
+  lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.8.0"
   lazy val sttpCirce = "com.softwaremill.sttp.client4" %% "circe" % sttpVersion
   lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.149"
   lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % "3.2.18.0"
