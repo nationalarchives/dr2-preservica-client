@@ -31,9 +31,11 @@ jobs:
           git config --global user.email 181243999+tna-da-bot@users.noreply.github.com
           git config --global user.name tna-da-bot
           git checkout -b $BRANCH_NAME
+          git remote set-url origin "https://x-access-token:$GH_TOKEN@github.com/nationalarchives/dr2-preservica-client.git"
           git push -u origin $BRANCH_NAME
           sbt '+release with-defaults'
         env:
+          GH_TOKEN: ${{ github.token }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
       - name: Create Pull Request
@@ -62,6 +64,7 @@ jobs:
           git config --global user.email 181243999+tna-da-bot@users.noreply.github.com
           git config --global user.name tna-da-bot
           git checkout gh-pages
+          git remote set-url origin "https://x-access-token:$GH_TOKEN@github.com/nationalarchives/dr2-preservica-client.git"
           rm -rf docs
           mkdir docs && cp -r site-docs/target/site/* docs
           git add docs | true
