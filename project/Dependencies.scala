@@ -1,7 +1,7 @@
 import sbt.*
 object Dependencies {
-  lazy val sttpVersion = "4.0.19"
-  private lazy val scalaTestVersion = "3.2.19"
+  lazy val sttpVersion = "4.0.20"
+  private lazy val scalaTestVersion = "3.2.20"
   private lazy val scalaCacheVersion = "1.0.0-M6"
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
