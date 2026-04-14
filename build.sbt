@@ -52,6 +52,18 @@ lazy val releaseSettings = Seq(
   homepage := Some(url("https://github.com/nationalarchives/dr2-preservica-client"))
 )
 
+lazy val nettyOverrides = Seq(
+  nettyBuffer,
+  nettyCodecHttp2,
+  nettyCodecHttp,
+  nettyCodec,
+  nettyCommon,
+  nettyHandler,
+  nettyResolver,
+  nettyTransportClasses,
+  nettyTransport
+)
+
 lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
   libraryDependencies ++= Seq(
@@ -71,17 +83,6 @@ lazy val commonSettings = Seq(
     scalaTest % Test,
     wireMock % Test
   ),
-  dependencyOverrides ++= Seq(
-    nettyBuffer,
-    nettyCodecHttp2,
-    nettyCodecHttp,
-    nettyCodec,
-    nettyCommon,
-    nettyHandler,
-    nettyResolver,
-    nettyTransportClasses,
-    nettyTransport
-  ),
   version := version.value,
   scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation", "-Xmax-inlines", "50"),
   Test / fork := true,
@@ -95,7 +96,8 @@ lazy val root: Project = project
   .settings(commonSettings)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
-    name := "preservica-client-root"
+    name := "preservica-client-root",
+    dependencyOverrides ++= nettyOverrides
   )
   .aggregate(fs2Ref)
 
@@ -104,7 +106,8 @@ lazy val fs2 = project
   .settings(commonSettings)
   .settings(
     name := "preservica-client-fs2",
-    libraryDependencies ++= Seq(sttpFs2)
+    libraryDependencies ++= Seq(sttpFs2),
+    dependencyOverrides ++= nettyOverrides
   )
   .dependsOn(root % "compile->compile;test->test")
 
@@ -116,6 +119,7 @@ lazy val docs = (project in file("site-docs"))
   )
   .enablePlugins(ParadoxSitePlugin, ScalaUnidocPlugin, SitePreviewPlugin)
   .settings(
+    dependencyOverrides ++= nettyOverrides,
     paradoxProperties += (
       "version" -> (ThisBuild / version).value.split("-").head
     ),
