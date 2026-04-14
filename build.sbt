@@ -71,22 +71,23 @@ lazy val commonSettings = Seq(
     scalaTest % Test,
     wireMock % Test
   ),
-  dependencyOverrides ++= Seq(
-    nettyBuffer,
-    nettyCodecHttp2,
-    nettyCodecHttp,
-    nettyCodec,
-    nettyCommon,
-    nettyHandler,
-    nettyResolver,
-    nettyTransportClasses,
-    nettyTransport
-  ),
   version := version.value,
   scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation", "-Xmax-inlines", "50"),
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
 ) ++ releaseSettings
+
+lazy val nettyOverrides = Seq(
+  nettyBuffer,
+  nettyCodecHttp2,
+  nettyCodecHttp,
+  nettyCodec,
+  nettyCommon,
+  nettyHandler,
+  nettyResolver,
+  nettyTransportClasses,
+  nettyTransport
+)
 
 lazy val fs2Ref = LocalProject("fs2")
 
@@ -95,7 +96,8 @@ lazy val root: Project = project
   .settings(commonSettings)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
-    name := "preservica-client-root"
+    name := "preservica-client-root",
+    dependencyOverrides ++= nettyOverrides
   )
   .aggregate(fs2Ref)
 
@@ -104,7 +106,8 @@ lazy val fs2 = project
   .settings(commonSettings)
   .settings(
     name := "preservica-client-fs2",
-    libraryDependencies ++= Seq(sttpFs2)
+    libraryDependencies ++= Seq(sttpFs2),
+    dependencyOverrides ++= nettyOverrides
   )
   .dependsOn(root % "compile->compile;test->test")
 
