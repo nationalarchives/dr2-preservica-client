@@ -71,6 +71,17 @@ lazy val commonSettings = Seq(
     scalaTest % Test,
     wireMock % Test
   ),
+  dependencyOverrides ++= Seq(
+    nettyBuffer,
+    nettyCodecHttp2,
+    nettyCodecHttp,
+    nettyCodec,
+    nettyCommon,
+    nettyHandler,
+    nettyResolver,
+    nettyTransportClasses,
+    nettyTransport
+  ),
   version := version.value,
   scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation", "-Xmax-inlines", "50"),
   Test / fork := true,

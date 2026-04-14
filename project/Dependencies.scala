@@ -3,10 +3,20 @@ object Dependencies {
   lazy val sttpVersion = "4.0.21"
   private lazy val scalaTestVersion = "3.2.19"
   private lazy val scalaCacheVersion = "1.0.0-M6"
+  private lazy val nettyVersion = "4.2.12.Final"
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
   lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.13.0"
+  lazy val nettyBuffer = "io.netty" % "netty-buffer" % nettyVersion
+  lazy val nettyCodecHttp2 = "io.netty" % "netty-codec-http2" % nettyVersion
+  lazy val nettyCodecHttp = "io.netty" % "netty-codec-http" % nettyVersion
+  lazy val nettyCodec = "io.netty" % "netty-codec" % nettyVersion
+  lazy val nettyCommon = "io.netty" % "netty-common" % nettyVersion
+  lazy val nettyHandler = "io.netty" % "netty-handler" % nettyVersion
+  lazy val nettyResolver = "io.netty" % "netty-resolver" % nettyVersion
+  lazy val nettyTransportClasses = "io.netty" % "netty-transport-classes-epoll" % nettyVersion
+  lazy val nettyTransport = "io.netty" % "netty-transport" % nettyVersion
   lazy val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
