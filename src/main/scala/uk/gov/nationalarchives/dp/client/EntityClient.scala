@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.util.Try
 import scala.xml.Utility.{escape, trim}
-import scala.xml.{Elem, Node, NodeSeq}
+import scala.xml.{Elem, Node}
 
 /** A client to create, get and update entities in Preservica
   *
