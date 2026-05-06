@@ -3,7 +3,7 @@ object Dependencies {
   lazy val sttpVersion = "4.0.23"
   private lazy val scalaTestVersion = "3.2.20"
   private lazy val scalaCacheVersion = "1.0.0-M6"
-  private lazy val nettyVersion = "4.2.12.Final"
+  private lazy val nettyVersion = "4.1.133.Final"
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
