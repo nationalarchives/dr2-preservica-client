@@ -189,9 +189,6 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         token <- generateToken(authDetails)
       } yield TokenDetails(token, authDetails.apiUrl)
     }
-
-  private[client] def getApiUrl: F[String] =
-    getAuthDetails().map(_.apiUrl)
 }
 
 /** Case classes common to several clients
