@@ -253,8 +253,7 @@ object EntityClient {
   def createEntityClient[F[_]: {Async, Parallel}, S](clientConfig: ClientConfig[F, S]): EntityClient[F, S] =
     new EntityClient[F, S] {
       val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-      private val apiBaseUrl: String = clientConfig.apiBaseUrl
-      private val apiUrl = s"$apiBaseUrl/api/entity/v$apiVersion"
+      private val apiUrl = s"api/entity/v$apiVersion"
       private val namespaceUrl = s"http://preservica.com/XIP/v$apiVersion"
 
       private val missingPathExceptionMessage: UUID => String = ref =>
@@ -518,8 +517,8 @@ object EntityClient {
           .response(asStream(stream)(streamFn))
 
         for {
-          token <- getAuthenticationToken
-          res <- backend.send(request(token))
+          tokenDetails <- getAuthenticationToken
+          res <- backend.send(request(tokenDetails.token))
           body <- Async[F].fromEither {
             res.body.left.map(err => PreservicaClientException(Method.GET, apiUri, res.code, err))
           }
@@ -546,7 +545,7 @@ object EntityClient {
 
       override def getPreservicaNamespaceVersion(endpoint: String): F[Float] = {
         for {
-          resXml <- sendXMLApiRequest(s"$apiBaseUrl/api/entity/$endpoint", Method.GET)
+          resXml <- sendXMLApiRequest(s"api/entity/$endpoint", Method.GET)
           version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
         } yield version
       }

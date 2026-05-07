@@ -7,7 +7,7 @@ import io.circe.syntax.*
 import sttp.client4.*
 import sttp.client4.circe.asJson
 import sttp.model.Uri
-import uk.gov.nationalarchives.dp.client.Client.ClientConfig
+import uk.gov.nationalarchives.dp.client.Client.{ClientConfig, TokenDetails}
 import uk.gov.nationalarchives.dp.client.ContentClient.SearchQuery
 import uk.gov.nationalarchives.dp.client.Entities.*
 
@@ -97,14 +97,14 @@ object ContentClient:
 
     private def search(
         start: Int,
-        token: String,
+        tokenDetails: TokenDetails,
         searchQuery: SearchQuery,
         ids: List[String]
     ): F[List[Entity]] =
       val max = 100
       basicRequest
-        .get(searchUri(start, max, searchQuery))
-        .headers(Map("Preservica-Access-Token" -> token))
+        .get(searchUri(tokenDetails.apiUrl, start, max, searchQuery))
+        .headers(Map("Preservica-Access-Token" -> tokenDetails.token))
         .response(asJson[SearchResponse])
         .send(backend)
         .flatMap(res => Async[F].fromEither(res.body))
@@ -112,10 +112,15 @@ object ContentClient:
           if searchResponse.value.objectIds.isEmpty then toEntities(ids)
           else
             Async[F]
-              .sleep(100.milliseconds) >> search(start + max, token, searchQuery, searchResponse.value.objectIds ++ ids)
+              .sleep(100.milliseconds) >> search(
+              start + max,
+              tokenDetails,
+              searchQuery,
+              searchResponse.value.objectIds ++ ids
+            )
         )
 
-    private def searchUri(start: Int, max: Int, searchQuery: SearchQuery): Uri =
+    private def searchUri(apiUrl: String, start: Int, max: Int, searchQuery: SearchQuery): Uri =
       val queryString = searchQuery.asJson.printWith(Printer.noSpaces)
       val queryParams = Map(
         "q" -> queryString,
@@ -123,7 +128,7 @@ object ContentClient:
         "max" -> max.toString,
         "metadata" -> searchQuery.fields.map(_.name).mkString(",")
       )
-      uri"$apiBaseUrl/api/content/search?$queryParams"
+      uri"$apiUrl/api/content/search?$queryParams"
 
     override def searchEntities(searchQuery: SearchQuery, max: Int = 100): F[List[Entity]] =
       for

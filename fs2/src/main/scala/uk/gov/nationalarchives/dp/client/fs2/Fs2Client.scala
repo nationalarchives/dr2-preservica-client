@@ -7,7 +7,6 @@ import sttp.client4.httpclient.fs2.HttpClientFs2Backend
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.ContentClient.createContentClient
 import uk.gov.nationalarchives.dp.client.{
-  Client,
   ContentClient,
   EntityClient,
   ProcessMonitorClient,
@@ -47,10 +46,8 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
-      Client(clientConfig).getAuthDetails().map { authDetails =>
-        createEntityClient(clientConfig.copy(apiBaseUrl = authDetails.apiUrl))
-      }
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      IO(createEntityClient(clientConfig))
     }
 
   /** Creates a content client
@@ -72,10 +69,8 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
-      Client(clientConfig).getApiUrl.map { apiUrl =>
-        createContentClient(clientConfig.copy(apiBaseUrl = apiUrl))
-      }
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      IO(createContentClient(clientConfig))
     }
 
   /** Creates a workflow client
@@ -96,10 +91,8 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[WorkflowClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
-      Client(clientConfig).getApiUrl.map { apiUrl =>
-        createWorkflowClient(clientConfig.copy(apiBaseUrl = apiUrl))
-      }
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      IO(createWorkflowClient(clientConfig))
 
     }
 
@@ -112,7 +105,7 @@ object Fs2Client:
     * @param ssmEndpointUri
     *   The endpoint of secrets manager to use
     * @return
-    *   A a process monitor client
+    *   A process monitor client
     */
   def processMonitorClient(
       secretName: String,
@@ -122,10 +115,8 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
-      Client(clientConfig).getApiUrl.map { apiUrl =>
-        createProcessMonitorClient(clientConfig.copy(apiBaseUrl = apiUrl))
-      }
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      IO(createProcessMonitorClient(clientConfig))
     }
 
   def userClient(
@@ -136,10 +127,8 @@ object Fs2Client:
       retryCount: Int = 5
   ): IO[UserClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig("", secretName, backend, duration, ssmEndpointUri, retryCount)
-      Client(clientConfig).getApiUrl.map { apiUrl =>
-        createUserClient(clientConfig.copy(apiBaseUrl = apiUrl))
-      }
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      IO(createUserClient(clientConfig))
 
     }
 

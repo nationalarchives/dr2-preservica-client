@@ -53,7 +53,7 @@ object UserClient:
       )
 
       _ <- client.sendJsonApiRequest[Option[String]](
-        s"${clientConfig.apiBaseUrl}/api/user/password",
+        s"api/user/password",
         Method.PUT,
         resetPasswordRequest.asJson.printWith(Printer.noSpaces).some
       )

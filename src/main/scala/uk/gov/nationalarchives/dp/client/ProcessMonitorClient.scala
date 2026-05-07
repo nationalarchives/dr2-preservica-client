@@ -48,7 +48,6 @@ object ProcessMonitorClient:
     */
   def createProcessMonitorClient[F[_]: Async](clientConfig: ClientConfig[F, ?]): ProcessMonitorClient[F] =
     new ProcessMonitorClient[F]:
-      private val apiBaseUrl: String = clientConfig.apiBaseUrl
       private val client: Client[F, ?] = Client(clientConfig)
 
       import client.*
@@ -156,7 +155,7 @@ object ProcessMonitorClient:
       override def getMonitors(getMonitorsRequest: GetMonitorsRequest): F[Seq[Monitors]] =
         val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMonitorsRequest)
 
-        val getMonitorsUrl = uri"$apiBaseUrl/api/processmonitor/monitors?$relevantQueryParamsAsString"
+        val getMonitorsUrl = uri"api/processmonitor/monitors?$relevantQueryParamsAsString"
 
         for
           _ <-
@@ -176,7 +175,7 @@ object ProcessMonitorClient:
       ): F[Seq[Message]] =
         val relevantQueryParamsAsString: Map[String, String] = getQueryParamsAsMap(getMessagesRequest)
         val getMessagesUrl =
-          uri"$apiBaseUrl/api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
+          uri"api/processmonitor/messages?$relevantQueryParamsAsString&start=$start&max=$max"
 
         monitorMessages(getMessagesUrl.toString, Nil)
 

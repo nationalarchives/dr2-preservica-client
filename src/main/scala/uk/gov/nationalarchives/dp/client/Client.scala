@@ -47,15 +47,10 @@ import scala.xml.{Elem, XML}
 private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     async: Async[F]
 ) {
-  private val underlying: CCache[String, Entry[String]] =
-    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[String]]
-  private val underlyingAuthDetails: CCache[String, Entry[AuthDetails]] =
-    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[AuthDetails]]
+  private val underlying: CCache[String, Entry[TokenDetails]] =
+    Caffeine.newBuilder().maximumSize(10000L).build[String, Entry[TokenDetails]]
 
-  given caffeineCache: Cache[F, String, String] = CaffeineCache[F, String, String](underlying)
-
-  given authDetailsCaffeineCache: Cache[F, String, AuthDetails] =
-    CaffeineCache[F, String, AuthDetails](underlyingAuthDetails)
+  given caffeineCache: Cache[F, String, TokenDetails] = CaffeineCache[F, String, TokenDetails](underlying)
 
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem]] =
@@ -67,8 +62,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     LogConfig(logRequestHeaders = false, logResponseHeaders = false, beforeRequestSendLogLevel = Trace)
   private[client] val backend: WebSocketStreamBackend[F, S] = Slf4jLoggingBackend(clientConfig.backend, logConfig)
   private val duration: FiniteDuration = clientConfig.duration
-  private[client] val apiBaseUrl: String = clientConfig.apiBaseUrl
-  private val loginEndpointUri = uri"$apiBaseUrl/api/accesstoken/login"
+  private def loginEndpointUri(apiBaseUrl: String) = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
   given Decoder[AuthDetails] = (c: HCursor) =>
@@ -102,7 +96,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
             Logger[F]
               .warn(s"$retryMessage unauthorised response ${code.code}. Invalidating cache")
               .flatMap { _ =>
-                caffeineCache.removeAll >> authDetailsCaffeineCache.removeAll
+                caffeineCache.removeAll
               }
               .as(HandlerDecision.Continue)
           case Right(code) if code.isClientError || code.isServerError =>
@@ -115,22 +109,28 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     }
   }
 
+  private def createApiUri(url: String, apiUrl: String) =
+    if uri"$url".host.isDefined then uri"$url" else uri"${s"$apiUrl/$url"}"
+
   private[client] def sendXMLApiRequest(
       url: String,
       method: Method,
       potentialRequestBody: Option[String] = None
   ) = {
-    val apiUri = uri"$url"
-    val response = getAuthenticationToken.flatMap { token =>
-      val request = basicRequest
-        .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/xml"))
-        .method(method, apiUri)
-        .readTimeout(Duration.Inf)
-        .response(asXml)
-      val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
-      backend.send(requestWithBody)
-    }
-    retrySend(method, apiUri, response)
+    getAuthenticationToken
+      .flatMap { tokenDetails =>
+        val apiUri = createApiUri(url, tokenDetails.apiUrl)
+        val request = basicRequest
+          .headers(Map("Preservica-Access-Token" -> tokenDetails.token, "Content-Type" -> "application/xml"))
+          .method(method, apiUri)
+          .readTimeout(Duration.Inf)
+          .response(asXml)
+        val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
+        Async[F].blocking((apiUri, backend.send(requestWithBody)))
+      }
+      .flatMap { case (apiUri, response) =>
+        retrySend(method, apiUri, response)
+      }
   }
 
   private[client] def sendJsonApiRequest[R: IsOption](
@@ -138,53 +138,56 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       method: Method,
       requestBody: Option[String] = None
   )(using decoder: Decoder[R]): F[R] = {
-    val apiUri = uri"$url"
-    val response = getAuthenticationToken.flatMap { token =>
-      val request = basicRequest
-        .headers(Map("Preservica-Access-Token" -> token, "Content-Type" -> "application/json;charset=UTF-8"))
-        .method(method, apiUri)
-        .readTimeout(Duration.Inf)
-        .response(asJson[R])
-      val requestWithBody: Request[Either[ResponseException[String], R]] =
-        requestBody.map(request.body(_)).getOrElse(request)
-      backend.send(requestWithBody)
-    }
-    retrySend(method, apiUri, response)
+    getAuthenticationToken
+      .flatMap { tokenDetails =>
+        val apiUri = createApiUri(url, tokenDetails.apiUrl)
+        val request = basicRequest
+          .headers(
+            Map("Preservica-Access-Token" -> tokenDetails.token, "Content-Type" -> "application/json;charset=UTF-8")
+          )
+          .method(method, apiUri)
+          .readTimeout(Duration.Inf)
+          .response(asJson[R])
+        val requestWithBody: Request[Either[ResponseException[String], R]] =
+          requestBody.map(request.body(_)).getOrElse(request)
+        Async[F].blocking((apiUri, backend.send(requestWithBody)))
+      }
+      .flatMap { case (apiUri, response) =>
+        retrySend(method, apiUri, response)
+      }
   }
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
-    memoizeF[F, AuthDetails](Some(duration)) {
-      Async[F]
-        .blocking {
-          val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
-          val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
-            .region(Region.EU_WEST_2)
-            .credentialsProvider(DefaultCredentialsProvider.builder.build)
-            .endpointOverride(URI.create(secretsManagerEndpointUri))
-            .httpClient(httpClient)
-            .build()
-          DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
-        }
-        .flatMap { client =>
-          client.getSecretValue[AuthDetails](stage)
-        }
-    }
+    Async[F]
+      .blocking {
+        val httpClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().build()
+        val secretsManagerAsyncClient: SecretsManagerAsyncClient = SecretsManagerAsyncClient.builder
+          .region(Region.EU_WEST_2)
+          .credentialsProvider(DefaultCredentialsProvider.builder.build)
+          .endpointOverride(URI.create(secretsManagerEndpointUri))
+          .httpClient(httpClient)
+          .build()
+        DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
+      }
+      .flatMap { client =>
+        client.getSecretValue[AuthDetails](stage)
+      }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
     val request = basicRequest
       .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-      .post(loginEndpointUri)
+      .post(loginEndpointUri(authDetails.apiUrl))
       .response(asJson[Token])
       .send(backend)
-    retrySend[Token, ResponseException[String]](Method.POST, loginEndpointUri, request).map(_.token)
+    retrySend[Token, ResponseException[String]](Method.POST, loginEndpointUri(authDetails.apiUrl), request).map(_.token)
   }
 
-  private[client] def getAuthenticationToken: F[String] =
-    memoizeF[F, String](Some(duration)) {
+  private[client] def getAuthenticationToken: F[TokenDetails] =
+    memoizeF[F, TokenDetails](Some(duration)) {
       for {
         authDetails <- getAuthDetails()
         token <- generateToken(authDetails)
-      } yield token
+      } yield TokenDetails(token, authDetails.apiUrl)
     }
 
   private[client] def getApiUrl: F[String] =
@@ -197,6 +200,8 @@ object Client {
   private[client] case class Token(token: String)
 
   private[client] case class AuthDetails(userName: String, password: String, apiUrl: String)
+
+  case class TokenDetails(token: String, apiUrl: String)
 
   /** Represents bitstream information from a content object
     *
@@ -228,8 +233,6 @@ object Client {
 
   /** Configuration for the clients
     *
-    * @param apiBaseUrl
-    *   The Preservica service url
     * @param secretName
     *   The name of the AWS secret storing the API username and password
     * @param backend
@@ -244,7 +247,6 @@ object Client {
     *   The type of the Stream for the client.
     */
   case class ClientConfig[F[_], S](
-      apiBaseUrl: String,
       secretName: String,
       backend: WebSocketStreamBackend[F, S],
       duration: FiniteDuration,

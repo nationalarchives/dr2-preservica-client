@@ -38,13 +38,12 @@ object WorkflowClient {
     */
   def createWorkflowClient[F[_]: Async, S](clientConfig: ClientConfig[F, S]): WorkflowClient[F] =
     new WorkflowClient[F] {
-      private val apiBaseUrl: String = clientConfig.apiBaseUrl
       private val client: Client[F, S] = Client(clientConfig)
 
       import client.*
 
       override def startWorkflow(startWorkflowRequest: StartWorkflowRequest): F[Int] = {
-        val startWorkflowUrl = uri"$apiBaseUrl/sdb/rest/workflow/instances"
+        val startWorkflowUrl = uri"sdb/rest/workflow/instances"
         val newLine = Some("\n  ")
 
         val workflowContextIdNode = startWorkflowRequest.workflowContextId
