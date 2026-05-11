@@ -116,7 +116,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       url: String,
       method: Method,
       potentialRequestBody: Option[String] = None
-  ) = {
+  ) =
     getAuthenticationToken
       .flatMap { tokenDetails =>
         val apiUri = createApiUri(url, tokenDetails.apiUrl)
@@ -126,18 +126,16 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
           .readTimeout(Duration.Inf)
           .response(asXml)
         val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
-        Async[F].blocking((apiUri, backend.send(requestWithBody)))
+        Async[F].blocking((apiUri, backend.send(requestWithBody))).flatMap { case (apiUri, response) =>
+          retrySend(method, apiUri, response)
+        }
       }
-      .flatMap { case (apiUri, response) =>
-        retrySend(method, apiUri, response)
-      }
-  }
 
   private[client] def sendJsonApiRequest[R: IsOption](
       url: String,
       method: Method,
       requestBody: Option[String] = None
-  )(using decoder: Decoder[R]): F[R] = {
+  )(using decoder: Decoder[R]): F[R] =
     getAuthenticationToken
       .flatMap { tokenDetails =>
         val apiUri = createApiUri(url, tokenDetails.apiUrl)
@@ -150,12 +148,10 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
           .response(asJson[R])
         val requestWithBody: Request[Either[ResponseException[String], R]] =
           requestBody.map(request.body(_)).getOrElse(request)
-        Async[F].blocking((apiUri, backend.send(requestWithBody)))
+        Async[F].blocking((apiUri, backend.send(requestWithBody))).flatMap { case (apiUri, response) =>
+          retrySend(method, apiUri, response)
+        }
       }
-      .flatMap { case (apiUri, response) =>
-        retrySend(method, apiUri, response)
-      }
-  }
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
     Async[F]
