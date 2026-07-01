@@ -17,7 +17,7 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse, fromType}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
