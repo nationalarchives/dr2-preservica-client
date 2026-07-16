@@ -1,9 +1,9 @@
 import sbt.*
 object Dependencies {
-  lazy val sttpVersion = "4.0.25"
+  lazy val sttpVersion = "4.0.26"
   private lazy val scalaTestVersion = "3.2.20"
   private lazy val scalaCacheVersion = "1.0.0-M6"
-  private lazy val nettyVersion = "4.1.135.Final"
+  private lazy val nettyVersion = "4.1.136.Final"
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
@@ -26,7 +26,7 @@ object Dependencies {
   lazy val sttpFs2 = "com.softwaremill.sttp.client4" %% "fs2" % sttpVersion
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.8.0"
   lazy val sttpCirce = "com.softwaremill.sttp.client4" %% "circe" % sttpVersion
-  lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.158"
+  lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.160"
   lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % "3.2.18.0"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "3.0.1"
 }
