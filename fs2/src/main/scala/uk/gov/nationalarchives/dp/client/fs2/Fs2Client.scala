@@ -43,7 +43,7 @@ object Fs2Client:
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
       potentialProxyUrl: Option[URI] = None,
-      retryCount: Int = 5
+      retryCount: Int = 2
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
@@ -66,7 +66,7 @@ object Fs2Client:
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
       potentialProxyUrl: Option[URI] = None,
-      retryCount: Int = 5
+      retryCount: Int = 2
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
@@ -88,7 +88,7 @@ object Fs2Client:
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
       potentialProxyUrl: Option[URI] = None,
-      retryCount: Int = 5
+      retryCount: Int = 2
   ): IO[WorkflowClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
@@ -112,7 +112,7 @@ object Fs2Client:
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
       potentialProxyUrl: Option[URI] = None,
-      retryCount: Int = 5
+      retryCount: Int = 2
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
@@ -124,7 +124,7 @@ object Fs2Client:
       duration: FiniteDuration = 15.minutes,
       ssmEndpointUri: String = defaultSecretsManagerEndpoint,
       potentialProxyUrl: Option[URI] = None,
-      retryCount: Int = 5
+      retryCount: Int = 2
   ): IO[UserClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
       val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
