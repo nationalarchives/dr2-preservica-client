@@ -27,15 +27,15 @@ jobs:
           git_commit_gpgsign: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      - run: |
+      - name: Publish to CodeArtifact
+        run: |
           git config --global user.email 181243999+tna-da-bot@users.noreply.github.com
           git config --global user.name tna-da-bot
           git checkout -b $BRANCH_NAME
           git push -u origin $BRANCH_NAME
+          export CODEARTIFACT_AUTH_TOKEN="$(aws codeartifact get-authorization-token --domain tna-da --domain-owner ${{ secrets.MANAGEMENT_ACCOUNT }} --query authorizationToken --output text)"
+          export CODEARTIFACT_REPOSITORY_ENDPOINT="$(aws codeartifact get-repository-endpoint --domain tna-da --domain-owner ${{ secrets.MANAGEMENT_ACCOUNT }} --repository dr2 --format maven --query repositoryEndpoint --output text)"
           sbt '+release with-defaults'
-        env:
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
       - name: Create Pull Request
         run: gh pr create --fill --label 'Version bump'
         env:

@@ -43,6 +43,5 @@ The CI tests run `sbt test` and `sbt scalafmtCheckAll`.
 Compiler warnings are set to show as errors so things like unused imports will cause the tests to fail.
 
 ## Deployment
-There is one package deployed to maven under the `uk.gov.nationalarchives.dp.client` organisation, `fs2`
+There is one package published to the CodeArtifact Maven repository under the `uk.gov.nationalarchives.dp.client` organisation, `fs2`
 These are only available for Scala 3. Cross building for Scala 2 isn't currently possible but this can be refactored to allow this if necessary.
-

@@ -1,18 +1,27 @@
 import sbtrelease.ReleaseStateTransformations.*
 import Dependencies.*
-import sbt.internal.librarymanagement.Publishing.sonaRelease
 
 lazy val scala3Version = "3.8.4"
+lazy val codeArtifactDomain = "dr2"
+lazy val codeArtifactRepository = "maven"
+lazy val codeArtifactOwner = sys.env.getOrElse("MANAGEMENT_ACCOUNT", "132603323695")
+lazy val codeArtifactRegion = sys.env.getOrElse("AWS_REGION", "eu-west-2")
+lazy val codeArtifactHost =
+  s"$codeArtifactDomain-$codeArtifactOwner.d.codeartifact.$codeArtifactRegion.amazonaws.com"
+lazy val codeArtifactRepositoryUrl =
+  s"https://$codeArtifactHost/maven/$codeArtifactRepository/"
+lazy val codeArtifactPublishUrl =
+  sys.env.getOrElse("CODEARTIFACT_REPOSITORY_ENDPOINT", codeArtifactRepositoryUrl)
 
 ThisBuild / scalaVersion := scala3Version
 
-lazy val releaseSettings = Seq(
+lazy val publishingSettings = Seq(
   useGpgPinentry := true,
-  publishTo := {
-    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
-    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
-    else localStaging.value
-  },
+  publishTo := Some("codeartifact" at codeArtifactPublishUrl),
+  credentials ++= sys.env
+    .get("CODEARTIFACT_AUTH_TOKEN")
+    .map(token => Credentials("CodeArtifact", codeArtifactHost, "aws", token))
+    .toSeq,
   publishMavenStyle := true,
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
@@ -23,13 +32,10 @@ lazy val releaseSettings = Seq(
     commitReleaseVersion,
     tagRelease,
     releaseStepCommand("publishSigned"),
-    releaseStepCommand(sonaRelease),
     setNextVersion,
     commitNextVersion,
     pushChanges
   ),
-  resolvers +=
-    "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   version := (ThisBuild / version).value,
   organization := "uk.gov.nationalarchives",
   organizationName := "National Archives",
@@ -87,7 +93,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= Seq("-Wunused:imports", "-Werror", "-deprecation", "-Xmax-inlines", "50"),
   Test / fork := true,
   Test / envVars := Map("AWS_ACCESS_KEY_ID" -> "test", "AWS_SECRET_ACCESS_KEY" -> "test")
-) ++ releaseSettings
+) ++ publishingSettings
 
 lazy val fs2Ref = LocalProject("fs2")
 
