@@ -45,7 +45,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         val description = optionValue("Description")
         val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
         val deleted = optionValue("Deleted").isDefined
-        val parent = optionValue("Parent").map(_.trim).map(UUID.fromString)
+        val parent = optionValue("Parent").map(_.strip).map(UUID.fromString)
         fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
       }
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))

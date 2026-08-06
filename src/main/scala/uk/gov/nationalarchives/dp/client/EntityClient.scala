@@ -917,6 +917,6 @@ object EntityClient {
 
   object SecurityTag:
     def fromString(securityTagString: String): Option[SecurityTag] = Try(
-      SecurityTag.valueOf(securityTagString.trim.capitalize)
+      SecurityTag.valueOf(securityTagString.strip.capitalize)
     ).toOption
 }
