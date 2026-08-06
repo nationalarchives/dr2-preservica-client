@@ -40,12 +40,12 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
   def getEntity(entityRef: UUID, entityResponse: Elem, entityType: EntityType): F[Entity] = {
     (entityResponse \ entityType.toString).headOption
       .map { entity =>
-        def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text.trim)
+        def optionValue(nodeName: String): Option[String] = (entity \ nodeName).headOption.map(_.text)
         val title = optionValue("Title")
         val description = optionValue("Description")
         val securityTag = optionValue("SecurityTag").flatMap(SecurityTag.fromString)
         val deleted = optionValue("Deleted").isDefined
-        val parent = optionValue("Parent").map(UUID.fromString)
+        val parent = optionValue("Parent").map(_.strip).map(UUID.fromString)
         fromType[F](entityType.entityTypeShort, entityRef, title, description, deleted, securityTag, parent)
       }
       .getOrElse(me.raiseError(PreservicaClientException(s"Entity type '$entityType' not found for id $entityRef")))
