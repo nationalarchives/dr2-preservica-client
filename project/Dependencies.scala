@@ -8,6 +8,7 @@ object Dependencies {
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
   lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.13.0"
+  lazy val httpClient = "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.4"
   lazy val nettyBuffer = "io.netty" % "netty-buffer" % nettyVersion
   lazy val nettyCodecHttp2 = "io.netty" % "netty-codec-http2" % nettyVersion
   lazy val nettyCodecHttp = "io.netty" % "netty-codec-http" % nettyVersion
