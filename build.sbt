@@ -52,7 +52,8 @@ lazy val releaseSettings = Seq(
   homepage := Some(url("https://github.com/nationalarchives/dr2-preservica-client"))
 )
 
-lazy val nettyOverrides = Seq(
+lazy val overrides = Seq(
+  httpClient,
   nettyBuffer,
   nettyCodecHttp2,
   nettyCodecHttp,
@@ -97,7 +98,7 @@ lazy val root: Project = project
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
     name := "preservica-client-root",
-    dependencyOverrides ++= nettyOverrides
+    dependencyOverrides ++= overrides
   )
   .aggregate(fs2Ref)
 
@@ -107,7 +108,7 @@ lazy val fs2 = project
   .settings(
     name := "preservica-client-fs2",
     libraryDependencies ++= Seq(sttpFs2),
-    dependencyOverrides ++= nettyOverrides
+    dependencyOverrides ++= overrides
   )
   .dependsOn(root % "compile->compile;test->test")
 
@@ -119,7 +120,7 @@ lazy val docs = (project in file("site-docs"))
   )
   .enablePlugins(ParadoxSitePlugin, ScalaUnidocPlugin, SitePreviewPlugin)
   .settings(
-    dependencyOverrides ++= nettyOverrides,
+    dependencyOverrides ++= overrides,
     paradoxProperties += (
       "version" -> (ThisBuild / version).value.split("-").head
     ),

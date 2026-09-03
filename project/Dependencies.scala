@@ -8,6 +8,7 @@ object Dependencies {
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
   lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.13.0"
+  lazy val httpClient = "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.4"
   lazy val nettyBuffer = "io.netty" % "netty-buffer" % nettyVersion
   lazy val nettyCodecHttp2 = "io.netty" % "netty-codec-http2" % nettyVersion
   lazy val nettyCodecHttp = "io.netty" % "netty-codec-http" % nettyVersion
@@ -27,6 +28,6 @@ object Dependencies {
   lazy val log4Cats = "org.typelevel" %% "log4cats-slf4j" % "2.8.0"
   lazy val sttpCirce = "com.softwaremill.sttp.client4" %% "circe" % sttpVersion
   lazy val secretsManagerClient = "uk.gov.nationalarchives" %% "da-secretsmanager-client" % "0.1.162"
-  lazy val mockito = "org.scalatestplus" %% "mockito-5-10" % "3.2.18.0"
+  lazy val mockito = "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0"
   lazy val wireMock = "com.github.tomakehurst" % "wiremock-jre8" % "3.0.1"
 }
