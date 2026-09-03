@@ -92,14 +92,13 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 
         response.map(_.code) match {
           case Left(e) => Logger[F].error(e)(s"$retryMessage exception ${e.getMessage}").as(HandlerDecision.Continue)
-          case Right(code)
-              if code == StatusCode.Unauthorized && retryDetails.retriesSoFar == 0 || code == StatusCode.Forbidden =>
+          case Right(code) if code == StatusCode.Unauthorized || code == StatusCode.Forbidden =>
             Logger[F]
               .warn(s"$retryMessage unauthorised response ${code.code}. Invalidating cache")
               .flatMap { _ =>
                 caffeineCache.removeAll
               }
-              .as(HandlerDecision.Continue)
+              .as(HandlerDecision.Stop)
           case Right(code) if code.isClientError || code.isServerError =>
             Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
           case _ => Async[F].pure(HandlerDecision.Stop)
