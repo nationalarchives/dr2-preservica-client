@@ -98,7 +98,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
               .flatMap { _ =>
                 caffeineCache.removeAll
               }
-              .as(HandlerDecision.Stop)
+              .as(HandlerDecision.Continue)
           case Right(code) if code.isClientError || code.isServerError =>
             Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
           case _ => Async[F].pure(HandlerDecision.Stop)
@@ -170,12 +170,20 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
-    val request = basicRequest
+    val uri = loginEndpointUri(authDetails.apiUrl)
+    basicRequest
       .body(Map("username" -> authDetails.userName, "password" -> authDetails.password))
-      .post(loginEndpointUri(authDetails.apiUrl))
+      .post(uri)
       .response(asJson[Token])
       .send(backend)
-    retrySend[Token, ResponseException[String]](Method.POST, loginEndpointUri(authDetails.apiUrl), request).map(_.token)
+      .flatMap { res =>
+        Async[F].fromEither {
+          res.body.left.map { err =>
+            PreservicaClientException(Method.POST, uri, res.code, err.getMessage)
+          }
+        }
+      }
+      .map(_.token)
   }
 
   private[client] def getAuthenticationToken: F[TokenDetails] =
