@@ -1,7 +1,8 @@
 package uk.gov.nationalarchives.dp.client
 
-import cats.effect.Async
+import cats.effect.{Async, Deferred, Ref}
 import cats.implicits.*
+import cats.effect.implicits.*
 import com.github.benmanes.caffeine.cache.{Caffeine, Cache as CCache}
 import io.circe
 import io.circe.{Decoder, HCursor}
@@ -10,7 +11,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import retry.*
 import scalacache.*
 import scalacache.caffeine.*
-import scalacache.memoization.*
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
@@ -21,7 +21,7 @@ import sttp.client4.circe.*
 import sttp.client4.logging.LogConfig
 import sttp.client4.logging.LogLevel.Trace
 import sttp.client4.logging.slf4j.Slf4jLoggingBackend
-import sttp.model.{Method, StatusCode, Uri}
+import sttp.model.{Method, StatusCode}
 import uk.gov.nationalarchives.DASecretsManagerClient
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage.*
@@ -52,6 +52,11 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
 
   given caffeineCache: Cache[F, String, TokenDetails] = CaffeineCache[F, String, TokenDetails](underlying)
 
+  // Guards concurrent token refreshes so that, when the cached token expires, a burst of concurrent callers
+  // shares a single in-flight fetch instead of each independently calling Secrets Manager/Preservica at once.
+  private val tokenRefreshInFlight: Ref[F, Option[Deferred[F, Either[Throwable, TokenDetails]]]] =
+    Ref.unsafe[F, Option[Deferred[F, Either[Throwable, TokenDetails]]]](None)
+
   val secretName: String = clientConfig.secretName
   private[client] val asXml: ResponseAs[Either[String, Elem]] =
     asString.mapRight(XML.loadString)
@@ -62,6 +67,12 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     LogConfig(logRequestHeaders = false, logResponseHeaders = false, beforeRequestSendLogLevel = Trace)
   private[client] val backend: WebSocketStreamBackend[F, S] = Slf4jLoggingBackend(clientConfig.backend, logConfig)
   private val duration: FiniteDuration = clientConfig.duration
+
+  // Preservica expires the token at roughly the same time as the configured cache duration. Caching for the full
+  // duration means a token read from the cache just before it expires can be rejected with a 401, so the token is
+  // cached for slightly less than the configured duration to leave a safety margin.
+  private val tokenCacheDuration: FiniteDuration =
+    FiniteDuration(math.max(duration.toMillis - (duration.toMillis / 10), 0L), MILLISECONDS)
   private def loginEndpointUri(apiBaseUrl: String) = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
 
@@ -77,8 +88,13 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   given Decoder[Token] = (c: HCursor) => c.downField("token").as[String].map(Token.apply)
   given SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-  private def retrySend[T, E](method: Method, apiUri: Uri, response: F[Response[Either[E, T]]]): F[T] = {
+  // The effect passed in is re-evaluated on every retry, so it must build the request from scratch. This matters for
+  // authenticated requests: after a 401 invalidates the cached token, the retry has to send the newly fetched token
+  // rather than the expired one which was used for the original attempt.
+  private def retrySend[T, E](response: F[Response[Either[E, T]]]): F[T] = {
     def liftEither(response: Response[Either[E, T]]): F[T] = Async[F].fromEither {
+      val method = response.request.method
+      val apiUri = response.request.uri
       response.body.left.map {
         case e: Throwable => PreservicaClientException(method, apiUri, response.code, e.getMessage)
         case e            => PreservicaClientException(method, apiUri, response.code, e.toString)
@@ -116,7 +132,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       url: String,
       method: Method,
       potentialRequestBody: Option[String] = None
-  ) =
+  ) = retrySend {
     getAuthenticationToken
       .flatMap { tokenDetails =>
         val apiUri = createApiUri(url, tokenDetails.apiUrl)
@@ -126,16 +142,15 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
           .readTimeout(Duration.Inf)
           .response(asXml)
         val requestWithBody = potentialRequestBody.map(request.body(_)).getOrElse(request)
-        Async[F].blocking((apiUri, backend.send(requestWithBody))).flatMap { case (apiUri, response) =>
-          retrySend(method, apiUri, response)
-        }
+        Async[F].blocking(backend.send(requestWithBody)).flatten
       }
+  }
 
   private[client] def sendJsonApiRequest[R: IsOption](
       url: String,
       method: Method,
       requestBody: Option[String] = None
-  )(using decoder: Decoder[R]): F[R] =
+  )(using decoder: Decoder[R]): F[R] = retrySend {
     getAuthenticationToken
       .flatMap { tokenDetails =>
         val apiUri = createApiUri(url, tokenDetails.apiUrl)
@@ -148,10 +163,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
           .response(asJson[R])
         val requestWithBody: Request[Either[ResponseException[String], R]] =
           requestBody.map(request.body(_)).getOrElse(request)
-        Async[F].blocking((apiUri, backend.send(requestWithBody))).flatMap { case (apiUri, response) =>
-          retrySend(method, apiUri, response)
-        }
+        Async[F].blocking(backend.send(requestWithBody)).flatten
       }
+  }
 
   private[client] def getAuthDetails(stage: Stage = Current): F[AuthDetails] =
     Async[F]
@@ -175,16 +189,42 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
       .post(loginEndpointUri(authDetails.apiUrl))
       .response(asJson[Token])
       .send(backend)
-    retrySend[Token, ResponseException[String]](Method.POST, loginEndpointUri(authDetails.apiUrl), request).map(_.token)
+    retrySend[Token, ResponseException[String]](request).map(_.token)
   }
 
-  private[client] def getAuthenticationToken: F[TokenDetails] =
-    memoizeF[F, TokenDetails](Some(duration)) {
-      for {
+  private[client] def getAuthenticationToken: F[TokenDetails] = {
+    val cacheKey = "authenticationToken"
+
+    def fetchGenerateAndCacheToken: F[TokenDetails] =
+      for
         authDetails <- getAuthDetails()
         token <- generateToken(authDetails)
-      } yield TokenDetails(token, authDetails.apiUrl)
+        tokenDetails = TokenDetails(token, authDetails.apiUrl)
+        _ <- caffeineCache.put(cacheKey)(tokenDetails, Some(tokenCacheDuration))
+      yield tokenDetails
+
+    // If the cache is empty (e.g. the token has just expired), ensure only one fiber performs the actual fetch.
+    // Concurrent callers register interest in the in-flight fetch's Deferred and wait for its result rather than
+    // starting their own fetch, preventing a thundering herd of simultaneous Secrets Manager/login calls.
+    def singleFlightFetch: F[TokenDetails] =
+      Deferred[F, Either[Throwable, TokenDetails]].flatMap { newDeferred =>
+        tokenRefreshInFlight.modify {
+          case existing @ Some(inFlight) => (existing, inFlight.get.rethrow)
+          case None                      =>
+            val fetch = fetchGenerateAndCacheToken.attempt
+              .flatTap(newDeferred.complete)
+              .guarantee(tokenRefreshInFlight.set(None))
+              .onCancel(newDeferred.complete(Left(PreservicaClientException("Token refresh was cancelled"))).void)
+              .rethrow
+            (Some(newDeferred), fetch)
+        }.flatten
+      }
+
+    caffeineCache.get(cacheKey).flatMap {
+      case Some(cachedTokenDetails) => Async[F].pure(cachedTokenDetails)
+      case None                     => singleFlightFetch
     }
+  }
 }
 
 /** Case classes common to several clients
