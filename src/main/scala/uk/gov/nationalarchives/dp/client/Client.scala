@@ -98,7 +98,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
               .flatMap { _ =>
                 caffeineCache.removeAll
               }
-              .as(HandlerDecision.Continue)
+              .as(HandlerDecision.Stop)
           case Right(code) if code.isClientError || code.isServerError =>
             Logger[F].warn(s"$retryMessage ${code.code} response").as(HandlerDecision.Continue)
           case _ => Async[F].pure(HandlerDecision.Stop)
