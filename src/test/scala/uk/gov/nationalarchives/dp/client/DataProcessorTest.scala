@@ -320,7 +320,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.size should equal(1)
     response.head.name should equal("test.text")
     response.head.fileSize should equal(1234)
-    response.head.url should equal("http://test")
+    response.head.url.get should equal("http://test")
     response.head.fixities.size should equal(2)
     response.head.fixities.find(_.algorithm == "SHA1").get.value should equal(
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
@@ -328,10 +328,57 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.head.fixities.find(_.algorithm == "SHA256").get.value should equal(
       "5470f126401c16cd071df3002ab516f176c21a4b0e03df011bad18e200c5f960"
     )
-    response.head.generationVersion should equal(2)
+    response.head.generationVersion.get should equal(2)
     response.head.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
     response.head.parentRef should equal(Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")))
+  }
+
+  "bitstreamFromAsset" should "return the matching bitstream information for the original active generation" in {
+    val assetId = UUID.fromString("7d2f0a54-185d-4d0d-9d9d-fbfb1c8ea9d1")
+    val contentObjectRef = "11111111-1111-1111-1111-111111111111"
+    val input =
+      <EntityResponse>
+        <Structure>
+          <XIP>
+            <InformationObject>
+              <Ref>{assetId}</Ref>
+            </InformationObject>
+            <ContentObject>
+              <Ref>{contentObjectRef}</Ref>
+              <Title>Content object title</Title>
+            </ContentObject>
+            <Generation original="true" active="true">
+              <ContentObject>{contentObjectRef}</ContentObject>
+              <Bitstreams>
+                <Bitstream>test1.txt</Bitstream>
+              </Bitstreams>
+            </Generation>
+            <Bitstream>
+              <Filename>test1.txt</Filename>
+              <FileSize>1234</FileSize>
+              <Fixities>
+                <Fixity>
+                  <FixityAlgorithmRef>MD5</FixityAlgorithmRef>
+                  <FixityValue>4985298cbf6b2b74c522ced8b128ebe3</FixityValue>
+                </Fixity>
+              </Fixities>
+            </Bitstream>
+          </XIP>
+        </Structure>
+      </EntityResponse>
+
+    val response = new DataProcessor[F]().bitstreamFromAsset(input)
+
+    response.size should equal(1)
+    response.head.name should equal("test1.txt")
+    response.head.fileSize should equal(1234)
+    response.head.generationType should equal(Original)
+    response.head.potentialCoTitle should equal(Some("Content object title"))
+    response.head.parentRef should equal(Some(assetId))
+    response.head.fixities.size should equal(1)
+    response.head.fixities.head.algorithm should equal("MD5")
+    response.head.fixities.head.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
   }
 
   "getNextPage" should "return the next page" in {

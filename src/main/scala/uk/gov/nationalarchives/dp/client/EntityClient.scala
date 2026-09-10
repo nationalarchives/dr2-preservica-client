@@ -12,6 +12,7 @@ import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
+import fs2.*
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -39,6 +40,8 @@ trait EntityClient[F[_], S] {
     *   An EntityMetadata object containing the metadata (Entity node, Identifiers and metadata) wrapped in the F effect
     */
   def metadataForEntity(entity: Entity): F[EntityMetadata]
+
+  def bitstreamForAsset(entityRef: UUID): F[Seq[BitStreamInfo]]
 
   /** Returns a list of [[Client.BitStreamInfo]] representing the bitstreams for the content object reference
     *
@@ -128,6 +131,15 @@ trait EntityClient[F[_], S] {
     *   The original identifiers argument.
     */
   def updateEntityIdentifiers(entity: Entity, identifiers: Seq[IdentifierResponse]): F[Seq[IdentifierResponse]]
+
+  /** Recursively streams all Asset (InformationObject) references found beneath the root, descending into
+    * StructuralObjects and skipping ContentObjects.
+    * @param maxConcurrency
+    *   The maximum number of API calls/branches of the traversal to run concurrently
+    * @return
+    *   A stream of Asset IDs
+    */
+  def getAllAssetIds(maxConcurrency: Int = 20): Stream[F, UUID]
 
   /** Streams the bitstream from the provided url into `streamFn`
     *
@@ -796,6 +808,47 @@ object EntityClient {
               } yield firstEntityRef -> Option(restOfRefs ++ nextPageOfRefs)
           }
         fs2.Stream.eval(topLevelEntityRefs).flatMap(getChildrenRefs).filterNot(_ == NoEntityRef)
+      }
+
+      override def bitstreamForAsset(entityRef: UUID): F[Seq[BitStreamInfo]] =
+        val entityType = EntityType.InformationObject
+        for
+          url <- Async[F].pure(uri"$apiUrl/${entityType.entityPath}/$entityRef?${Map("expand" -> "structure")}")
+          entityResponse <- sendXMLApiRequest(url.toString(), Method.GET)
+        yield dataProcessor.bitstreamFromAsset(entityResponse)
+
+      private def getFolderChildren(ref: UUID): Stream[F, EntityRef] = {
+        val queryParams = Map("max" -> 1000, "start" -> 0)
+        Stream
+          .eval(
+            children(
+              Some(uri"$apiUrl/structural-objects/$ref/children?$queryParams".toString),
+              Nil,
+              Some(ref)
+            )
+          )
+          .flatMap(Stream.emits)
+      }
+
+      private def getRootAssets(maxConcurrency: Int): Stream[F, EntityRef] = {
+        val queryParams = Map("max" -> 1000, "start" -> 0)
+        Stream
+          .eval(children(Some(uri"$apiUrl/root/children?$queryParams".toString), Nil, None))
+          .flatMap(Stream.emits)
+      }
+
+      override def getAllAssetIds(maxConcurrency: Int = 20): Stream[F, UUID] = {
+        def processEntity(entityRef: EntityRef): Stream[F, UUID] = {
+          entityRef match {
+            case EntityRef.StructuralObjectRef(ref, parentRef) =>
+              getFolderChildren(ref).map(processEntity).parJoin(maxConcurrency)
+            case EntityRef.InformationObjectRef(ref, parentRef) => Stream.emit(ref)
+            case EntityRef.ContentObjectRef(ref, parentRef)     => Stream.empty
+            case NoEntityRef                                    => Stream.empty
+          }
+        }
+
+        getRootAssets(maxConcurrency).map(processEntity).parJoin(maxConcurrency)
       }
     }
 

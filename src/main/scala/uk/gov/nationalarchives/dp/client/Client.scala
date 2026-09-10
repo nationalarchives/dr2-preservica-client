@@ -224,12 +224,12 @@ object Client {
   case class BitStreamInfo(
       name: String,
       fileSize: Long,
-      url: String,
       fixities: List[Fixity],
-      generationVersion: Int,
       generationType: GenerationType,
       potentialCoTitle: Option[String],
-      parentRef: Option[UUID]
+      parentRef: Option[UUID],
+      url: Option[String],
+      generationVersion: Option[Int]
   )
 
   /** Configuration for the clients
