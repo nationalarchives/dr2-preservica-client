@@ -326,7 +326,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val bitStreamInfo = valueFromF(response)
-    bitStreamInfo.head.url should equal(
+    bitStreamInfo.head.potentialUrl.get should equal(
       s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content"
     )
     bitStreamInfo.head.name should equal("test1.txt")
@@ -336,12 +336,12 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
     )
     bitStreamInfo.head.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
-    bitStreamInfo.head.generationVersion should equal(1)
-    bitStreamInfo.head.generationType should equal(Original)
+    bitStreamInfo.head.generation.version should equal(2)
+    bitStreamInfo.head.generation.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
     bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
-    bitStreamInfo.last.url should equal(
+    bitStreamInfo.last.potentialUrl.get should equal(
       s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
     )
     bitStreamInfo.last.name should equal("test1.txt")
@@ -351,8 +351,8 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
     )
     bitStreamInfo.last.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
-    bitStreamInfo.last.generationVersion should equal(2)
-    bitStreamInfo.last.generationType should equal(Derived)
+    bitStreamInfo.last.generation.version should equal(2)
+    bitStreamInfo.last.generation.generationType should equal(Derived)
     bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
     bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
@@ -392,6 +392,146 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       )
     }
     verifyServerRequests(Nil)
+  }
+
+  "bitstreamForAsset" should "return the bitstream info for an asset structure" in {
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val assetId = UUID.randomUUID()
+    val getAssetUrl = s"/api/entity/v$apiVersion/information-objects/$assetId?expand=structure"
+    val assetResponse =
+      <EntityResponse>
+        <Structure>
+          <XIP>
+            <InformationObject>
+              <Ref>{assetId}</Ref>
+            </InformationObject>
+            <ContentObject>
+              <Ref>11111111-1111-1111-1111-111111111111</Ref>
+              <Title>Content object title</Title>
+            </ContentObject>
+            <Generation original="true" active="true">
+              <ContentObject>11111111-1111-1111-1111-111111111111</ContentObject>
+              <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
+              <Bitstreams>
+                <Bitstream>test1.txt</Bitstream>
+              </Bitstreams>
+            </Generation>
+            <Bitstream>
+              <Filename>test1.txt</Filename>
+              <FileSize>1234</FileSize>
+              <Fixities>
+                <Fixity>
+                  <FixityAlgorithmRef>MD5</FixityAlgorithmRef>
+                  <FixityValue>4985298cbf6b2b74c522ced8b128ebe3</FixityValue>
+                </Fixity>
+                <Fixity>
+                  <FixityAlgorithmRef>SHA1</FixityAlgorithmRef>
+                  <FixityValue>0c16735b03fe46b931060858e8cd5ca9c5101565</FixityValue>
+                </Fixity>
+              </Fixities>
+            </Bitstream>
+          </XIP>
+        </Structure>
+      </EntityResponse>.toString
+
+    preservicaServer.stubFor(get(urlEqualTo(getAssetUrl)).willReturn(ok(assetResponse)))
+
+    val client = testClient
+    val response = valueFromF(client.bitstreamForAsset(assetId))
+
+    response.size should equal(1)
+    response.head.name should equal("test1.txt")
+    response.head.fileSize should equal(1234)
+    response.head.generation.generationType should equal(Original)
+    response.head.potentialCoTitle should equal(Some("Content object title"))
+    response.head.parentRef should equal(Some(assetId))
+    response.head.fixities.map(_.algorithm).toSet should equal(Set("MD5", "SHA1"))
+    verifyServerRequests(List(getAssetUrl))
+  }
+
+  "getAllAssetIds" should "recursively collect asset ids and skip content objects" in {
+    val endpoints = EntityClientEndpoints(preservicaServer)
+    val rootChildrenUrl = s"/api/entity/v$apiVersion/root/children"
+    val rootChildrenFirstPageUrl = s"$rootChildrenUrl?max=1000&start=0"
+    val rootChildrenSecondPageUrl = s"$rootChildrenUrl?max=1000&start=1000"
+    val so1ChildrenUrl =
+      s"/api/entity/v$apiVersion/structural-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/children?max=1000&start=0"
+    val so2ChildrenUrl =
+      s"/api/entity/v$apiVersion/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8/children?max=1000&start=0"
+    val so3ChildrenUrl =
+      s"/api/entity/v$apiVersion/structural-objects/dd672e2c-6248-43d7-81ff-c632acfc8fd7/children?max=1000&start=0"
+    val so1_2ChildrenUrl =
+      s"/api/entity/v$apiVersion/structural-objects/b107677d-745f-4cb8-94c7-e31383f2eb0b/children?max=1000&start=0"
+
+    preservicaServer.stubFor(
+      get(urlEqualTo(rootChildrenFirstPageUrl)).willReturn(ok(<ChildrenResponse>
+          <Children>
+            <Child title="SO 1 Title" ref="a9e1cae8-ea06-4157-8dd4-82d0525b031c" type="SO" overlays="lock" icon="folder">http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Child>
+            <Child title="SO 2 Title" ref="71143bfd-b29f-4548-871c-8334f2d2bcb8" type="SO" icon="folder">http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/71143bfd-b29f-4548-871c-8334f2d2bcb8</Child>
+          </Children>
+          <Paging>
+            <Next>{s"http://localhost:$preservicaPort$rootChildrenUrl"}?max=1000&amp;start=1000</Next>
+            <TotalResults>2</TotalResults>
+          </Paging>
+        </ChildrenResponse>.toString))
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(rootChildrenSecondPageUrl)).willReturn(ok(<ChildrenResponse>
+          <Children>
+            <Child title="SO 3 Title" ref="dd672e2c-6248-43d7-81ff-c632acfc8fd7" type="SO" overlays="lock" icon="folder">http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/dd672e2c-6248-43d7-81ff-c632acfc8fd7</Child>
+          </Children>
+          <Paging>
+            <TotalResults>1</TotalResults>
+          </Paging>
+        </ChildrenResponse>.toString))
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(so1ChildrenUrl)).willReturn(ok(<ChildrenResponse>
+          <Children>
+            <Child title="IO 1_1 Title" ref="a9e1cae8-ea06-4157-8dd4-82d0525b031c" type="IO" overlays="lock" icon="folder">http://localhost:$preservicaPort/api/entity/v$apiVersion/information-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c</Child>
+            <Child title="SO 1_2 Title" ref="b107677d-745f-4cb8-94c7-e31383f2eb0b" type="SO" icon="folder">http://localhost:$preservicaPort/api/entity/v$apiVersion/structural-objects/b107677d-745f-4cb8-94c7-e31383f2eb0b</Child>
+          </Children>
+          <Paging>
+            <TotalResults>2</TotalResults>
+          </Paging>
+        </ChildrenResponse>.toString))
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(so2ChildrenUrl)).willReturn(
+        ok(
+          <ChildrenResponse><Children></Children><Paging><TotalResults>0</TotalResults></Paging></ChildrenResponse>.toString
+        )
+      )
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(so3ChildrenUrl)).willReturn(
+        ok(
+          <ChildrenResponse><Children></Children><Paging><TotalResults>0</TotalResults></Paging></ChildrenResponse>.toString
+        )
+      )
+    )
+    preservicaServer.stubFor(
+      get(urlEqualTo(so1_2ChildrenUrl)).willReturn(
+        ok(
+          <ChildrenResponse><Children></Children><Paging><TotalResults>0</TotalResults></Paging></ChildrenResponse>.toString
+        )
+      )
+    )
+
+    val client = testClient
+    val assetIds = valueFromF(client.getAllAssetIds().compile.toList)
+
+    assetIds should contain theSameElementsAs List(UUID.fromString("a9e1cae8-ea06-4157-8dd4-82d0525b031c"))
+    verifyServerRequests(
+      List(
+        rootChildrenFirstPageUrl,
+        rootChildrenSecondPageUrl,
+        so1ChildrenUrl,
+        so2ChildrenUrl,
+        so3ChildrenUrl,
+        so1_2ChildrenUrl
+      )
+    )
   }
 
   "streamBitstreamContent" should "stream content to the provided function" in {
@@ -512,6 +652,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
 
     metadata.generationNodes.head.toString should equal(
       <Generation original="true" active="true" xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7" >
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>.toString
     )
 

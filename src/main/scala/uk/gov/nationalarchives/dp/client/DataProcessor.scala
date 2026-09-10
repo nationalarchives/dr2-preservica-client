@@ -22,7 +22,7 @@ import scala.xml.{Elem, MetaData, Node, NodeSeq}
 class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
 
   extension (ns: NodeSeq)
-    def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
+    private def textOfFirstElement(): F[String] = ns.headOption.map(_.text) match {
       case Some(value) => me.pure(value)
       case None        => me.raiseError(PreservicaClientException("Generation URL not found"))
     }
@@ -154,11 +154,15 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
   /** Returns whether the the text content of every `Generations` -> `Generation` element
     * @param generationsElement
     *   The 'Generations' element containing the generations
+    * @param contentObjectRef
+    *   The content object this generation is part of
+    * @param version
+    *   The version of this generation
     * @return
-    *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
+    *   A Generation object with the generation type, the effective date and a version
     */
 
-  def generationType(generationsElement: Elem, contentObjectRef: UUID): F[GenerationType] =
+  def generation(generationsElement: Elem, contentObjectRef: UUID): F[Generation] =
     (generationsElement \ "Generation").map(_.attributes) match {
       case Nil | List(xml.Null) =>
         me.raiseError(PreservicaClientException(s"No attributes found for entity ref: $contentObjectRef"))
@@ -176,7 +180,9 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
                 )
               )
           }
-        potentialGenerationType
+        val effectiveDate = ZonedDateTime.parse((generationsElement \ "Generation" \ "EffectiveDate").text)
+        val version = (generationsElement \ "AdditionalInformation" \ "Self").text.split("/").last.toInt
+        potentialGenerationType.map(gt => Generation(effectiveDate, gt, version))
     }
 
   /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
@@ -189,6 +195,64 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     (generationElement \ "Bitstreams" \ "Bitstream").map(_.text)
   }
 
+  /** @param assetNode
+    *   The asset response
+    * @return
+    *   A list of `BitStreamInfo` representing the bitstreams for this asset
+    */
+  def bitstreamFromAsset(assetNode: scala.xml.Node): Seq[BitStreamInfo] =
+    val xip = (assetNode \\ "Structure" \ "XIP").head
+
+    val parentRef = (xip \ "InformationObject" \ "Ref").headOption
+      .map(_.text.trim)
+      .map(UUID.fromString)
+
+    val contentObjects = xip \ "ContentObject"
+
+    val contentObjectByRef: Map[String, scala.xml.Node] =
+      contentObjects.map(co => (co \ "Ref").text -> co).toMap
+
+    val bitstreamByFilename: Map[String, scala.xml.Node] = (xip \ "Bitstream").map { bs =>
+      (bs \ "Filename").text -> bs
+    }.toMap
+
+    val matchingGenerations = (xip \ "Generation").filter { gen =>
+      gen.attribute("original").exists(_.text == "true")
+    }
+
+    matchingGenerations.toList.flatMap { gen =>
+      val contentObjectRef = (gen \ "ContentObject").text
+
+      val effectiveDate = ZonedDateTime.parse((gen \ "EffectiveDate").text)
+
+      val potentialCoTitle = (contentObjectByRef(contentObjectRef) \ "Title").text
+
+      val filenames = (gen \ "Bitstreams" \ "Bitstream").map(_.text.trim).filter(_.nonEmpty)
+
+      filenames.toList.flatMap { filename =>
+        bitstreamByFilename.get(filename).map { bs =>
+          val fileSize = (bs \ "FileSize").text.toLong
+
+          val fixities = (bs \ "Fixities" \ "Fixity").toList.map { fixity =>
+            Fixity((fixity \\ "FixityAlgorithmRef").text, (fixity \\ "FixityValue").text)
+          }
+
+          val generation = Generation(effectiveDate, GenerationType.Original, 1)
+
+          BitStreamInfo(
+            filename,
+            fileSize,
+            None,
+            fixities,
+            Option(potentialCoTitle),
+            parentRef,
+            generation,
+            UUID.fromString(contentObjectRef)
+          )
+        }
+      }
+    }
+
   /** Returns a list of [[Client.BitStreamInfo]] objects
     * @param bitstreamElements
     *   The elements containing the bitstream information
@@ -197,7 +261,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     */
   def allBitstreamInfo(
       bitstreamElements: Seq[Elem],
-      generationType: GenerationType,
+      generation: Generation,
       contentObject: Entity
   ): F[Seq[BitStreamInfo]] =
     me.pure {
@@ -205,9 +269,6 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         val filename = (be \\ "Bitstream" \\ "Filename").text
         val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
         val bitstreamInfoUrl = (be \\ "AdditionalInformation" \\ "Self").text
-
-        val bitstreamInfoUrlReversed = bitstreamInfoUrl.split("/").reverse
-        val generationVersion = bitstreamInfoUrlReversed(2).toInt
 
         val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
 
@@ -218,12 +279,12 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         BitStreamInfo(
           filename,
           fileSize,
-          bitstreamUrl,
+          Option(bitstreamUrl),
           fixities,
-          generationVersion,
-          generationType,
           contentObject.title,
-          contentObject.parent
+          contentObject.parent,
+          generation,
+          contentObject.ref
         )
       }
     }
@@ -346,8 +407,8 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
   /** Returns a `Seq` of String objects
     * @param elem
     *   The element containing the representations
-    * @param representationType
-    *   The (Optional) representation type that you want returned
+    * @param ioEntityRef
+    *   The parent reference of the content object
     * @return
     *   A `Seq` of `String` objects parsed from the XML
     */
@@ -426,7 +487,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     *   A `Seq` of Node, representing Event actions
     */
   def getEventActionElements(eventActionsResponseElement: Elem): F[Seq[Node]] =
-    me.pure((eventActionsResponseElement \ "EventActions" \ "EventAction"))
+    me.pure(eventActionsResponseElement \ "EventActions" \ "EventAction")
 
   /** Returns a Seq containing one Representation [[scala.xml.Node]] XML object
     *
@@ -436,7 +497,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     *   A `Seq` of `Node` containing the links
     */
   def getRepresentationElement(representationResponseElement: Elem): F[Seq[Node]] =
-    me.pure((representationResponseElement \ "Representation"))
+    me.pure(representationResponseElement \ "Representation")
 
   /** Returns a Seq containing one Generation [[scala.xml.Node]] XML object
     *
@@ -446,7 +507,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     *   A `Seq` of `Node` containing the links
     */
   def getGenerationElement(generationResponseElement: Elem): F[Seq[Node]] =
-    me.pure((generationResponseElement \ "Generation"))
+    me.pure(generationResponseElement \ "Generation")
 }
 
 /** An apply method for the `DataProcessor` class and the `EventAction` case class
