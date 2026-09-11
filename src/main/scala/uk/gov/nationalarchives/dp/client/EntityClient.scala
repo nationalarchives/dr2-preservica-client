@@ -379,10 +379,10 @@ object EntityClient {
           allGenerationElements <- generationElements(generationsEndpointUrl, contentObjectRef)
           allBitstreamInfo <- allGenerationElements.map { generationElement =>
             for {
-              generationType <- dataProcessor.generationType(generationElement, contentObjectRef)
+              generation <- dataProcessor.generation(generationElement, contentObjectRef)
               bitstreamElements <- bitstreamElements(generationElement)
               contentObject <- dataProcessor.getEntity(contentObjectRef, contentObjectElement, ContentObject)
-              allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generationType, contentObject)
+              allBitstreamInfo <- dataProcessor.allBitstreamInfo(bitstreamElements, generation, contentObject)
             } yield allBitstreamInfo
           }.flatSequence
 
@@ -935,6 +935,8 @@ object EntityClient {
       securityTag: SecurityTag,
       parentRef: Option[UUID]
   )
+
+  case class Generation(effectiveDate: ZonedDateTime, generationType: GenerationType, version: Int)
 
   enum GenerationType:
     case Original, Derived

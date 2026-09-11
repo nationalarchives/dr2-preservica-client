@@ -21,7 +21,7 @@ object Entity {
         _ <- bitStreamInfo
           .map(eachBitStream => {
             client.streamBitstreamContent[Unit](Fs2Streams.apply)(
-              eachBitStream.url,
+              eachBitStream.potentialUrl,
               stream => processStream(eachBitStream.name, stream) // Pass a function in to handle the stream
             )
           })

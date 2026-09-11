@@ -26,7 +26,7 @@ import uk.gov.nationalarchives.DASecretsManagerClient
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage
 import uk.gov.nationalarchives.DASecretsManagerClient.Stage.*
 import uk.gov.nationalarchives.dp.client.Client.*
-import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType
+import uk.gov.nationalarchives.dp.client.EntityClient.Generation
 
 import java.net.URI
 import java.util.UUID
@@ -210,7 +210,7 @@ object Client {
     *   The name of the bitstream
     * @param fileSize
     *   The size of the bitstream
-    * @param url
+    * @param potentialUrl
     *   The url to download the bitstream
     * @param fixities
     *   The list of fixities associated with the bitstream
@@ -224,12 +224,11 @@ object Client {
   case class BitStreamInfo(
       name: String,
       fileSize: Long,
+      potentialUrl: Option[String],
       fixities: List[Fixity],
-      generationType: GenerationType,
       potentialCoTitle: Option[String],
       parentRef: Option[UUID],
-      url: Option[String],
-      generationVersion: Option[Int]
+      generation: Generation
   )
 
   /** Configuration for the clients

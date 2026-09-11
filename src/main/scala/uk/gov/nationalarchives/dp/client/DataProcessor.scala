@@ -154,11 +154,15 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
   /** Returns whether the the text content of every `Generations` -> `Generation` element
     * @param generationsElement
     *   The 'Generations' element containing the generations
+    * @param contentObjectRef
+    *   The content object this generation is part of
+    * @param version
+    *   The version of this generation
     * @return
-    *   A `Seq` of `String` with the text content of every `Generations` -> `Generation` element
+    *   A Generation object with the generation type, the effective date and a version
     */
 
-  def generationType(generationsElement: Elem, contentObjectRef: UUID): F[GenerationType] =
+  def generation(generationsElement: Elem, contentObjectRef: UUID): F[Generation] =
     (generationsElement \ "Generation").map(_.attributes) match {
       case Nil | List(xml.Null) =>
         me.raiseError(PreservicaClientException(s"No attributes found for entity ref: $contentObjectRef"))
@@ -176,7 +180,9 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
                 )
               )
           }
-        potentialGenerationType
+        val effectiveDate = ZonedDateTime.parse((generationsElement \ "Generation" \ "EffectiveDate").text)
+        val version = (generationsElement \ "AdditionalInformation" \ "Self").text.split("/").last.toInt
+        potentialGenerationType.map(gt => Generation(effectiveDate, gt, version))
     }
 
   /** Returns all the text content of every `Bitstreams` -> `Bitstream` element
@@ -211,11 +217,13 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     }.toMap
 
     val matchingGenerations = (xip \ "Generation").filter { gen =>
-      gen.attribute("original").exists(_.text == "true") && gen.attribute("active").exists(_.text == "true")
+      gen.attribute("original").exists(_.text == "true")
     }
 
     matchingGenerations.toList.flatMap { gen =>
       val contentObjectRef = (gen \ "ContentObject").text
+
+      val effectiveDate = ZonedDateTime.parse((gen \ "EffectiveDate").text)
 
       val potentialCoTitle = (contentObjectByRef(contentObjectRef) \ "Title").text
 
@@ -229,15 +237,16 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
             Fixity((fixity \\ "FixityAlgorithmRef").text, (fixity \\ "FixityValue").text)
           }
 
+          val generation = Generation(effectiveDate, GenerationType.Original, 1)
+
           BitStreamInfo(
             filename,
             fileSize,
+            None,
             fixities,
-            GenerationType.Original,
             Option(potentialCoTitle),
             parentRef,
-            None,
-            None
+            generation
           )
         }
       }
@@ -251,7 +260,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     */
   def allBitstreamInfo(
       bitstreamElements: Seq[Elem],
-      generationType: GenerationType,
+      generation: Generation,
       contentObject: Entity
   ): F[Seq[BitStreamInfo]] =
     me.pure {
@@ -259,9 +268,6 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         val filename = (be \\ "Bitstream" \\ "Filename").text
         val fileSize = (be \\ "Bitstream" \\ "FileSize").text.toLong
         val bitstreamInfoUrl = (be \\ "AdditionalInformation" \\ "Self").text
-
-        val bitstreamInfoUrlReversed = bitstreamInfoUrl.split("/").reverse
-        val generationVersion = bitstreamInfoUrlReversed(2).toInt
 
         val bitstreamUrl = (be \\ "AdditionalInformation" \\ "Content").text
 
@@ -272,12 +278,11 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
         BitStreamInfo(
           filename,
           fileSize,
+          Option(bitstreamUrl),
           fixities,
-          generationType,
           contentObject.title,
           contentObject.parent,
-          Option(bitstreamUrl),
-          Option(generationVersion)
+          generation
         )
       }
     }

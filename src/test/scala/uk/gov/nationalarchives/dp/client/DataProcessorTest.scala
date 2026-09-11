@@ -9,7 +9,7 @@ import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.GenerationType.*
-import uk.gov.nationalarchives.dp.client.EntityClient.apiVersion
+import uk.gov.nationalarchives.dp.client.EntityClient.{Generation, apiVersion}
 
 import scala.xml.Utility.trim
 import java.time.ZonedDateTime
@@ -210,12 +210,18 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val input =
       <GenerationsResponse>
         <Generation original="true" active="true">
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>
+        <AdditionalInformation>
+          <Self>generations/1</Self>
+        </AdditionalInformation>
       </GenerationsResponse>
-    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
-    val generationType = valueFromF(generationTypeF)
+    val generationF = new DataProcessor[F]().generation(input, contentObjectRef)
+    val generation = valueFromF(generationF)
 
-    generationType should equal(Original)
+    generation.generationType should equal(Original)
+    generation.version should equal(1)
+    generation.effectiveDate should equal(ZonedDateTime.parse("2026-04-02T09:45:43Z"))
   }
 
   "generationType" should "return an error if the generation has no attributes" in {
@@ -224,11 +230,14 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
       <GenerationsResponse>
         <Generation>
         </Generation>
+        <AdditionalInformation>
+          <Self>generations/1</Self>
+        </AdditionalInformation>
       </GenerationsResponse>
-    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationF = new DataProcessor[F]().generation(input, contentObjectRef)
 
     val generationsError = intercept[Throwable] {
-      valueFromF(generationTypeF)
+      valueFromF(generationF)
     }
     generationsError.getMessage should equal("No attributes found for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e")
   }
@@ -238,11 +247,15 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val input =
       <GenerationsResponse>
         <Generation active="true">
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>
+        <AdditionalInformation>
+          <Self>generations/1</Self>
+        </AdditionalInformation>
       </GenerationsResponse>
-    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationF = new DataProcessor[F]().generation(input, contentObjectRef)
     val generationsError = intercept[Throwable] {
-      valueFromF(generationTypeF)
+      valueFromF(generationF)
     }
     generationsError.getMessage should equal(
       "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
@@ -254,11 +267,15 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     val input =
       <GenerationsResponse>
         <Generation original="unexpectedValue" active="true">
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>
+        <AdditionalInformation>
+          <Self>generations/1</Self>
+        </AdditionalInformation>
       </GenerationsResponse>
-    val generationTypeF = new DataProcessor[F]().generationType(input, contentObjectRef)
+    val generationF = new DataProcessor[F]().generation(input, contentObjectRef)
     val generationsError = intercept[Throwable] {
-      valueFromF(generationTypeF)
+      valueFromF(generationF)
     }
     generationsError.getMessage should equal(
       "'original' attribute could not be found on Generation for entity ref: 485bbde7-a20c-4f80-bbae-62d30b89ae5e"
@@ -309,10 +326,11 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
         </AdditionalInformation>
       </BitstreamResponse>
     )
-
+    val effectiveDate = ZonedDateTime.now()
+    val generation = Generation(effectiveDate, Original, 2)
     val generationsF = new DataProcessor[F]().allBitstreamInfo(
       input,
-      Original,
+      generation,
       generateContentObject("ad30d41e-b75c-4195-b569-91e820f430ac", Some("testCoTitle"))
     )
     val response = valueFromF(generationsF)
@@ -320,7 +338,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.size should equal(1)
     response.head.name should equal("test.text")
     response.head.fileSize should equal(1234)
-    response.head.url.get should equal("http://test")
+    response.head.potentialUrl.get should equal("http://test")
     response.head.fixities.size should equal(2)
     response.head.fixities.find(_.algorithm == "SHA1").get.value should equal(
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
@@ -328,8 +346,8 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.head.fixities.find(_.algorithm == "SHA256").get.value should equal(
       "5470f126401c16cd071df3002ab516f176c21a4b0e03df011bad18e200c5f960"
     )
-    response.head.generationVersion.get should equal(2)
-    response.head.generationType should equal(Original)
+    response.head.generation.version should equal(2)
+    response.head.generation.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("testCoTitle"))
     response.head.parentRef should equal(Some(UUID.fromString("14e54a24-db26-4c00-852c-f28045e51828")))
   }
@@ -350,6 +368,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
             </ContentObject>
             <Generation original="true" active="true">
               <ContentObject>{contentObjectRef}</ContentObject>
+              <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
               <Bitstreams>
                 <Bitstream>test1.txt</Bitstream>
               </Bitstreams>
@@ -373,7 +392,8 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.size should equal(1)
     response.head.name should equal("test1.txt")
     response.head.fileSize should equal(1234)
-    response.head.generationType should equal(Original)
+    response.head.generation.generationType should equal(Original)
+    response.head.generation.effectiveDate should equal(ZonedDateTime.parse("2026-04-02T09:45:43Z"))
     response.head.potentialCoTitle should equal(Some("Content object title"))
     response.head.parentRef should equal(Some(assetId))
     response.head.fixities.size should equal(1)

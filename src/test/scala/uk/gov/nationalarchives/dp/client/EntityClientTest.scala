@@ -326,7 +326,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val response: F[Seq[BitStreamInfo]] = client.getBitstreamInfo(entity.ref)
 
     val bitStreamInfo = valueFromF(response)
-    bitStreamInfo.head.url.get should equal(
+    bitStreamInfo.head.potentialUrl.get should equal(
       s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content"
     )
     bitStreamInfo.head.name should equal("test1.txt")
@@ -336,12 +336,12 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
     )
     bitStreamInfo.head.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
-    bitStreamInfo.head.generationVersion.get should equal(1)
-    bitStreamInfo.head.generationType should equal(Original)
+    bitStreamInfo.head.generation.version should equal(2)
+    bitStreamInfo.head.generation.generationType should equal(Original)
     bitStreamInfo.head.potentialCoTitle should equal(Some("page1File.txt"))
     bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
-    bitStreamInfo.last.url.get should equal(
+    bitStreamInfo.last.potentialUrl.get should equal(
       s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
     )
     bitStreamInfo.last.name should equal("test1.txt")
@@ -351,8 +351,8 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       "0c16735b03fe46b931060858e8cd5ca9c5101565"
     )
     bitStreamInfo.last.fixities.find(_.algorithm == "MD5").get.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
-    bitStreamInfo.last.generationVersion.get should equal(2)
-    bitStreamInfo.last.generationType should equal(Derived)
+    bitStreamInfo.last.generation.version should equal(2)
+    bitStreamInfo.last.generation.generationType should equal(Derived)
     bitStreamInfo.last.potentialCoTitle should equal(Some("page1File.txt"))
     bitStreamInfo.last.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
@@ -411,6 +411,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
             </ContentObject>
             <Generation original="true" active="true">
               <ContentObject>11111111-1111-1111-1111-111111111111</ContentObject>
+              <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
               <Bitstreams>
                 <Bitstream>test1.txt</Bitstream>
               </Bitstreams>
@@ -441,7 +442,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     response.size should equal(1)
     response.head.name should equal("test1.txt")
     response.head.fileSize should equal(1234)
-    response.head.generationType should equal(Original)
+    response.head.generation.generationType should equal(Original)
     response.head.potentialCoTitle should equal(Some("Content object title"))
     response.head.parentRef should equal(Some(assetId))
     response.head.fixities.map(_.algorithm).toSet should equal(Set("MD5", "SHA1"))
@@ -651,6 +652,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
 
     metadata.generationNodes.head.toString should equal(
       <Generation original="true" active="true" xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7" >
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>.toString
     )
 

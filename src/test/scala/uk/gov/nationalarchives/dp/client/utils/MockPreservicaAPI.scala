@@ -384,10 +384,14 @@ object MockPreservicaAPI {
     private def generationResponse(generationUrl: String) =
       <GenerationResponse xmlns={namespaceUrl} xmlns:xip={xipUrl}>
         <Generation original={if (generationUrl.last == '1') "true" else "false"} active="true">
+          <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>
         <Bitstreams>
           <Bitstream filename="test1.txt">{preservicaUrl + generationUrl + "/bitstreams/1"}</Bitstream>
         </Bitstreams>
+        <AdditionalInformation>
+          <Self>generations/2</Self>
+        </AdditionalInformation>
       </GenerationResponse>.toString()
 
     private def bitstreamResponse(infoUrl: String, contentUrl: String) =
