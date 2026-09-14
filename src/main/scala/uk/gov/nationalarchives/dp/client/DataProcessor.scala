@@ -246,7 +246,8 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
             fixities,
             Option(potentialCoTitle),
             parentRef,
-            generation
+            generation,
+            UUID.fromString(contentObjectRef)
           )
         }
       }
@@ -282,7 +283,8 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
           fixities,
           contentObject.title,
           contentObject.parent,
-          generation
+          generation,
+          contentObject.ref
         )
       }
     }

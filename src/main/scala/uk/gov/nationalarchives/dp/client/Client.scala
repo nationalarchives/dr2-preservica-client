@@ -228,7 +228,8 @@ object Client {
       fixities: List[Fixity],
       potentialCoTitle: Option[String],
       parentRef: Option[UUID],
-      generation: Generation
+      generation: Generation,
+      contentObjectRef: UUID
   )
 
   /** Configuration for the clients
