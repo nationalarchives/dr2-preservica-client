@@ -80,13 +80,13 @@ rather than repeatedly retrying with a token that will never succeed.
 
 The following parameters, all available when creating any client, affect authentication:
 
-| Name                | Description                                                                                                     |
-|---------------------|-------------------------------------------------------------------------------------------------------------------|
-| secretName          | The name of the Secrets Manager secret containing the Preservica `userName`, `password` and `apiUrl`             |
-| duration            | The time-to-live for the cached token. Defaults to 15 minutes                                                    |
-| ssmEndpointUri      | The endpoint used to call Secrets Manager. Useful for tests or private VPC endpoints                             |
-| potentialProxyUrl   | An optional proxy used for both the login call and subsequent API calls                                          |
-| retryCount          | The number of retries used both when fetching a token and when calling the Preservica API                        |
+| Name              | Description                                                                                          |
+|-------------------|------------------------------------------------------------------------------------------------------|
+| secretName        | The name of the Secrets Manager secret containing the Preservica `userName`, `password` and `apiUrl` |
+| duration          | The time-to-live for the cached token. Defaults to 15 minutes                                        |
+| ssmEndpointUri    | The endpoint used to call Secrets Manager. Useful for tests or private VPC endpoints                 |
+| potentialProxyUrl | An optional proxy used for both the login call and subsequent API calls                              |
+| retryCount        | The number of retries used both when fetching a token and when calling the Preservica API            |
 
 @@@ index
 
