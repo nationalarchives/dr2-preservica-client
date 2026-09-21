@@ -4,6 +4,8 @@ A Scala client used to interact with Preservica
 
 This library provides five clients.
 
+They all share a common @ref:[authentication](authentication/usage/index.md) mechanism used to obtain and cache tokens from Preservica.
+
 An @ref:[entity client](entity/usage/index.md) with methods to create, get and update entities in Preservica.
 
 A @ref:[content client](content/usage/index.md) which provides a method to search for entities in Preservica.
@@ -16,6 +18,7 @@ It also provides an @ref:[XML Validator](xmlvalidator/usage/index.md) which prov
 
 @@@ index
 
+* [Authentication](authentication/usage/index.md)
 * [Entity Client Usage](entity/usage/index.md)
 * [Content Client Usage](content/usage/index.md)
 * [Worfklow Client Usage](workflow/usage/index.md)
