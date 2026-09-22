@@ -59,10 +59,10 @@ The client exposes 15 methods
   def getPreservicaNamespaceVersion(
       endpoint: String
   ): F[Float]
-
-  def streamAllEntityRefs(
-      repTypeFilter: Option[RepresentationType] = None
-  ): F[List[EntityRef]]
+  
+  def bitstreamForAsset(entityRef: UUID): F[Seq[BitStreamInfo]]
+  
+  def getAllAssetIds(maxConcurrency: Int = 20): fs2.Stream[F, UUID]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
@@ -173,10 +173,15 @@ The client exposes 15 methods
 * Calls any Entity Preservica endpoint that returns XML
 * Returns version number found in namespace
 
-### streamAllEntityRefs
+# bitstreamForAsset
+* Calls `information-objects/{ref}?expand=structure` which returns the generations and bitstreams.
+* Parses the XML response and returns a list of `BitStreamInfo`
+
+# getAllAssetIds
 * Calls root/children endpoint to get the root SOs
 * For each SO, calls {entity-type}/{entity-ref}/children in order to get the children of those
-* Continues to recursively collect SO and IO entities until it reaches the bottom
+* When an IO is reached, that is emitted to the stream. SOs and COs are not emitted
+* The max concurrency parameter controls how many concurrent API requests this method will make. 20 is the default as this is the best trade off between speed and not overloading the API.
 
 @@@ index
 
