@@ -31,7 +31,7 @@
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.180*
+0.0.181*
 </div>
 </div>
 <div class="nav-toc">
@@ -91,7 +91,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <span class="home-icon">⌂</span>Preservica Client
 </a>
 <div class="version-number">
-0.0.180*
+0.0.181*
 </div>
 </div>
 <div class="nav-toc">
@@ -221,10 +221,10 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   def getPreservicaNamespaceVersion(
       endpoint: String
   ): F[Float]
-
-  def streamAllEntityRefs(
-      repTypeFilter: Option[RepresentationType] = None
-  ): F[List[EntityRef]]
+  
+  def bitstreamForAsset(entityRef: UUID): F[Seq[BitStreamInfo]]
+  
+  def getAllAssetIds(maxConcurrency: Int = 20): fs2.Stream[F, UUID]
 </code></pre><h2><a href="#method-descriptions" name="method-descriptions" class="anchor"><span class="anchor-link"></span></a>Method descriptions</h2>
 <p>These are descriptions of the steps taken by each method. All methods get an authentication token first, either from the API or the cache.</p>
 <h3><a href="#metadataforentity" name="metadataforentity" class="anchor"><span class="anchor-link"></span></a>metadataForEntity</h3>
@@ -359,11 +359,17 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <li>Calls any Entity Preservica endpoint that returns XML</li>
   <li>Returns version number found in namespace</li>
 </ul>
-<h3><a href="#streamallentityrefs" name="streamallentityrefs" class="anchor"><span class="anchor-link"></span></a>streamAllEntityRefs</h3>
+<h1><a href="#bitstreamforasset" name="bitstreamforasset" class="anchor"><span class="anchor-link"></span></a>bitstreamForAsset</h1>
+<ul>
+  <li>Calls <code>information-objects/{ref}?expand=structure</code> which returns the generations and bitstreams.</li>
+  <li>Parses the XML response and returns a list of <code>BitStreamInfo</code></li>
+</ul>
+<h1><a href="#getallassetids" name="getallassetids" class="anchor"><span class="anchor-link"></span></a>getAllAssetIds</h1>
 <ul>
   <li>Calls root/children endpoint to get the root SOs</li>
   <li>For each SO, calls {entity-type}/{entity-ref}/children in order to get the children of those</li>
-  <li>Continues to recursively collect SO and IO entities until it reaches the bottom</li>
+  <li>When an IO is reached, that is emitted to the stream. SOs and COs are not emitted</li>
+  <li>The max concurrency parameter controls how many concurrent API requests this method will make. 20 is the default as this is the best trade off between speed and not overloading the API.</li>
 </ul>
 <div class="nav-next">
 <p><strong>Next:</strong> <a href="../../entity/usage/fs2.html">Use with FS2</a></p>
@@ -379,6 +385,8 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
   <ul>
     <li><a href="../../entity/usage/index.html#creating-a-client" class="header">Creating a client</a></li>
     <li><a href="../../entity/usage/index.html#method-descriptions" class="header">Method descriptions</a></li>
+    <li><a href="../../entity/usage/index.html#bitstreamforasset" class="header">bitstreamForAsset</a></li>
+    <li><a href="../../entity/usage/index.html#getallassetids" class="header">getAllAssetIds</a></li>
   </ul></li>
 </ul>
 </div>
@@ -446,7 +454,7 @@ C16.952,7,17,6.553,17,6c0-0.553-0.048-1-0.6-1H3.6C3.048,5,3,5.447,3,6C3,6.553,3.
 <script type="text/javascript" src="../../lib/prettify/prettify.js"></script>
 <script type="text/javascript" src="../../lib/prettify/lang-scala.js"></script>
 <script type="text/javascript">jQuery(function(){window.prettyPrint && prettyPrint()});</script>
-<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.180-SNAPSHOT', '')});</script>
+<script type="text/javascript">jQuery(function(jq){initOldVersionWarnings(jq, '0.0.181-SNAPSHOT', '')});</script>
 
 
 </html>
