@@ -387,7 +387,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
         </Structure>
       </EntityResponse>
 
-    val response = new DataProcessor[F]().bitstreamFromAsset(input)
+    val response = new DataProcessor[F]().bitstreamsFromAsset(input)
 
     response.size should equal(1)
     response.head.name should equal("test1.txt")
@@ -399,6 +399,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     response.head.fixities.size should equal(1)
     response.head.fixities.head.algorithm should equal("MD5")
     response.head.fixities.head.value should equal("4985298cbf6b2b74c522ced8b128ebe3")
+    response.head.potentialUrl should equal(None)
   }
 
   "getNextPage" should "return the next page" in {

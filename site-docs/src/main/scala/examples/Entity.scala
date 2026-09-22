@@ -21,7 +21,7 @@ object Entity {
         _ <- bitStreamInfo
           .map(eachBitStream => {
             client.streamBitstreamContent[Unit](Fs2Streams.apply)(
-              eachBitStream.potentialUrl,
+              eachBitStream.potentialUrl.get, // The url is optional because it is not available in the response from information-objects/{ref}?expand=structure
               stream => processStream(eachBitStream.name, stream) // Pass a function in to handle the stream
             )
           })
@@ -31,17 +31,6 @@ object Entity {
 
     private def doSomething(): IO[Unit] = ???
     private def doSomethingElse(): IO[Unit] = ???
-
-    def streamEntityRefs(): IO[Unit] = {
-      for {
-        _ <- Fs2Client.entityClient("secretName").map { client =>
-          client.streamAllEntityRefs().map {
-            case _: InformationObjectRef | _: ContentObjectRef => doSomething()
-            case _                                             => doSomethingElse()
-          }
-        }
-      } yield ()
-    }
   }
   // #fs2
 }
