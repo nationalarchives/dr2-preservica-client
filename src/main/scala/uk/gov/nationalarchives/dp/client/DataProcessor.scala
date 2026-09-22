@@ -200,7 +200,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
     * @return
     *   A list of `BitStreamInfo` representing the bitstreams for this asset
     */
-  def bitstreamFromAsset(assetNode: scala.xml.Node): Seq[BitStreamInfo] =
+  def bitstreamsFromAsset(assetNode: scala.xml.Node): Seq[BitStreamInfo] =
     val xip = (assetNode \\ "Structure" \ "XIP").head
 
     val parentRef = (xip \ "InformationObject" \ "Ref").headOption
@@ -216,11 +216,11 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
       (bs \ "Filename").text -> bs
     }.toMap
 
-    val matchingGenerations = (xip \ "Generation").filter { gen =>
+    val originalGenerations = (xip \ "Generation").filter { gen =>
       gen.attribute("original").exists(_.text == "true")
     }
 
-    matchingGenerations.toList.flatMap { gen =>
+    originalGenerations.toList.flatMap { gen =>
       val contentObjectRef = (gen \ "ContentObject").text
 
       val effectiveDate = ZonedDateTime.parse((gen \ "EffectiveDate").text)
