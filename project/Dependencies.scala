@@ -21,7 +21,7 @@ object Dependencies {
   lazy val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
   lazy val scalaCacheCore = "com.github.cb372" %% "scalacache-core" % scalaCacheVersion
   lazy val scalaCacheCaffeine = "com.github.cb372" %% "scalacache-caffeine" % scalaCacheVersion
-  lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
+  lazy val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.5.0"
   lazy val sttpCore = "com.softwaremill.sttp.client4" %% "core" % sttpVersion
   lazy val sttpSlf4j = "com.softwaremill.sttp.client4" %% "slf4j-backend" % sttpVersion
   lazy val sttpFs2 = "com.softwaremill.sttp.client4" %% "fs2" % sttpVersion
