@@ -471,7 +471,7 @@ class DataProcessor[F[_]]()(using me: MonadError[F, Throwable]) {
             <xip:FromEntity>{refLinks}</xip:FromEntity>
             )
 
-        <xip:Link xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+        <xip:Link xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
           <xip:Type>{linkType.text}</xip:Type>
           {entities}
         </xip:Link>

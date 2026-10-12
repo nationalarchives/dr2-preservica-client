@@ -244,7 +244,7 @@ object EntityClient {
 
   /** The version of Preservica's Entity API that this client is using
     */
-  val apiVersion: Float = 7.7f
+  val apiVersion: Float = 9.3f
 
   /** Creates a new `EntityClient` instance.
     *
