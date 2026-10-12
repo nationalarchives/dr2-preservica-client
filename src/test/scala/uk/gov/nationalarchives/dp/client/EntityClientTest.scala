@@ -326,7 +326,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
 
     val bitStreamInfo = valueFromF(response)
     bitStreamInfo.head.potentialUrl.get should equal(
-      s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content"
+      s"http://localhost:9002/api/entity/v9.3/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/1/bitstreams/1/content"
     )
     bitStreamInfo.head.name should equal("test1.txt")
     bitStreamInfo.head.fileSize should equal(1234)
@@ -341,7 +341,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     bitStreamInfo.head.parentRef should equal(Some(UUID.fromString("58412111-c73d-4414-a8fc-495cfc57f7e1")))
 
     bitStreamInfo.last.potentialUrl.get should equal(
-      s"http://localhost:9002/api/entity/v7.7/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
+      s"http://localhost:9002/api/entity/v9.3/content-objects/a9e1cae8-ea06-4157-8dd4-82d0525b031c/generations/2/bitstreams/1/content"
     )
     bitStreamInfo.last.name should equal("test1.txt")
     bitStreamInfo.last.fileSize should equal(1234)
@@ -580,7 +580,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val metadata: CoMetadata = valueFromF(res).asInstanceOf[CoMetadata]
 
     metadata.entityNode.toString should equal(
-      <xip:ContentObject xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <xip:ContentObject xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
@@ -589,7 +589,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
             </xip:ContentObject>.toString
     )
     metadata.identifiers.head.toString should equal(
-      <Identifier xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <Identifier xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>Test Type 1</xip:Type>
             <xip:Value>Test Value 1</xip:Value>
@@ -598,20 +598,20 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
     Utility.trim(metadata.links.head) should equal(
       Utility.trim(
-        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
           entity.ref.toString
         }</xip:ToEntity><xip:FromEntity>758ef5c5-a364-40e5-bd78-e40f72f5a1f0</xip:FromEntity></xip:Link>
       )
     )
     Utility.trim(metadata.links.last) should equal(
       Utility.trim(
-        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
           entity.ref.toString
         }</xip:FromEntity></xip:Link>
       )
     )
     metadata.metadataNodes.head.toString should equal(
-      <Metadata xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7">
+      <Metadata xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3">
             <Content>
               <Test1>
                 <Test1Value>Test1Value</Test1Value>
@@ -620,7 +620,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
           </Metadata>.toString
     )
     metadata.metadataNodes.last.toString should equal(
-      <Metadata xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7">
+      <Metadata xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3">
             <Content>
               <Test2>
                 <Test2Value>Test2Value</Test2Value>
@@ -642,7 +642,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
 
     metadata.generationNodes.head.toString should equal(
-      <Generation original="true" active="true" xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7" >
+      <Generation original="true" active="true" xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3" >
           <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
         </Generation>.toString
     )
@@ -693,7 +693,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val metadata: IoMetadata = valueFromF(res).asInstanceOf[IoMetadata]
 
     metadata.entityNode.toString should equal(
-      <xip:InformationObject xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <xip:InformationObject xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
               <xip:Ref>{entity.ref}</xip:Ref>
             <xip:Title>page1File.txt</xip:Title>
             <xip:Description>A description</xip:Description>
@@ -702,7 +702,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
             </xip:InformationObject>.toString
     )
     metadata.identifiers.head.toString should equal(
-      <Identifier xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <Identifier xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
             <xip:ApiId>acb1e74b1ad5c4bfc360ef5d44228c9f</xip:ApiId>
             <xip:Type>Test Type 1</xip:Type>
             <xip:Value>Test Value 1</xip:Value>
@@ -711,20 +711,20 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
     Utility.trim(metadata.links.head) should equal(
       Utility.trim(
-        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3"><xip:Type>VirtualChild</xip:Type><xip:ToEntity>{
           entity.ref.toString
         }</xip:ToEntity><xip:FromEntity>758ef5c5-a364-40e5-bd78-e40f72f5a1f0</xip:FromEntity></xip:Link>
       )
     )
     Utility.trim(metadata.links.last) should equal(
       Utility.trim(
-        <xip:Link xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
+        <xip:Link xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3"><xip:Type>CitedBy</xip:Type><xip:ToEntity>866d4c6e-ee51-467a-b7a3-e4b65709cf95</xip:ToEntity><xip:FromEntity>{
           entity.ref.toString
         }</xip:FromEntity></xip:Link>
       )
     )
     metadata.metadataNodes.head.toString should equal(
-      <Metadata xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7">
+      <Metadata xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3">
             <Content>
               <Test1>
                 <Test1Value>Test1Value</Test1Value>
@@ -733,7 +733,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
           </Metadata>.toString
     )
     metadata.metadataNodes.last.toString should equal(
-      <Metadata xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7">
+      <Metadata xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3">
             <Content>
               <Test2>
                 <Test2Value>Test2Value</Test2Value>
@@ -755,7 +755,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
 
     metadata.representations.head.toString should equal(
-      <xip:Representation xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <xip:Representation xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
           <xip:InformationObject>{entityId}</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>
           <xip:Type>Preservation</xip:Type>
@@ -840,7 +840,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
       valueFromF(res)
     }
     error.getMessage should equal(
-      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      "Could not be retrieve all 'MetadataContainer' Nodes from:\n" + """<MetadataResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
                                                                         |          <MetadataContainer>
                                                                         |            <Content>
                                                                         |              <Test1>
@@ -849,7 +849,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
                                                                         |            </Content>
                                                                         |          </MetadataContainer>
                                                                         |        </MetadataResponse>
-                                                                        |<MetadataResponse xmlns:xip="http://preservica.com/XIP/v7.7" xmlns="http://preservica.com/EntityAPI/v7.7">
+                                                                        |<MetadataResponse xmlns:xip="http://preservica.com/XIP/v9.3" xmlns="http://preservica.com/EntityAPI/v9.3">
                                                                         |        </MetadataResponse>""".stripMargin
     )
 
@@ -1544,7 +1544,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val retentionPoliciesUrl = endpoints.stubRetentionPolicies()
 
     val version = valueFromF(client.getPreservicaNamespaceVersion(endpoint))
-    version should equal(7.7f)
+    version should equal(9.3f)
     verifyServerRequests(List(retentionPoliciesUrl))
   }
 
