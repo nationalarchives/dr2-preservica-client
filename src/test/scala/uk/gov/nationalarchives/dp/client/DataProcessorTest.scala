@@ -855,18 +855,18 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getPreservicaNamespaceVersion" should "extract version number from namespace" in {
     val input =
-      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
+      <RetentionPoliciesResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v6.9" xmlns:retention="http://preservica.com/RetentionManagement/v6.2">
       </RetentionPoliciesResponse>
     val version = valueFromF(
       new DataProcessor[F]().getPreservicaNamespaceVersion(input)
     )
 
-    version should equal(7.7f)
+    version should equal(9.3f)
   }
 
   "getEntityLinksXml" should "extract the links from the 'LinksResponse'" in {
     val input =
-      <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <LinksResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
         <Links>
           <Link linkDirection="From" ref="link-ref-from" linkType="Cited">link</Link>
           <Link linkDirection="To" ref="link-ref-to" linkType="Child">link</Link>
@@ -895,7 +895,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
   }
 
   "getEntityLinksXml" should "return an empty list if there missing attributes in the links" in {
-    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
       <Links>
         <Link ref="link-ref-from" linkType="Cited">link</Link>
         <Link linkDirection="To" ref="link-ref-to">link</Link>
@@ -912,7 +912,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
   }
 
   "getEntityLinksXml" should "return an empty list if there are no links" in {
-    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+    val input = <LinksResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
       <Links>
       </Links>
       <Paging>
@@ -928,7 +928,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getEventActionElements" should "extract the EventActions from the 'EventActionsResponse'" in {
     val input =
-      <EventActionsResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <EventActionsResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
         <EventActions>
           <xip:EventAction commandType="command_create">
             <xip:Event type="Ingest">
@@ -950,7 +950,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     )
 
     eventAction.toString should equal(
-      <xip:EventAction commandType="command_create" xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <xip:EventAction commandType="command_create" xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
             <xip:Event type="Ingest">
               <xip:Ref>6da319fa-07e0-4a83-9c5a-b6bad08445b1</xip:Ref>
               <xip:Date>2023-06-26T08:14:08.441Z</xip:Date>
@@ -965,7 +965,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
   "getRepresentationElement" should "extract the Representation from the 'RepresentationResponse'" in {
     val id = UUID.randomUUID()
     val input =
-      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <RepresentationResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
         <xip:Representation>
           <xip:InformationObject>{id}</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>
@@ -984,7 +984,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
     )
 
     representation.toString should equal(
-      <xip:Representation xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7" >
+      <xip:Representation xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3" >
           <xip:InformationObject>{id}</xip:InformationObject>
           <xip:Name>Preservation</xip:Name>
           <xip:Type>Preservation</xip:Type>
@@ -997,7 +997,7 @@ abstract class DataProcessorTest[F[_]](using cme: MonadError[F, Throwable]) exte
 
   "getGenerationElement" should "extract the Generation from the 'GenerationsResponse'" in {
     val input =
-      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v7.7" xmlns:xip="http://preservica.com/XIP/v7.7">
+      <GenerationResponse xmlns="http://preservica.com/EntityAPI/v9.3" xmlns:xip="http://preservica.com/XIP/v9.3">
         <xip:Generation original="true" active="true">
         </xip:Generation>
         <Bitstreams>
