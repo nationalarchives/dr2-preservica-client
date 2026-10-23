@@ -64,6 +64,11 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
         .withRequestBody(equalToJson("{\"SecretId\":\"secret\",\"VersionStage\":\"AWSCURRENT\"}"))
         .willReturn(okJson(secretsResponse))
     )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
 
   override def afterEach(): Unit =
@@ -139,6 +144,10 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
 
   "testNewPassword" should "call secrets manager for the pending secret" in {
     valueFromF(testClient.testNewPassword())
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
     val requestBody = secretsManagerServer.getAllServeEvents.asScala.head.getRequest.getBodyAsString
     val secretRequest = decode[SecretRequest](requestBody).value
 
@@ -154,14 +163,38 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   }
 
   "testNewPassword" should "return an error if secrets manager returns an error" in {
-    secretsManagerServer.resetAll()
-    secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(serverError()))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.GetSecretValue"))
+        .willReturn(serverError())
+    )
     val ex = intercept[SecretsManagerException] {
       valueFromF(testClient.testNewPassword())
     }
     ex.getMessage should startWith(
       "Service returned HTTP status code 500 (Service: SecretsManager, Status Code: 500, Request ID: null)"
     )
+  }
+
+  "testNewPassword" should "not send requests to Preservica when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(testClient.testNewPassword())
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
   }
 
   "testNewPassword" should "return an error if Preservica returns an error" in {

@@ -8,6 +8,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor3
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.WorkflowClient.{Parameter, StartWorkflowRequest}
 
 import java.util.concurrent.TimeUnit
@@ -36,6 +37,11 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
 
   override def afterEach(): Unit =
     preservicaServer.stop()
@@ -82,6 +88,30 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     <WorkflowInstance xmlns="http://workflow.preservica.com">
       <Id>3</Id>
     </WorkflowInstance>.toString()
+
+  "startWorkflow" should "not send requests to Preservica when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val startWorkflowRequest =
+      StartWorkflowRequest(Some("workflowContextName"), Some(123), Nil, None)
+    val client = testClient
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(client.startWorkflow(startWorkflowRequest))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
+  }
 
   "startWorkflow" should s"return an exception if a request has both workflowContextName and workflowContextId set to None" in {
     val startWorkflowRequest =

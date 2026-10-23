@@ -172,7 +172,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.getSecretValue[AuthDetails](stage)
+        client.awaitRotationCompletion(3000, 3) *> client.getSecretValue[AuthDetails](stage)
       }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {

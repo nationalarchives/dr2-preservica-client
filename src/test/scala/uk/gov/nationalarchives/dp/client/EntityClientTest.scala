@@ -14,6 +14,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
@@ -83,6 +84,11 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
   }
 
   override def afterEach(): Unit = {
@@ -107,6 +113,28 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
   }
 
   private def verifyZeroServerRequests = serverRequestUrls.length should be(0)
+
+  "addEntity" should "not send requests to server when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClient
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(client.addEntity(defaultAddEntityRequest))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    verifyZeroServerRequests
+  }
 
   List((Some(createEntity()), "with"), (None, "without")).foreach { case (potentialEntity, withOrWithout) =>
     "addEntity" should s"make a correct request $withOrWithout a predefined reference to add an entity" in {
