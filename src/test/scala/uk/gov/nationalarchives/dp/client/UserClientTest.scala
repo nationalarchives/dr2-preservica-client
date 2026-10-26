@@ -176,7 +176,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     )
   }
 
-  "testNewPassword" should "not send requests to Preservica when awaitRotationCompletion throws an error" in {
+  "testNewPassword" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))

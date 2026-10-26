@@ -6,6 +6,7 @@ import com.github.tomakehurst.wiremock.stubbing.ServeEvent
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.{Assertion, BeforeAndAfterEach}
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.*
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MonitorsStatus.*
 import uk.gov.nationalarchives.dp.client.ProcessMonitorClient.MonitorCategory.*
@@ -122,6 +123,11 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
 
   override def afterEach(): Unit =
     preservicaServer.stop()
@@ -156,6 +162,28 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
         )
       ).willReturn(ok(messagesResponse))
     )
+
+  "getMonitors" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClient
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(client.getMonitors(GetMonitorsRequest(Nil, Some("opex/test"), Nil)))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
+  }
 
   "getMonitors" should s"return an exception if the name does not start with 'opex'" in {
     val getMonitorsRequest =

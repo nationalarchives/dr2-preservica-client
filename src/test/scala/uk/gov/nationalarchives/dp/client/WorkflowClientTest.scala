@@ -89,7 +89,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
       <Id>3</Id>
     </WorkflowInstance>.toString()
 
-  "startWorkflow" should "not send requests to Preservica when awaitRotationCompletion throws an error" in {
+  "startWorkflow" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))

@@ -10,6 +10,7 @@ import io.circe.Decoder
 import org.scalatest.{BeforeAndAfterEach, EitherValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.ContentClient.{SearchField, SearchQuery}
 import io.circe.parser.decode
 
@@ -51,6 +52,11 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     preservicaServer.start()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
 
   override def afterEach(): Unit =
     preservicaServer.stop()
@@ -60,6 +66,27 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
 
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
+
+  "search" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(client.searchEntities(SearchQuery("", Nil)))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
+  }
 
   "search" should "search using the parameters passed to the method" in {
     preservicaServer.stubFor(post(urlPathMatching(tokenUrl)).willReturn(ok(tokenResponse)))
