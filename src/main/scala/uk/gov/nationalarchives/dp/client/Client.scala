@@ -246,12 +246,14 @@ object Client {
     *   The url to download the bitstream
     * @param fixities
     *   The list of fixities associated with the bitstream
-    * @param generationVersion
-    *   The version of the generation
     * @param potentialCoTitle
     *   The title of the CO
     * @param parentRef
     *   The parent ref of the CO
+    * @param generation
+    *   The Generation info about bitstream
+    * @param contentObjectRef
+    *   UUID of content object  
     */
   case class BitStreamInfo(
       name: String,
