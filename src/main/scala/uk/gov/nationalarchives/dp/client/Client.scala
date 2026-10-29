@@ -73,7 +73,6 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
   private val rotationPollingInterval = 3000
   private val maxPollingAttempts = 2
 
-
   given Decoder[AuthDetails] = (c: HCursor) =>
     for {
       userName <- c.downField("userName").as[String]
@@ -175,7 +174,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client.getSecretValue[AuthDetails](stage)
+        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client
+          .getSecretValue[AuthDetails](stage)
       }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
@@ -253,7 +253,7 @@ object Client {
     * @param generation
     *   The Generation info about bitstream
     * @param contentObjectRef
-    *   UUID of content object  
+    *   UUID of content object
     */
   case class BitStreamInfo(
       name: String,

@@ -77,7 +77,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
   def createClient(retryCount: Int = 1): F[EntityClient[F, S]]
 
   def testClient: EntityClient[F, S] = valueFromF(createClient())
-  
+
   def testClientNoRetry: EntityClient[F, S] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit = {
@@ -135,7 +135,6 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     )
     val client = testClientNoRetry
 
-    
     val error = intercept[SecretsManagerException] {
       valueFromF(client.addEntity(defaultAddEntityRequest))
     }
@@ -148,9 +147,11 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     verifyZeroServerRequests
     val serveEvents = secretsManagerServer.getAllServeEvents
     serveEvents.size() should equal(2)
-    serveEvents.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
     serveEvents.get(0).getResponseDefinition.getBody should equal(
       """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
     )
   }
 

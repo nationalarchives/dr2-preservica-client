@@ -117,7 +117,7 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
   def createClient(retryCount: Int = 1): F[ProcessMonitorClient[F]]
 
   def testClient: ProcessMonitorClient[F] = valueFromF(createClient())
-  
+
   def testClientNoRetry: ProcessMonitorClient[F] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit =

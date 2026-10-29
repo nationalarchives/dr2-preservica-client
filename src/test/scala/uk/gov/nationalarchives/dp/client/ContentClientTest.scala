@@ -64,7 +64,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     secretsManagerServer.stop()
 
   def client: ContentClient[F] = valueFromF(createClient())
-  
+
   def testClientNoRetry: ContentClient[F] = valueFromF(createClient(retryCount = 0))
 
   val tokenResponse: String = """{"token": "abcde"}"""

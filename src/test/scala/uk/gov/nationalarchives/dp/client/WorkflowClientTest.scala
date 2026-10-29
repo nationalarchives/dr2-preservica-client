@@ -25,7 +25,7 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
   def createClient(retryCount: Int = 1): F[WorkflowClient[F]]
 
   def testClient: WorkflowClient[F] = valueFromF(createClient())
-  
+
   def testClientNoRetry: WorkflowClient[F] = valueFromF(createClient(retryCount = 0))
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
@@ -130,7 +130,9 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     serveEvents.get(0).getResponseDefinition.getBody should equal(
       """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
     )
-    serveEvents.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
+    )
   }
 
   "startWorkflow" should s"return an exception if a request has both workflowContextName and workflowContextId set to None" in {

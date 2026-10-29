@@ -49,7 +49,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   def createClient(retryCount: Int = 1): F[UserClient[F]]
 
   def testClient: UserClient[F] = valueFromF(createClient())
-  
+
   def testClientNoRetry: UserClient[F] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit =
@@ -198,7 +198,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
         )
     )
     val client = testClientNoRetry
-    
+
     val error = intercept[SecretsManagerException] {
       valueFromF(testClientNoRetry.testNewPassword())
     }
@@ -214,7 +214,9 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     serveEvents.get(0).getResponseDefinition.getBody should equal(
       """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
     )
-    serveEvents.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
+    )
   }
 
   "testNewPassword" should "return an error if Preservica returns an error" in {
