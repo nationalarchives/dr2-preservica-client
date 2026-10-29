@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import io.circe.Decoder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
@@ -45,9 +46,11 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[UserClient[F]]
+  def createClient(retryCount: Int = 1): F[UserClient[F]]
 
   def testClient: UserClient[F] = valueFromF(createClient())
+
+  def testClientNoRetry: UserClient[F] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit =
     preservicaServer.start()
@@ -63,6 +66,11 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
       post(urlEqualTo("/"))
         .withRequestBody(equalToJson("{\"SecretId\":\"secret\",\"VersionStage\":\"AWSCURRENT\"}"))
         .willReturn(okJson(secretsResponse))
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
     )
     preservicaServer.stubFor(post(urlEqualTo(tokenUrl)).willReturn(ok(tokenResponse)))
 
@@ -139,6 +147,10 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
 
   "testNewPassword" should "call secrets manager for the pending secret" in {
     valueFromF(testClient.testNewPassword())
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
     val requestBody = secretsManagerServer.getAllServeEvents.asScala.head.getRequest.getBodyAsString
     val secretRequest = decode[SecretRequest](requestBody).value
 
@@ -154,13 +166,56 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   }
 
   "testNewPassword" should "return an error if secrets manager returns an error" in {
-    secretsManagerServer.resetAll()
-    secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(serverError()))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.GetSecretValue"))
+        .willReturn(serverError())
+    )
     val ex = intercept[SecretsManagerException] {
       valueFromF(testClient.testNewPassword())
     }
     ex.getMessage should startWith(
       "Service returned HTTP status code 500 (Service: SecretsManager, Status Code: 500, Request ID: null)"
+    )
+  }
+
+  "testNewPassword" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClientNoRetry
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(testClientNoRetry.testNewPassword())
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
+    val serveEvents = secretsManagerServer.getAllServeEvents
+    serveEvents.size() should equal(2)
+    serveEvents.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
     )
   }
 

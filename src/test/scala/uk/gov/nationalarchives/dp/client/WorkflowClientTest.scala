@@ -2,12 +2,14 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor3
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import uk.gov.nationalarchives.dp.client.WorkflowClient.{Parameter, StartWorkflowRequest}
 
 import java.util.concurrent.TimeUnit
@@ -20,9 +22,11 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[WorkflowClient[F]]
+  def createClient(retryCount: Int = 1): F[WorkflowClient[F]]
 
   def testClient: WorkflowClient[F] = valueFromF(createClient())
+
+  def testClientNoRetry: WorkflowClient[F] = valueFromF(createClient(retryCount = 0))
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
 
@@ -36,6 +40,11 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
 
   override def afterEach(): Unit =
     preservicaServer.stop()
@@ -82,6 +91,49 @@ abstract class WorkflowClientTest[F[_]](preservicaPort: Int, secretsManagerPort:
     <WorkflowInstance xmlns="http://workflow.preservica.com">
       <Id>3</Id>
     </WorkflowInstance>.toString()
+
+  "startWorkflow" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClientNoRetry
+
+    val startWorkflowRequest =
+      StartWorkflowRequest(Some("workflowContextName"), Some(123), Nil, None)
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(testClientNoRetry.startWorkflow(startWorkflowRequest))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(0)
+    val serveEvents = secretsManagerServer.getAllServeEvents
+    serveEvents.size() should equal(2)
+    serveEvents.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
+    )
+  }
 
   "startWorkflow" should s"return an exception if a request has both workflowContextName and workflowContextId set to None" in {
     val startWorkflowRequest =

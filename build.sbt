@@ -48,7 +48,7 @@ lazy val releaseSettings = Seq(
     )
   ),
   description := "A client to communicate with the Preservica API",
-  licenses := List("MIT" -> new URL("https://choosealicense.com/licenses/mit/")),
+  licenses := List("MIT" -> new URI("https://choosealicense.com/licenses/mit/").toURL),
   homepage := Some(url("https://github.com/nationalarchives/dr2-preservica-client"))
 )
 
