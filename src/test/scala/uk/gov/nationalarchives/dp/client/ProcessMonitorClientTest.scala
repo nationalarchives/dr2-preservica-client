@@ -2,7 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
-import com.github.tomakehurst.wiremock.stubbing.ServeEvent
+import com.github.tomakehurst.wiremock.stubbing.{Scenario, ServeEvent}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.{Assertion, BeforeAndAfterEach}
@@ -114,9 +114,11 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[ProcessMonitorClient[F]]
+  def createClient(retryCount: Int = 1): F[ProcessMonitorClient[F]]
 
   def testClient: ProcessMonitorClient[F] = valueFromF(createClient())
+  
+  def testClientNoRetry: ProcessMonitorClient[F] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit =
     preservicaServer.start()
@@ -167,11 +169,21 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
         .willReturn(
           badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
         )
     )
-    val client = testClient
+    val client = testClientNoRetry
 
     val error = intercept[SecretsManagerException] {
       valueFromF(client.getMonitors(GetMonitorsRequest(Nil, Some("opex/test"), Nil)))
@@ -183,6 +195,12 @@ abstract class ProcessMonitorClientTest[F[_]](preservicaPort: Int, secretsManage
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
     )
     preservicaServer.getAllServeEvents.size() should equal(0)
+    val events = secretsManagerServer.getAllServeEvents
+    events.size() should equal(2)
+    events.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    events.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
   }
 
   "getMonitors" should s"return an exception if the name does not start with 'opex'" in {

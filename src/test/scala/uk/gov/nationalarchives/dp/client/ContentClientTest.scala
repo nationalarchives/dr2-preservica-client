@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.admin.model.ServeEventQuery
 import com.github.tomakehurst.wiremock.client.MappingBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED
 import io.circe.Decoder
 import org.scalatest.{BeforeAndAfterEach, EitherValues}
@@ -25,7 +26,7 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     with EitherValues:
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[ContentClient[F]]
+  def createClient(retryCount: Int = 1): F[ContentClient[F]]
 
   val zeroSeconds: FiniteDuration = FiniteDuration(0, TimeUnit.SECONDS)
   val preservicaServer = new WireMockServer(preservicaPort)
@@ -63,6 +64,8 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     secretsManagerServer.stop()
 
   def client: ContentClient[F] = valueFromF(createClient())
+  
+  def testClientNoRetry: ContentClient[F] = valueFromF(createClient(retryCount = 0))
 
   val tokenResponse: String = """{"token": "abcde"}"""
   val tokenUrl = "/api/accesstoken/login"
@@ -71,13 +74,24 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
         .willReturn(
           badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
         )
     )
+    val client = testClientNoRetry
 
     val error = intercept[SecretsManagerException] {
-      valueFromF(client.searchEntities(SearchQuery("", Nil)))
+      valueFromF(testClientNoRetry.searchEntities(SearchQuery("", Nil)))
     }
 
     error.getMessage should include("Unable to check secret rotation")
@@ -86,6 +100,12 @@ abstract class ContentClientTest[F[_]](preservicaPort: Int, secretsManagerPort: 
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
     )
     preservicaServer.getAllServeEvents.size() should equal(0)
+    val events = secretsManagerServer.getAllServeEvents
+    events.size() should equal(2)
+    events.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    events.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
   }
 
   "search" should "search using the parameters passed to the method" in {

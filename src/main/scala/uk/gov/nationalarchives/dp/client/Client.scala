@@ -70,6 +70,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     FiniteDuration(math.max(duration.toMillis - (duration.toMillis / 10), 0L), MILLISECONDS)
   private def loginEndpointUri(apiBaseUrl: String) = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
+  private val rotationPollingInterval = 3000
+  private val maxPollingAttempts = 2
+
 
   given Decoder[AuthDetails] = (c: HCursor) =>
     for {
@@ -172,7 +175,7 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.awaitRotationCompletion(3000, 3) *> client.getSecretValue[AuthDetails](stage)
+        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client.getSecretValue[AuthDetails](stage)
       }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {

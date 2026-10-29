@@ -25,7 +25,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI
 import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI.*
-
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -75,9 +74,11 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[EntityClient[F, S]]
+  def createClient(retryCount: Int = 1): F[EntityClient[F, S]]
 
   def testClient: EntityClient[F, S] = valueFromF(createClient())
+  
+  def testClientNoRetry: EntityClient[F, S] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit = {
     preservicaServer.start()
@@ -118,12 +119,23 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
         .willReturn(
           badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
         )
     )
-    val client = testClient
+    val client = testClientNoRetry
 
+    
     val error = intercept[SecretsManagerException] {
       valueFromF(client.addEntity(defaultAddEntityRequest))
     }
@@ -134,6 +146,12 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
     )
     verifyZeroServerRequests
+    val serveEvents = secretsManagerServer.getAllServeEvents
+    serveEvents.size() should equal(2)
+    serveEvents.get(1).getResponseDefinition.getBody should equal("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}""")
+    serveEvents.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
   }
 
   List((Some(createEntity()), "with"), (None, "without")).foreach { case (potentialEntity, withOrWithout) =>
