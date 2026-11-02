@@ -14,6 +14,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks.forAll
 import org.scalatest.prop.TableFor2
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import sttp.capabilities.Streams
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
@@ -24,7 +25,6 @@ import uk.gov.nationalarchives.dp.client.EntityClient.RepresentationType.*
 import uk.gov.nationalarchives.dp.client.EntityClient.SecurityTag.*
 import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI
 import uk.gov.nationalarchives.dp.client.utils.MockPreservicaAPI.*
-
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -74,15 +74,22 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
 
   def valueFromF[T](value: F[T]): T
 
-  def createClient(): F[EntityClient[F, S]]
+  def createClient(retryCount: Int = 1): F[EntityClient[F, S]]
 
   def testClient: EntityClient[F, S] = valueFromF(createClient())
+
+  def testClientNoRetry: EntityClient[F, S] = valueFromF(createClient(retryCount = 0))
 
   override def beforeEach(): Unit = {
     preservicaServer.start()
     preservicaServer.resetAll()
     secretsManagerServer.start()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSCURRENT"]}}"""))
+    )
   }
 
   override def afterEach(): Unit = {
@@ -107,6 +114,46 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
   }
 
   private def verifyZeroServerRequests = serverRequestUrls.length should be(0)
+
+  "addEntity" should "not send requests to server when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClientNoRetry
+
+    val error = intercept[SecretsManagerException] {
+      valueFromF(client.addEntity(defaultAddEntityRequest))
+    }
+
+    error.getMessage should include("Unable to check secret rotation")
+    secretsManagerServer.verify(
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    verifyZeroServerRequests
+    val serveEvents = secretsManagerServer.getAllServeEvents
+    serveEvents.size() should equal(2)
+    serveEvents.get(0).getResponseDefinition.getBody should equal(
+      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
+    )
+    serveEvents.get(1).getResponseDefinition.getBody should equal(
+      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
+    )
+  }
 
   List((Some(createEntity()), "with"), (None, "without")).foreach { case (potentialEntity, withOrWithout) =>
     "addEntity" should s"make a correct request $withOrWithout a predefined reference to add an entity" in {

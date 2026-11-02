@@ -70,6 +70,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
     FiniteDuration(math.max(duration.toMillis - (duration.toMillis / 10), 0L), MILLISECONDS)
   private def loginEndpointUri(apiBaseUrl: String) = uri"$apiBaseUrl/api/accesstoken/login"
   private val secretsManagerEndpointUri: String = clientConfig.secretsManagerEndpointUri
+  private val rotationPollingInterval = 3000
+  private val maxPollingAttempts = 2
 
   given Decoder[AuthDetails] = (c: HCursor) =>
     for {
@@ -172,7 +174,8 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.getSecretValue[AuthDetails](stage)
+        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client
+          .getSecretValue[AuthDetails](stage)
       }
 
   private[client] def generateToken(authDetails: AuthDetails): F[String] = {
@@ -243,12 +246,14 @@ object Client {
     *   The url to download the bitstream
     * @param fixities
     *   The list of fixities associated with the bitstream
-    * @param generationVersion
-    *   The version of the generation
     * @param potentialCoTitle
     *   The title of the CO
     * @param parentRef
     *   The parent ref of the CO
+    * @param generation
+    *   The Generation info about bitstream
+    * @param contentObjectRef
+    *   UUID of content object
     */
   case class BitStreamInfo(
       name: String,

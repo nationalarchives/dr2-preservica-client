@@ -8,5 +8,5 @@ import uk.gov.nationalarchives.dp.client.{ProcessMonitorClient, ProcessMonitorCl
 class Fs2ProcessMonitorClientTest extends ProcessMonitorClientTest[IO](9012, 9013):
   override def valueFromF[T](value: IO[T]): T = value.unsafeRunSync()
 
-  override def createClient(): IO[ProcessMonitorClient[IO]] =
-    processMonitorClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9013", retryCount = 1)
+  override def createClient(retryCount: Int = 1): IO[ProcessMonitorClient[IO]] =
+    processMonitorClient("secret", zeroSeconds, ssmEndpointUri = "http://localhost:9013", retryCount = retryCount)
