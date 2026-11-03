@@ -1,14 +1,14 @@
 import sbt.*
 object Dependencies {
-  lazy val sttpVersion = "4.0.27"
+  lazy val sttpVersion = "4.1.0"
   private lazy val scalaTestVersion = "3.2.20"
   private lazy val scalaCacheVersion = "1.0.0-M6"
-  private lazy val nettyVersion = "4.2.18.Final"
+  private lazy val nettyVersion = "4.2.19.Final"
 
   lazy val catsRetry = "com.github.cb372" %% "cats-retry" % "4.0.0"
   lazy val catsCore = "org.typelevel" %% "cats-core" % "2.13.0"
   lazy val fs2Core = "co.fs2" %% "fs2-core" % "3.14.0"
-  lazy val httpClient = "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.4"
+  lazy val httpClient = "org.apache.httpcomponents.client5" % "httpclient5" % "5.6.5"
   lazy val nettyBuffer = "io.netty" % "netty-buffer" % nettyVersion
   lazy val nettyCodecHttp2 = "io.netty" % "netty-codec-http2" % nettyVersion
   lazy val nettyCodecHttp = "io.netty" % "netty-codec-http" % nettyVersion
