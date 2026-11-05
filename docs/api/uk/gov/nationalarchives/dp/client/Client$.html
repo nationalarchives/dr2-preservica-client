@@ -178,7 +178,7 @@ node3 -> node2;
           <button class="icon-button ar show-content"></button>
           <div class="header monospace mono-medium">
            <div class="signature">
-            <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$ClientConfig.html" t="n" class="documentableName ">ClientConfig</a>[<span t="k"></span><span data-unresolved-link="" t="t">F</span>[<span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">S</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">secretName</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">backend</span>: <span data-unresolved-link="" t="t">WebSocketStreamBackend</span>[<span data-unresolved-link="" t="t">F</span>, <span data-unresolved-link="" t="t">S</span>], <span t="k"></span><span data-unresolved-link="" t="n">duration</span>: <span data-unresolved-link="" t="t">FiniteDuration</span>, <span t="k"></span><span data-unresolved-link="" t="n">secretsManagerEndpointUri</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">retryCount</span>: <span data-unresolved-link="" t="t">Int</span>)
+            <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">class </span></span><a href="Client$$ClientConfig.html" t="n" class="documentableName ">ClientConfig</a>[<span t="k"></span><span data-unresolved-link="" t="t">F</span>[<span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">S</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">secretName</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">backend</span>: <span data-unresolved-link="" t="t">WebSocketStreamBackend</span>[<span data-unresolved-link="" t="t">F</span>, <span data-unresolved-link="" t="t">S</span>], <span t="k"></span><span data-unresolved-link="" t="n">duration</span>: <span data-unresolved-link="" t="t">FiniteDuration</span>, <span t="k"></span><span data-unresolved-link="" t="n">secretsManagerEndpointUri</span>: <span data-unresolved-link="" t="t">String</span>, <span t="k"></span><span data-unresolved-link="" t="n">retryCount</span>: <span data-unresolved-link="" t="t">Int</span>, <span t="k"></span><span data-unresolved-link="" t="n">awaitSecretRotation</span>: <span data-unresolved-link="" t="t">Boolean</span>)
            </div>
           </div>
          </div>
@@ -207,6 +207,10 @@ node3 -> node2;
              </dl>
              <h2 class="h200">Value parameters</h2>
              <dl class="attributes attributes-small">
+              <dt class="body-small">awaitSecretRotation</dt>
+              <dd class="body-medium">
+               <p>If set to true, we describe the secret before fetching and retry if a rotation is in progress.</p>
+              </dd>
               <dt class="body-small">backend</dt>
               <dd class="body-medium">
                <p>The STTP backend used to send the API requests</p>
@@ -214,6 +218,10 @@ node3 -> node2;
               <dt class="body-small">duration</dt>
               <dd class="body-medium">
                <p>The timeout of the cache. Defaults to 15 minutes</p>
+              </dd>
+              <dt class="body-small">retryCount</dt>
+              <dd class="body-medium">
+               <p>How many times to retry calls to Preservica</p>
               </dd>
               <dt class="body-small">secretName</dt>
               <dd class="body-medium">
