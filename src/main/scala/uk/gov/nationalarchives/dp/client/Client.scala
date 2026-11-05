@@ -174,7 +174,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client
+        Async[F].whenA(clientConfig.awaitSecretRotation)(
+          client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts)
+        ) >> client
           .getSecretValue[AuthDetails](stage)
       }
 
@@ -276,6 +278,10 @@ object Client {
     *   The timeout of the cache. Defaults to 15 minutes
     * @param secretsManagerEndpointUri
     *   The endpoint for communicating with secrets manager
+    * @param retryCount
+    *   How many times to retry calls to Preservica
+    * @param awaitSecretRotation
+    *   If set to true, we describe the secret before fetching and retry if a rotation is in progress.
     * @tparam F
     *   The effect type for the client
     * @tparam S
@@ -286,7 +292,8 @@ object Client {
       backend: WebSocketStreamBackend[F, S],
       duration: FiniteDuration,
       secretsManagerEndpointUri: String,
-      retryCount: Int
+      retryCount: Int,
+      awaitSecretRotation: Boolean
   )
 
   /** Represents fixity for an object

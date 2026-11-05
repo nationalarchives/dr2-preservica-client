@@ -148,6 +148,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
   "testNewPassword" should "call secrets manager for the pending secret" in {
     valueFromF(testClient.testNewPassword())
     secretsManagerServer.verify(
+      0,
       postRequestedFor(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
     )
@@ -179,7 +180,7 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     )
   }
 
-  "testNewPassword" should "not send requests to Preservation system when awaitRotationCompletion throws an error" in {
+  "testNewPassword" should "send requests to Preservation system when awaitRotationCompletion throws an error" in {
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
@@ -199,23 +200,18 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     )
     val client = testClientNoRetry
 
-    val error = intercept[SecretsManagerException] {
-      valueFromF(testClientNoRetry.testNewPassword())
-    }
+    valueFromF(testClientNoRetry.testNewPassword())
 
-    error.getMessage should include("Unable to check secret rotation")
     secretsManagerServer.verify(
+      0,
       postRequestedFor(urlEqualTo("/"))
         .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
     )
-    preservicaServer.getAllServeEvents.size() should equal(0)
+    preservicaServer.getAllServeEvents.size() should equal(1)
     val serveEvents = secretsManagerServer.getAllServeEvents
-    serveEvents.size() should equal(2)
+    serveEvents.size() should equal(1)
     serveEvents.get(0).getResponseDefinition.getBody should equal(
-      """{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}"""
-    )
-    serveEvents.get(1).getResponseDefinition.getBody should equal(
-      """{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""
+      """{"SecretString":"{\"userName\":\"test\",\"password\":\"newPassword\",\"apiUrl\":\"http://localhost:9010\"}"}"""
     )
   }
 

@@ -46,7 +46,7 @@ object Fs2Client:
       retryCount: Int = 2
   ): IO[EntityClient[IO, Fs2Streams[IO]]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount, true)
       IO(createEntityClient(clientConfig))
     }
 
@@ -69,7 +69,7 @@ object Fs2Client:
       retryCount: Int = 2
   ): IO[ContentClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount, true)
       IO(createContentClient(clientConfig))
     }
 
@@ -91,7 +91,7 @@ object Fs2Client:
       retryCount: Int = 2
   ): IO[WorkflowClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount, true)
       IO(createWorkflowClient(clientConfig))
 
     }
@@ -115,7 +115,7 @@ object Fs2Client:
       retryCount: Int = 2
   ): IO[ProcessMonitorClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount, true)
       IO(createProcessMonitorClient(clientConfig))
     }
 
@@ -127,7 +127,7 @@ object Fs2Client:
       retryCount: Int = 2
   ): IO[UserClient[IO]] =
     HttpClientFs2Backend.resource[IO](httpClientOptions(potentialProxyUrl)).use { backend =>
-      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount)
+      val clientConfig = ClientConfig(secretName, backend, duration, ssmEndpointUri, retryCount, false)
       IO(createUserClient(clientConfig))
 
     }
