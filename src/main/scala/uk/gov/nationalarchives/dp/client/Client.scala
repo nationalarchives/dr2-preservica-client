@@ -278,6 +278,10 @@ object Client {
     *   The timeout of the cache. Defaults to 15 minutes
     * @param secretsManagerEndpointUri
     *   The endpoint for communicating with secrets manager
+    * @param retryCount
+    *   How many times to retry calls to Preservica
+    * @param awaitSecretRotation
+    *   If set to true, we describe the secret before fetching and retry if a rotation is in progress.
     * @tparam F
     *   The effect type for the client
     * @tparam S

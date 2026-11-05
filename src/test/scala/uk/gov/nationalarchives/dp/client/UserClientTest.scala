@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import io.circe.Decoder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
@@ -176,6 +177,41 @@ abstract class UserClientTest[F[_]](preservicaPort: Int, secretsManagerPort: Int
     }
     ex.getMessage should startWith(
       "Service returned HTTP status code 500 (Service: SecretsManager, Status Code: 500, Request ID: null)"
+    )
+  }
+
+  "testNewPassword" should "send requests to Preservation system when awaitRotationCompletion throws an error" in {
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs(Scenario.STARTED)
+        .willReturn(okJson("""{"VersionIdsToStages":{"version-id":["AWSPENDING"]}}"""))
+        .willSetStateTo("PENDING")
+    )
+    secretsManagerServer.stubFor(
+      post(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+        .inScenario("PENDING_THEN_ERROR")
+        .whenScenarioStateIs("PENDING")
+        .willReturn(
+          badRequest().withBody("""{"__type":"InvalidRequestException","Message":"Unable to check secret rotation"}""")
+        )
+    )
+    val client = testClientNoRetry
+
+    valueFromF(testClientNoRetry.testNewPassword())
+
+    secretsManagerServer.verify(
+      0,
+      postRequestedFor(urlEqualTo("/"))
+        .withHeader("X-Amz-Target", equalTo("secretsmanager.DescribeSecret"))
+    )
+    preservicaServer.getAllServeEvents.size() should equal(1)
+    val serveEvents = secretsManagerServer.getAllServeEvents
+    serveEvents.size() should equal(1)
+    serveEvents.get(0).getResponseDefinition.getBody should equal(
+      """{"SecretString":"{\"userName\":\"test\",\"password\":\"newPassword\",\"apiUrl\":\"http://localhost:9010\"}"}"""
     )
   }
 
