@@ -174,7 +174,9 @@ private[client] class Client[F[_], S](clientConfig: ClientConfig[F, S])(using
         DASecretsManagerClient[F](secretName, secretsManagerAsyncClient)
       }
       .flatMap { client =>
-        client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts) >> client
+        Async[F].whenA(clientConfig.awaitSecretRotation)(
+          client.awaitRotationCompletion(rotationPollingInterval, maxPollingAttempts)
+        ) >> client
           .getSecretValue[AuthDetails](stage)
       }
 
@@ -286,7 +288,8 @@ object Client {
       backend: WebSocketStreamBackend[F, S],
       duration: FiniteDuration,
       secretsManagerEndpointUri: String,
-      retryCount: Int
+      retryCount: Int,
+      awaitSecretRotation: Boolean
   )
 
   /** Represents fixity for an object
