@@ -3,13 +3,14 @@ package uk.gov.nationalarchives.dp.client
 import cats.Parallel
 import cats.effect.Async
 import cats.implicits.*
+import cats.syntax.all.*
 import sttp.capabilities.Streams
 import sttp.client4.*
 import sttp.model.Method
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.DataProcessor.EventAction
 import uk.gov.nationalarchives.dp.client.Entities.EntityRef.*
-import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, IdentifierResponse}
+import uk.gov.nationalarchives.dp.client.Entities.{Entity, EntityRef, FullAsset, FullContentObject, IdentifierResponse}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 import fs2.*
@@ -236,6 +237,15 @@ trait EntityClient[F[_], S] {
     */
 
   def getPreservicaNamespaceVersion(endpoint: String): F[Float]
+
+  /** Returns an asset with its metadata, content objects and original-generation bitstream details
+    *
+    * @param ioRef
+    *   The reference of the Information Object
+    * @return
+    *   A [[Entities.FullAsset]] containing the asset, its metadata and its content objects wrapped in the F effect
+    */
+  def getFullAsset(ioRef: UUID): F[FullAsset]
 }
 
 /** An object containing a method which returns an implementation of the EntityClient trait
@@ -399,12 +409,7 @@ object EntityClient {
 
           entityLinks <- entityLinksXml(entity.ref, uri"$entityUrl/links?$queryParams".toString.some, Nil)
 
-          fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
-          fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, Method.GET)).sequence
-          fragments <- dataProcessor.fragments(fragmentResponses)
-          fragmentsWithMetadataLabel = fragments.map { node =>
-            new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
-          }
+          fragments <- getFragments(entityInfo)
 
           eventActionResponseXmls <- eventActionsXml(
             uri"$entityUrl/event-actions?$queryParams".toString.some,
@@ -426,7 +431,7 @@ object EntityClient {
                 bitstreamElements.flatMap(_ \ "Bitstream"),
                 identifiers,
                 entityLinks,
-                fragmentsWithMetadataLabel,
+                fragments,
                 eventActions
               )
             else if (entityType.entityTypeShort == "IO")
@@ -446,12 +451,12 @@ object EntityClient {
                 representations,
                 identifiers,
                 entityLinks,
-                fragmentsWithMetadataLabel,
+                fragments,
                 eventActions
               )
             else
               Async[F].pure(
-                StandardEntityMetadata(entityNode, identifiers, entityLinks, fragmentsWithMetadataLabel, eventActions)
+                StandardEntityMetadata(entityNode, identifiers, entityLinks, fragments, eventActions)
               )
         } yield entityMetadata
       }
@@ -555,6 +560,83 @@ object EntityClient {
           version <- dataProcessor.getPreservicaNamespaceVersion(resXml)
         } yield version
       }
+
+      override def getFullAsset(ioRef: UUID): F[FullAsset] = {
+        val uri = uri"$apiUrl/information-objects/$ioRef?${Map("expand" -> "structure")}"
+        val queryParams = Map("max" -> 1000, "start" -> 0)
+        sendXMLApiRequest(uri.toString, Method.GET).flatMap { ioXml =>
+          val xip = ioXml \ "Structure" \ "XIP"
+          val contentObjects = xip \ "ContentObject"
+          val bitstreamNodes = xip \ "Bitstream"
+          val bitstreams = dataProcessor.bitstreamsFromAsset(ioXml)
+          val generations = xip \ "Generation"
+          val ioEntity = dataProcessor.getEntity(ioRef, ioXml, InformationObject)
+
+          contentObjects
+            .collect { case e: Elem => e }
+            .toList
+            .traverse { contentObject =>
+              val coRef = UUID.fromString((contentObject \ "Ref").text)
+              val coResponse = <Response>{contentObject}</Response>
+              val entityUrl = s"$apiUrl/content-objects/$coRef"
+              for
+                coXml <- sendXMLApiRequest(entityUrl, Method.GET)
+                coEntity <- dataProcessor.getEntity(coRef, coXml, ContentObject)
+                coBitstreams = bitstreams.filter(_.contentObjectRef == coEntity.ref)
+                coGenerations = generations.filter(g => (g \ "ContentObject").text == coRef.toString)
+                coBitstreamIds = (coGenerations \ "Bitstreams" \ "Bitstream").map(_.text)
+                coBitstreamNodes = bitstreamNodes.filter(b => coBitstreamIds.contains((b \ "Filename").text))
+                identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), Nil)
+                links <- entityLinksXml(coRef, Some(s"$entityUrl/links"), Nil)
+                fragments <- getFragments(coXml)
+                eventActionXml <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, Nil)
+                eventActions <- eventActionXml.traverse(dataProcessor.getEventActionElements)
+              yield FullContentObject(
+                coEntity,
+                coBitstreams,
+                CoMetadata(
+                  contentObject,
+                  coGenerations,
+                  coBitstreamNodes,
+                  identifiers,
+                  links,
+                  fragments,
+                  eventActions.flatten
+                )
+              )
+            }
+            .flatMap { fullCos =>
+              val entityUrl = s"$apiUrl/information-objects/$ioRef"
+              for
+                ioEntity <- dataProcessor.getEntity(ioRef, ioXml, InformationObject)
+                identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), Nil)
+                links <- entityLinksXml(ioRef, Some(s"$entityUrl/links"), Nil)
+                fragments <- getFragments(ioXml)
+                eventActionXml <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, Nil)
+                eventActions <- eventActionXml.traverse(dataProcessor.getEventActionElements)
+              yield
+                val ioMetadata = IoMetadata(
+                  (xip \ "InformationObject").head,
+                  xip \ "Representation",
+                  identifiers,
+                  links,
+                  fragments,
+                  eventActions.flatten
+                )
+                FullAsset(ioEntity, ioMetadata, fullCos)
+            }
+        }
+      }
+
+      private def getFragments(entityInfo: Elem) =
+        for
+          fragmentUrls <- dataProcessor.fragmentUrls(entityInfo)
+          fragmentResponses <- fragmentUrls.map(url => sendXMLApiRequest(url, Method.GET)).sequence
+          fragments <- dataProcessor.fragments(fragmentResponses)
+          fragmentsWithMetadataLabel = fragments.map { node =>
+            new Elem(node.prefix, "Metadata", node.attributes, node.scope, false, node.child*)
+          }
+        yield fragmentsWithMetadataLabel
 
       private def entitiesForIdentifier(
           identifier: Identifier
