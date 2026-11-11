@@ -2,7 +2,6 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.Parallel
 import cats.effect.Async
-import cats.implicits.*
 import cats.syntax.all.*
 import sttp.capabilities.Streams
 import sttp.client4.*
@@ -562,57 +561,23 @@ object EntityClient {
       }
 
       override def getFullAsset(ioRef: UUID): F[FullAsset] = {
-        val uri = uri"$apiUrl/information-objects/$ioRef?${Map("expand" -> "structure")}"
+        val assetUri = s"$apiUrl/${InformationObject.entityPath}/$ioRef"
+        val expandedAssetUri = uri"$assetUri?${Map("expand" -> "structure")}"
         val queryParams = Map("max" -> 1000, "start" -> 0)
-        sendXMLApiRequest(uri.toString, Method.GET).flatMap { ioXml =>
+        sendXMLApiRequest(expandedAssetUri.toString, Method.GET).flatMap { ioXml =>
           val xip = ioXml \ "Structure" \ "XIP"
           val contentObjects = xip \ "ContentObject"
-          val bitstreamNodes = xip \ "Bitstream"
-          val bitstreams = dataProcessor.bitstreamsFromAsset(ioXml)
-          val generations = xip \ "Generation"
-          val ioEntity = dataProcessor.getEntity(ioRef, ioXml, InformationObject)
 
           contentObjects
             .collect { case e: Elem => e }
-            .toList
-            .traverse { contentObject =>
-              val coRef = UUID.fromString((contentObject \ "Ref").text)
-              val coResponse = <Response>{contentObject}</Response>
-              val entityUrl = s"$apiUrl/content-objects/$coRef"
-              for
-                coXml <- sendXMLApiRequest(entityUrl, Method.GET)
-                coEntity <- dataProcessor.getEntity(coRef, coXml, ContentObject)
-                coBitstreams = bitstreams.filter(_.contentObjectRef == coEntity.ref)
-                coGenerations = generations.filter(g => (g \ "ContentObject").text == coRef.toString)
-                coBitstreamIds = (coGenerations \ "Bitstreams" \ "Bitstream").map(_.text)
-                coBitstreamNodes = bitstreamNodes.filter(b => coBitstreamIds.contains((b \ "Filename").text))
-                identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), Nil)
-                links <- entityLinksXml(coRef, Some(s"$entityUrl/links"), Nil)
-                fragments <- getFragments(coXml)
-                eventActionXml <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, Nil)
-                eventActions <- eventActionXml.traverse(dataProcessor.getEventActionElements)
-              yield FullContentObject(
-                coEntity,
-                coBitstreams,
-                CoMetadata(
-                  contentObject,
-                  coGenerations,
-                  coBitstreamNodes,
-                  identifiers,
-                  links,
-                  fragments,
-                  eventActions.flatten
-                )
-              )
-            }
+            .traverse(createFullContentObject(ioXml, _))
             .flatMap { fullCos =>
-              val entityUrl = s"$apiUrl/information-objects/$ioRef"
               for
                 ioEntity <- dataProcessor.getEntity(ioRef, ioXml, InformationObject)
-                identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), Nil)
-                links <- entityLinksXml(ioRef, Some(s"$entityUrl/links"), Nil)
+                identifiers <- entityIdentifiersXml(Some(s"$assetUri/identifiers"), Nil)
+                links <- entityLinksXml(ioRef, Some(s"$assetUri/links"), Nil)
                 fragments <- getFragments(ioXml)
-                eventActionXml <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, Nil)
+                eventActionXml <- eventActionsXml(uri"$assetUri/event-actions?$queryParams".toString.some, Nil)
                 eventActions <- eventActionXml.traverse(dataProcessor.getEventActionElements)
               yield
                 val ioMetadata = IoMetadata(
@@ -626,6 +591,41 @@ object EntityClient {
                 FullAsset(ioEntity, ioMetadata, fullCos)
             }
         }
+      }
+
+      private def createFullContentObject(ioXml: Elem, contentObject: Elem) = {
+        val xip = ioXml \ "Structure" \ "XIP"
+        val queryParams = Map("max" -> 1000, "start" -> 0)
+        val coRef = UUID.fromString((contentObject \ "Ref").text)
+        val entityUrl = s"$apiUrl/content-objects/$coRef"
+        val generations = xip \ "Generation"
+        val bitstreamNodes = xip \ "Bitstream"
+        val bitstreams = dataProcessor.bitstreamsFromAsset(ioXml)
+        for
+          coXml <- sendXMLApiRequest(entityUrl, Method.GET)
+          coEntity <- dataProcessor.getEntity(coRef, coXml, ContentObject)
+          coBitstreams = bitstreams.filter(_.contentObjectRef == coEntity.ref)
+          coGenerations = generations.filter(g => (g \ "ContentObject").text == coRef.toString)
+          coBitstreamIds = (coGenerations \ "Bitstreams" \ "Bitstream").map(_.text)
+          coBitstreamNodes = bitstreamNodes.filter(b => coBitstreamIds.contains((b \ "Filename").text))
+          identifiers <- entityIdentifiersXml(Some(s"$entityUrl/identifiers"), Nil)
+          links <- entityLinksXml(coRef, Some(s"$entityUrl/links"), Nil)
+          fragments <- getFragments(coXml)
+          eventActionXml <- eventActionsXml(uri"$entityUrl/event-actions?$queryParams".toString.some, Nil)
+          eventActions <- eventActionXml.traverse(dataProcessor.getEventActionElements)
+        yield FullContentObject(
+          coEntity,
+          coBitstreams,
+          CoMetadata(
+            contentObject,
+            coGenerations,
+            coBitstreamNodes,
+            identifiers,
+            links,
+            fragments,
+            eventActions.flatten
+          )
+        )
       }
 
       private def getFragments(entityInfo: Elem) =

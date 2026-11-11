@@ -274,7 +274,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     verifyZeroServerRequests
   }
 
-  "getFullAsset" should "return an asset with no content objects or optional metadata" in {
+  "getFullAsset" should "return an asset with no content objects and empty metadata if there are no content objects nor metadata" in {
     val ioRef = UUID.randomUUID()
     val ioPath = s"api/entity/v$apiVersion/information-objects/$ioRef"
     val ioNode = <InformationObject><Ref>{ioRef}</Ref></InformationObject>
@@ -294,7 +294,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     val asset = client.getFullAsset(ioRef).unsafeRunSync()
 
     asset.asset should equal(Entity(Some(InformationObject), ioRef, None, None, false, Some("information-objects")))
-    val metadata = asset.metadata.asInstanceOf[IoMetadata]
+    val metadata = asset.metadata
     metadata.entityNode.toString should equal(ioNode.toString)
     metadata.representations should be(empty)
     metadata.identifiers should be(empty)
