@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
 import cats.implicits.catsSyntaxOptionId
+import uk.gov.nationalarchives.dp.client.Client.BitStreamInfo
 import uk.gov.nationalarchives.dp.client.EntityClient.*
 import uk.gov.nationalarchives.dp.client.EntityClient.EntityType.*
 
@@ -38,6 +39,34 @@ object Entities:
       path: Option[String],
       securityTag: Option[SecurityTag] = None,
       parent: Option[UUID] = None
+  )
+
+  /** A content object with its bitstream details and metadata
+    *
+    * @param bitstreams
+    *   The bitstream details from the content object's original generations
+    * @param metadata
+    *   The content object metadata, including generations, bitstreams, identifiers, links, fragments and event actions
+    */
+  case class FullContentObject(
+      entity: Entity,
+      bitstreams: Seq[BitStreamInfo],
+      metadata: CoMetadata
+  )
+
+  /** An asset with its metadata and content objects
+    *
+    * @param asset
+    *   The Information Object representing the asset
+    * @param metadata
+    *   The asset metadata, including representations, identifiers, links, fragments and event actions
+    * @param contentObjects
+    *   The asset's content objects with their bitstream details and metadata
+    */
+  case class FullAsset(
+      asset: Entity,
+      metadata: IoMetadata,
+      contentObjects: Seq[FullContentObject]
   )
 
   /** Creates an entity from the IO/SO/CO type returned by Preservica

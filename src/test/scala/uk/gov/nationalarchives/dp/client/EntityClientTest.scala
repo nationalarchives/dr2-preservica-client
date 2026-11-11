@@ -1,7 +1,8 @@
 package uk.gov.nationalarchives.dp.client
 
 import cats.MonadError
-import cats.effect.Async
+import cats.effect.{Async, IO}
+import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxOptionId
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.MappingBuilder
@@ -16,6 +17,11 @@ import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertion, BeforeAndAfterEach}
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException
 import sttp.capabilities.Streams
+import sttp.capabilities.fs2.Fs2Streams
+import sttp.client4.WebSocketStreamBackend
+import sttp.client4.httpclient.fs2.HttpClientFs2Backend
+import sttp.client4.testing.ResponseStub
+import sttp.model.{Method, StatusCode}
 import uk.gov.nationalarchives.dp.client.Client.*
 import uk.gov.nationalarchives.dp.client.Entities.{Entity, IdentifierResponse, fromType}
 import uk.gov.nationalarchives.dp.client.EntityClient.*
@@ -84,6 +90,7 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
     preservicaServer.start()
     preservicaServer.resetAll()
     secretsManagerServer.start()
+    secretsManagerServer.resetRequests()
     secretsManagerServer.stubFor(post(urlEqualTo("/")).willReturn(okJson(secretsResponse)))
     secretsManagerServer.stubFor(
       post(urlEqualTo("/"))
@@ -114,6 +121,222 @@ abstract class EntityClientTest[F[_]: Async, S](preservicaPort: Int, secretsMana
   }
 
   private def verifyZeroServerRequests = serverRequestUrls.length should be(0)
+
+  private def fullAssetBackend = HttpClientFs2Backend
+    .stub[IO]
+    .whenRequestMatches(r => r.method == Method.POST && r.uri.path == List("api", "accesstoken", "login"))
+    .thenRespond(ResponseStub.adjust("""{"token":"test-token"}"""))
+
+  private def fullAssetClient(backend: WebSocketStreamBackend[IO, Fs2Streams[IO]]) =
+    createEntityClient(
+      ClientConfig(
+        "secret",
+        backend,
+        FiniteDuration(15, TimeUnit.MINUTES),
+        s"http://localhost:$secretsManagerPort",
+        0,
+        false
+      )
+    )
+
+  "getFullAsset" should "return the asset and metadata with each content object's generations and bitstreams" in {
+    val ioRef = UUID.randomUUID()
+    val coRefs = List(UUID.randomUUID(), UUID.randomUUID())
+    val ioPath = s"api/entity/v$apiVersion/information-objects/$ioRef"
+    val coPaths = coRefs.map(ref => s"api/entity/v$apiVersion/content-objects/$ref")
+    val ioNode = <InformationObject><Ref>{
+      ioRef
+    }</Ref><Title>Asset</Title><SecurityTag>open</SecurityTag></InformationObject>
+    val coNodes = coRefs.zipWithIndex.map { case (ref, index) =>
+      <ContentObject><Ref>{ref}</Ref><Title>{s"File $index"}</Title></ContentObject>
+    }
+    val representation = <Representation><Type>Preservation</Type></Representation>
+    val generations = coRefs.zipWithIndex.map { case (ref, index) =>
+      <Generation original="true">
+        <ContentObject>{ref}</ContentObject>
+        <EffectiveDate>2026-04-02T09:45:43Z</EffectiveDate>
+        <Bitstreams><Bitstream>{s"file$index.txt"}</Bitstream></Bitstreams>
+      </Generation>
+    }
+    val bitstreams = coRefs.indices.map { index =>
+      <Bitstream>
+        <Filename>{s"file$index.txt"}</Filename><FileSize>{index + 10}</FileSize>
+        <Fixities><Fixity><FixityAlgorithmRef>SHA256</FixityAlgorithmRef><FixityValue>{
+        s"hash$index"
+      }</FixityValue></Fixity></Fixities>
+      </Bitstream>
+    }
+    val derivedGeneration =
+      <Generation original="false">
+        <ContentObject>{coRefs.head}</ContentObject>
+        <Bitstreams><Bitstream>derived.txt</Bitstream></Bitstreams>
+      </Generation>
+    val derivedBitstream = <Bitstream><Filename>derived.txt</Filename></Bitstream>
+    val ioResponse =
+      <EntityResponse>
+        {ioNode}
+        <Structure><XIP>{ioNode}{representation}{coNodes}{generations}{derivedGeneration}{bitstreams}{
+        derivedBitstream
+      }</XIP></Structure>
+        <AdditionalInformation><Metadata><Fragment>{s"$ioPath/metadata"}</Fragment></Metadata></AdditionalInformation>
+      </EntityResponse>
+    val entityPaths = ioPath :: coPaths
+    val metadataResponses = entityPaths.zipWithIndex.flatMap { case (path, index) =>
+      List(
+        s"$path/identifiers" ->
+          <Response><Identifiers><Identifier><Value>{s"identifier$index"}</Value></Identifier></Identifiers></Response>,
+        s"$path/links" ->
+          <Response><Links><Link linkType="Related" linkDirection="To" ref={ioRef.toString}/></Links></Response>,
+        s"$path/event-actions?max=1000&start=0" ->
+          <Response><EventActions><EventAction commandType={s"command$index"}/></EventActions></Response>,
+        s"$path/metadata" ->
+          <Response><MetadataContainer><Content>{s"metadata$index"}</Content></MetadataContainer></Response>
+      )
+    }
+    val coResponses = coPaths.zip(coNodes).zipWithIndex.map { case ((path, node), index) =>
+      path -> <EntityResponse>
+        <ContentObject>
+          {node.child}
+          <Description>{s"Description $index"}</Description>
+          <SecurityTag>closed</SecurityTag>
+          <Parent>{ioRef}</Parent>
+        </ContentObject>
+        <AdditionalInformation><Metadata><Fragment>{s"$path/metadata"}</Fragment></Metadata></AdditionalInformation>
+      </EntityResponse>
+    }
+    val responses = List(s"$ioPath?expand=structure" -> ioResponse) ++ coResponses ++ metadataResponses
+    val backend = responses.foldLeft(fullAssetBackend) { case (stub, (path, xml)) =>
+      stub
+        .whenRequestMatches(r => r.method == Method.GET && r.uri.toString == s"http://localhost:$preservicaPort/$path")
+        .thenRespond(ResponseStub.adjust(xml.toString))
+    }
+    val client = fullAssetClient(backend)
+
+    val asset = client.getFullAsset(ioRef).unsafeRunSync()
+
+    asset.asset should equal(
+      Entity(Some(InformationObject), ioRef, Some("Asset"), None, false, Some("information-objects"), Some(Open))
+    )
+    val ioMetadata = asset.metadata.asInstanceOf[IoMetadata]
+    ioMetadata.entityNode.toString should equal(ioNode.toString)
+    ioMetadata.representations.map(_.toString) should equal(Seq(representation.toString))
+    asset.contentObjects.size should equal(2)
+    asset.contentObjects.zipWithIndex.foreach { case (contentObject, index) =>
+      contentObject.entity should equal(
+        Entity(
+          Some(ContentObject),
+          coRefs(index),
+          Some(s"File $index"),
+          Some(s"Description $index"),
+          false,
+          Some("content-objects"),
+          Some(Closed),
+          Some(ioRef)
+        )
+      )
+      contentObject.bitstreams should equal(
+        Seq(
+          BitStreamInfo(
+            s"file$index.txt",
+            index + 10,
+            None,
+            List(Fixity("SHA256", s"hash$index")),
+            Some(s"File $index"),
+            Some(ioRef),
+            Generation(ZonedDateTime.parse("2026-04-02T09:45:43Z"), Original, 1),
+            coRefs(index)
+          )
+        )
+      )
+      val metadata = contentObject.metadata.asInstanceOf[CoMetadata]
+      metadata.entityNode.toString should equal(coNodes(index).toString)
+      metadata.generationNodes.map(_.toString) should equal(
+        (if index == 0 then Seq(generations(index), derivedGeneration) else Seq(generations(index))).map(_.toString)
+      )
+      metadata.bitstreamNodes.map(_.toString) should equal(
+        (if index == 0 then Seq(bitstreams(index), derivedBitstream) else Seq(bitstreams(index))).map(_.toString)
+      )
+    }
+    val allMetadata = asset.metadata +: asset.contentObjects.map(_.metadata)
+    allMetadata.zipWithIndex.foreach { case (metadata, index) =>
+      metadata.identifiers.map(_.toString) should equal(Seq(<Identifier><Value>{
+        s"identifier$index"
+      }</Value></Identifier>.toString))
+      metadata.links.size should equal(1)
+      (metadata.links.head \ "Type").text should equal("Related")
+      (metadata.links.head \ "FromEntity").text should equal((ioRef :: coRefs)(index).toString)
+      (metadata.links.head \ "ToEntity").text should equal(ioRef.toString)
+      metadata.metadataNodes.map(_.toString) should equal(Seq(<Metadata><Content>{
+        s"metadata$index"
+      }</Content></Metadata>.toString))
+      metadata.eventActions.map(_.toString) should equal(Seq(<EventAction commandType={s"command$index"}/>.toString))
+    }
+    verifyZeroServerRequests
+  }
+
+  "getFullAsset" should "return an asset with no content objects and empty metadata if there are no content objects nor metadata" in {
+    val ioRef = UUID.randomUUID()
+    val ioPath = s"api/entity/v$apiVersion/information-objects/$ioRef"
+    val ioNode = <InformationObject><Ref>{ioRef}</Ref></InformationObject>
+    val response = <EntityResponse>{ioNode}<Structure><XIP>{ioNode}</XIP></Structure></EntityResponse>
+    val backend = fullAssetBackend
+      .whenRequestMatches(r =>
+        r.method == Method.GET && r.uri.toString == s"http://localhost:$preservicaPort/$ioPath?expand=structure"
+      )
+      .thenRespond(ResponseStub.adjust(response.toString))
+      .whenRequestMatches(r =>
+        r.method == Method.GET && List("identifiers", "links", "event-actions")
+          .exists(endpoint => r.uri.path.mkString("/") == s"$ioPath/$endpoint")
+      )
+      .thenRespond(ResponseStub.adjust("<Response/>"))
+    val client = fullAssetClient(backend)
+
+    val asset = client.getFullAsset(ioRef).unsafeRunSync()
+
+    asset.asset should equal(Entity(Some(InformationObject), ioRef, None, None, false, Some("information-objects")))
+    val metadata = asset.metadata
+    metadata.entityNode.toString should equal(ioNode.toString)
+    metadata.representations should be(empty)
+    metadata.identifiers should be(empty)
+    metadata.links should be(empty)
+    metadata.metadataNodes should be(empty)
+    metadata.eventActions should be(empty)
+    asset.contentObjects should be(empty)
+    verifyZeroServerRequests
+  }
+
+  List("information object", "content object").foreach { entityType =>
+    "getFullAsset" should s"return an error if the $entityType request fails" in {
+      val ioRef = UUID.randomUUID()
+      val coRef = UUID.randomUUID()
+      val ioPath = s"api/entity/v$apiVersion/information-objects/$ioRef"
+      val coPath = s"api/entity/v$apiVersion/content-objects/$coRef"
+      val response =
+        <EntityResponse>
+          <Structure><XIP><ContentObject><Ref>{coRef}</Ref></ContentObject></XIP></Structure>
+        </EntityResponse>
+      val errorPath = if entityType == "information object" then s"$ioPath?expand=structure" else coPath
+      val backend = fullAssetBackend
+        .whenRequestMatches(r =>
+          r.method == Method.GET && r.uri.toString == s"http://localhost:$preservicaPort/$errorPath"
+        )
+        .thenRespond(ResponseStub.adjust("unavailable", StatusCode.ServiceUnavailable))
+        .whenRequestMatches(r =>
+          r.method == Method.GET && r.uri.toString == s"http://localhost:$preservicaPort/$ioPath?expand=structure"
+        )
+        .thenRespond(ResponseStub.adjust(response.toString))
+      val client = fullAssetClient(backend)
+
+      val error = intercept[PreservicaClientException] {
+        client.getFullAsset(ioRef).unsafeRunSync()
+      }
+
+      error.getMessage should equal(
+        s"Status code 503 calling http://localhost:$preservicaPort/$errorPath with method GET unavailable"
+      )
+      verifyZeroServerRequests
+    }
+  }
 
   "addEntity" should "not send requests to server when awaitRotationCompletion throws an error" in {
     secretsManagerServer.stubFor(

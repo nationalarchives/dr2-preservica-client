@@ -63,6 +63,8 @@ The client exposes 15 methods
   def bitstreamForAsset(entityRef: UUID): F[Seq[BitStreamInfo]]
   
   def getAllAssetIds(maxConcurrency: Int = 20): fs2.Stream[F, UUID]
+  
+  def getFullAsset(ioRef: UUID): F[FullAsset]
 ```
 @@include[method-heading.md](../../.includes/client/method-heading.md)
 
@@ -173,15 +175,19 @@ The client exposes 15 methods
 * Calls any Entity Preservica endpoint that returns XML
 * Returns version number found in namespace
 
-# bitstreamForAsset
+### bitstreamForAsset
 * Calls `information-objects/{ref}?expand=structure` which returns the generations and bitstreams.
 * Parses the XML response and returns a list of `BitStreamInfo`
 
-# getAllAssetIds
+### getAllAssetIds
 * Calls root/children endpoint to get the root SOs
 * For each SO, calls {entity-type}/{entity-ref}/children in order to get the children of those
 * When an IO is reached, that is emitted to the stream. SOs and COs are not emitted
 * The max concurrency parameter controls how many concurrent API requests this method will make. 20 is the default as this is the best trade off between speed and not overloading the API.
+
+### getFullAsset
+Given an asset reference, returns the asset entity, asset metadata and a list of full content objects. 
+For each content object, the entity, bitstreams and metadata are returned.
 
 @@@ index
 
